@@ -1,6 +1,6 @@
 # app.py — LoudVoice TV Dashboard (desktop + mobile responsive)
-# Left: World Map (tall) • Right: (1) Ministry, (2) Social 3‑up grid, (3) YouTube 7‑day views
-# Bottom: ClickUp Tasks + Next Filming (shows day, date, and time)
+# Left: World Map • Right: (1) Ministry, (2) Social 3‑up grid, (3) YouTube 7‑day views
+# Bottom: ClickUp Tasks (bars only, unfinished first) + Next Filming (responsive grid)
 
 import streamlit as st
 import plotly.graph_objects as go
@@ -10,17 +10,16 @@ from datetime import datetime
 st.set_page_config(page_title="LoudVoice TV", page_icon="🎛️", layout="wide")
 
 # ─────────────────────────────────────────────
-# URL switches for TV/mobile: ?zoom=115&compact=1
+# URL switches: ?zoom=115&compact=1
 # ─────────────────────────────────────────────
 qp = st.query_params
 ZOOM = qp.get("zoom", ["100"])[0]
 COMPACT = qp.get("compact", ["0"])[0].lower() in ("1", "true", "yes")
 
-# Inject zoom first so everything scales predictably on TV
 st.markdown(f"<style>body{{zoom:{ZOOM}%}}</style>", unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────
-# Styles (cards, grids, mobile tweaks)
+# Styles (cards, KPI grid, bars, filming grid)
 # ─────────────────────────────────────────────
 st.markdown(
     """
@@ -59,21 +58,27 @@ header[data-testid="stHeader"], #MainMenu, footer { visibility:hidden; }
 .kpi-card .kpi-label{ font-size:10px; color:#aab3cc; margin:0 }
 .kpi-card .kpi-value{ font-size:18px; font-weight:800; margin:0 }
 
-/* Aligned bars (YouTube 7‑day + ClickUp) */
+/* Aligned bars (YouTube 7‑day) */
 .grid-views{ display:grid; grid-template-columns:56px 1fr 76px; gap:10px; align-items:center; margin:4px 0 }
-.grid-tasks{ display:grid; grid-template-columns:260px 1fr 70px; gap:10px; align-items:center; margin:6px 0 }
 .views-bar{ height:10px; border-radius:6px; background:#1f2736; overflow:hidden }
 .views-bar>span{ display:block; height:100%; background:#4aa3ff }
+
+/* ClickUp: 2‑column bar grid (no percentage text) */
+.grid-tasks-2{ display:grid; grid-template-columns:1fr 1.2fr; gap:12px; align-items:center; margin:8px 0 }
 .hbar{ height:10px; border-radius:6px; background:#1f2736; overflow:hidden }
 .hbar>span{ display:block; height:100% }
 .bar-green{ background:#2ecc71 } .bar-yellow{ background:#ffd166 } .bar-red{ background:#ff5a5f }
+.small { font-size:12px; color:#9aa3bd }
+
+/* Filming list grid */
+.film-grid{ display:grid; grid-template-columns: 220px 1fr 170px; gap:12px; align-items:center; }
+.film-title{ color:#ffd54a; text-align:right; }
 
 /* Mobile / tablet tweaks */
 @media (max-width:1100px){
   .block-container{ padding-left:8px; padding-right:8px; max-width:100% }
   .title{ font-size:28px; letter-spacing:.10em }
   .timestamp{ display:none }
-  /* Force Streamlit columns to stack on narrow screens */
   section.main > div:has(> div[data-testid="stHorizontalBlock"]) div[data-testid="column"]{
     width:100% !important; flex:0 0 100% !important;
   }
@@ -83,27 +88,14 @@ header[data-testid="stHeader"], #MainMenu, footer { visibility:hidden; }
   .kpi-card .kpi-value{ font-size:16px }
   .kpi-card .icon{ font-size:13px }
   .grid-views{ grid-template-columns:48px 1fr 64px }
-  .grid-tasks{ grid-template-columns: 1fr 1fr 64px }
+  /* Filming: switch to 2 columns on mobile */
+  .film-grid{ grid-template-columns: 1fr auto; }
+  .film-title{ text-align:right; }
 }
-
-/* Optional compact mode across all widths (trigger with ?compact=1) */
 </style>
 """,
     unsafe_allow_html=True,
 )
-if COMPACT:
-    st.markdown(
-        """
-<style>
-.title{font-size:28px}
-.kpi-card .kpi-value{font-size:16px}
-.card{padding:10px 12px}
-</style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-YELLOW = "#ffd54a"
 
 # ─────────────────────────────────────────────
 # Mock data
@@ -135,6 +127,18 @@ filming = [
     ("Fri, Aug 29, 2025", "9:00–10:30 AM", "Youth Reels"),
 ]
 
+# Utility for tasks
+def task_pct(status: str) -> int:
+    s = status.lower()
+    return 100 if "done" in s else 50 if "progress" in s else 10
+
+def task_cls(status: str) -> str:
+    s = status.lower()
+    return "bar-green" if "done" in s else "bar-yellow" if "progress" in s else "bar-red"
+
+# Sort unfinished first (Done goes to bottom)
+tasks_sorted = sorted(tasks, key=lambda t: 1 if "done" in t[1].lower() else 0)
+
 # ─────────────────────────────────────────────
 # Header
 # ─────────────────────────────────────────────
@@ -147,14 +151,15 @@ with t2:
         unsafe_allow_html=True,
     )
 
-MAP_HEIGHT = 500 if not COMPACT else 430
+# Map height: smaller on compact/mobile to avoid big blank area
+MAP_HEIGHT = 400 if not COMPACT else 300
 
 # ─────────────────────────────────────────────
 # Main layout: Left (map) • Right (ministry + socials + 7‑day)
 # ─────────────────────────────────────────────
 left, right = st.columns([1.25, 0.75])
 
-# Left — World Map (spans tall area)
+# Left — World Map
 with left:
     st.markdown(
         "<div class='card'><div class='section'>World Map — YouTube Viewers</div>",
@@ -188,7 +193,7 @@ with left:
 
 # Right — 3 stacked cards
 with right:
-    # Row 1 — Ministry (compact)
+    # Row 1 — Ministry
     st.markdown(
         "<div class='card'><div class='section'><i class='fa-solid fa-hands-praying icon'></i>Ministry Tracker</div>",
         unsafe_allow_html=True,
@@ -199,7 +204,7 @@ with right:
     c.metric("Baptisms", ministry["baptisms"])
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # Row 2 — Social channel stats (3‑up grid that stays 3 columns on mobile landscape)
+    # Row 2 — Social channel stats (3‑up grid)
     st.markdown(
         "<div class='card'><div class='section'>Channel Stats</div>",
         unsafe_allow_html=True,
@@ -257,21 +262,11 @@ with b1:
         "<div class='card'><div class='section'>ClickUp Tasks (Upcoming)</div>",
         unsafe_allow_html=True,
     )
-
-    def pct(status: str) -> int:
-        s = status.lower()
-        return 100 if "done" in s else 50 if "progress" in s else 10
-
-    def cls(status: str) -> str:
-        s = status.lower()
-        return "bar-green" if "done" in s else "bar-yellow" if "progress" in s else "bar-red"
-
-    for name, status in tasks:
+    for name, status in tasks_sorted:
         st.markdown(
-            f"<div class='grid-tasks'>"
+            f"<div class='grid-tasks-2'>"
             f"<div>{name}<div class='small'>{status}</div></div>"
-            f"<div class='hbar'><span class='{cls(status)}' style='width:{pct(status)}%'></span></div>"
-            f"<div style='text-align:right'>{pct(status)}%</div>"
+            f"<div class='hbar'><span class='{task_cls(status)}' style='width:{task_pct(status)}%'></span></div>"
             f"</div>",
             unsafe_allow_html=True,
         )
@@ -284,10 +279,10 @@ with b2:
     )
     for daydate, time, label in filming:
         st.markdown(
-            f"<div class='grid-tasks' style='grid-template-columns: 220px 1fr 170px;'>"
+            f"<div class='film-grid'>"
             f"<div><b>{daydate}</b><div class='small'>{time}</div></div>"
             f"<div></div>"
-            f"<div style='color:{YELLOW}; text-align:right'>{label}</div>"
+            f"<div class='film-title'>{label}</div>"
             f"</div>",
             unsafe_allow_html=True,
         )
@@ -295,5 +290,5 @@ with b2:
 
 st.caption(
     "Tip: add ?zoom=115 for TV distance and ?compact=1 for tighter spacing on phones. "
-    "All bars are left‑aligned; filming slots include day, date, and time."
+    "Bars are left‑aligned; ClickUp shows bars only; filming slots include day, date, and time."
 )
