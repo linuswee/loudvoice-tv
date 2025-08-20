@@ -1,6 +1,6 @@
-# app.py — LoudVoice TV Dashboard (desktop + mobile responsive)
-# Left: World Map • Right: (1) Ministry, (2) Social 3‑up grid, (3) YouTube 7‑day views
-# Bottom: ClickUp Tasks (bars only, unfinished first) + Next Filming (responsive grid)
+# app.py — LoudVoice TV Dashboard (responsive)
+# Left: World Map • Right: (1) Ministry 3-col, (2) Social 3-up, (3) YT 7-day
+# Bottom: ClickUp (bars only, unfinished first) + Filming (one-line rows)
 
 import streamlit as st
 import plotly.graph_objects as go
@@ -19,7 +19,7 @@ COMPACT = qp.get("compact", ["0"])[0].lower() in ("1", "true", "yes")
 st.markdown(f"<style>body{{zoom:{ZOOM}%}}</style>", unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────
-# Styles (cards, KPI grid, bars, filming grid)
+# Styles (cards, KPI grid, bars, filming rows)
 # ─────────────────────────────────────────────
 st.markdown(
     """
@@ -39,11 +39,18 @@ header[data-testid="stHeader"], #MainMenu, footer { visibility:hidden; }
   background:rgba(255,255,255,.03);
   border:1px solid rgba(255,255,255,.10);
   border-radius:12px;
-  padding:12px 16px;
+  padding:10px 14px;          /* tighter padding to save space */
   margin-bottom:14px;
   box-shadow:0 4px 12px rgba(0,0,0,.22);
 }
-.section { color:#ffd54a; font-weight:800; font-size:15px; margin:2px 0 8px 0 }
+.section { color:#ffd54a; font-weight:800; font-size:15px; margin:0 0 8px 0 }
+
+/* Ministry 3-col compact metrics */
+.mini-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px }
+.mini-card{ background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.10);
+            border-radius:10px; padding:8px 10px; text-align:center }
+.mini-label{ font-size:11px; color:#aab3cc; margin:0 }
+.mini-value{ font-size:22px; font-weight:800; margin:2px 0 0 }
 
 /* Social KPI 3‑up grid that stays side‑by‑side on mobile landscape */
 .kpi-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px }
@@ -64,15 +71,15 @@ header[data-testid="stHeader"], #MainMenu, footer { visibility:hidden; }
 .views-bar>span{ display:block; height:100%; background:#4aa3ff }
 
 /* ClickUp: 2‑column bar grid (no percentage text) */
-.grid-tasks-2{ display:grid; grid-template-columns:1fr 1.2fr; gap:12px; align-items:center; margin:8px 0 }
+.grid-tasks-2{ display:grid; grid-template-columns:1fr 1.1fr; gap:12px; align-items:center; margin:6px 0 }
 .hbar{ height:10px; border-radius:6px; background:#1f2736; overflow:hidden }
 .hbar>span{ display:block; height:100% }
 .bar-green{ background:#2ecc71 } .bar-yellow{ background:#ffd166 } .bar-red{ background:#ff5a5f }
 .small { font-size:12px; color:#9aa3bd }
 
-/* Filming list grid */
-.film-grid{ display:grid; grid-template-columns: 220px 1fr 170px; gap:12px; align-items:center; }
-.film-title{ color:#ffd54a; text-align:right; }
+/* Filming: one-line row */
+.film-row{ display:grid; grid-template-columns: 1fr auto; gap:12px; align-items:center; padding:6px 0; }
+.film-right{ color:#ffd54a; white-space:nowrap }
 
 /* Mobile / tablet tweaks */
 @media (max-width:1100px){
@@ -82,20 +89,19 @@ header[data-testid="stHeader"], #MainMenu, footer { visibility:hidden; }
   section.main > div:has(> div[data-testid="stHorizontalBlock"]) div[data-testid="column"]{
     width:100% !important; flex:0 0 100% !important;
   }
-  .card{ padding:10px 12px; border-radius:10px }
+  .card{ padding:8px 10px; border-radius:10px }
   .kpi-grid{ gap:10px }
   .kpi-card{ padding:8px 10px }
   .kpi-card .kpi-value{ font-size:16px }
   .kpi-card .icon{ font-size:13px }
   .grid-views{ grid-template-columns:48px 1fr 64px }
-  /* Filming: switch to 2 columns on mobile */
-  .film-grid{ grid-template-columns: 1fr auto; }
-  .film-title{ text-align:right; }
 }
 </style>
 """,
     unsafe_allow_html=True,
 )
+
+YELLOW = "#ffd54a"
 
 # ─────────────────────────────────────────────
 # Mock data
@@ -115,10 +121,10 @@ geo_df = pd.DataFrame({
 ministry = {"prayer": 15, "studies": 8, "baptisms": 1}
 
 tasks = [
-    ("Outline next video", "Not Done"),
     ("Shoot testimony interview", "In Progress"),
-    ("Edit podcast episode", "Done"),
     ("Schedule weekend posts", "In Progress"),
+    ("Outline next video", "Not Done"),
+    ("Edit podcast episode", "Done"),
 ]
 
 filming = [
@@ -127,7 +133,6 @@ filming = [
     ("Fri, Aug 29, 2025", "9:00–10:30 AM", "Youth Reels"),
 ]
 
-# Utility for tasks
 def task_pct(status: str) -> int:
     s = status.lower()
     return 100 if "done" in s else 50 if "progress" in s else 10
@@ -136,7 +141,7 @@ def task_cls(status: str) -> str:
     s = status.lower()
     return "bar-green" if "done" in s else "bar-yellow" if "progress" in s else "bar-red"
 
-# Sort unfinished first (Done goes to bottom)
+# Unfinished first; finished last
 tasks_sorted = sorted(tasks, key=lambda t: 1 if "done" in t[1].lower() else 0)
 
 # ─────────────────────────────────────────────
@@ -151,15 +156,15 @@ with t2:
         unsafe_allow_html=True,
     )
 
-# Map height: smaller on compact/mobile to avoid big blank area
-MAP_HEIGHT = 400 if not COMPACT else 300
+# Map height trimmed to remove white/black gaps; even tighter in compact mode
+MAP_HEIGHT = 360 if not COMPACT else 280
 
 # ─────────────────────────────────────────────
 # Main layout: Left (map) • Right (ministry + socials + 7‑day)
 # ─────────────────────────────────────────────
 left, right = st.columns([1.25, 0.75])
 
-# Left — World Map
+# Left — World Map (tight top/bottom space)
 with left:
     st.markdown(
         "<div class='card'><div class='section'>World Map — YouTube Viewers</div>",
@@ -172,7 +177,7 @@ with left:
             text=geo_df["place"] + " — " + geo_df["views"].map(lambda v: f"{v:,}"),
             mode="markers",
             marker=dict(
-                size=(geo_df["views"] / 3500).clip(lower=6, upper=24),
+                size=(geo_df["views"] / 3500).clip(lower=6, upper=22),
                 color="#ffd54a",
                 line=dict(color="#111", width=0.6),
             ),
@@ -184,31 +189,31 @@ with left:
             showcountries=True, countrycolor="rgba(255,255,255,.15)",
             showocean=True, oceancolor="#070a0f",
         ),
-        margin=dict(l=0, r=0, t=0, b=0),
+        margin=dict(l=0, r=0, t=0, b=0),   # remove extra margins
         height=MAP_HEIGHT,
         paper_bgcolor="rgba(0,0,0,0)",
     )
-    st.plotly_chart(fig, use_container_width=True, theme=None)
+    st.plotly_chart(fig, use_container_width=True, theme=None, config={"displayModeBar": False})
     st.markdown("</div>", unsafe_allow_html=True)
 
-# Right — 3 stacked cards
+# Right — 3 stacked sections
 with right:
-    # Row 1 — Ministry
+    # Row 1 — Ministry 3-col compact
+    st.markdown("<div class='card'><div class='section'>Ministry Tracker</div>", unsafe_allow_html=True)
     st.markdown(
-        "<div class='card'><div class='section'><i class='fa-solid fa-hands-praying icon'></i>Ministry Tracker</div>",
+        f"""
+<div class="mini-grid">
+  <div class="mini-card"><div class="mini-label">Prayer</div><div class="mini-value">{ministry['prayer']}</div></div>
+  <div class="mini-card"><div class="mini-label">Studies</div><div class="mini-value">{ministry['studies']}</div></div>
+  <div class="mini-card"><div class="mini-label">Baptisms</div><div class="mini-value">{ministry['baptisms']}</div></div>
+</div>
+""",
         unsafe_allow_html=True,
     )
-    a, b, c = st.columns(3)
-    a.metric("Prayer", ministry["prayer"])
-    b.metric("Studies", ministry["studies"])
-    c.metric("Baptisms", ministry["baptisms"])
     st.markdown("</div>", unsafe_allow_html=True)
 
     # Row 2 — Social channel stats (3‑up grid)
-    st.markdown(
-        "<div class='card'><div class='section'>Channel Stats</div>",
-        unsafe_allow_html=True,
-    )
+    st.markdown("<div class='card'><div class='section'>Channel Stats</div>", unsafe_allow_html=True)
     st.markdown(
         f"""
 <div class="kpi-grid">
@@ -234,10 +239,7 @@ with right:
     st.markdown("</div>", unsafe_allow_html=True)
 
     # Row 3 — YouTube Views (Last 7 Days) with aligned bars
-    st.markdown(
-        "<div class='card'><div class='section'>YouTube Views (Last 7 Days)</div>",
-        unsafe_allow_html=True,
-    )
+    st.markdown("<div class='card'><div class='section'>YouTube Views (Last 7 Days)</div>", unsafe_allow_html=True)
     days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     maxv = max(yt_last7)
     for d, v in zip(days, yt_last7):
@@ -258,10 +260,7 @@ with right:
 b1, b2 = st.columns([1.2, 0.8])
 
 with b1:
-    st.markdown(
-        "<div class='card'><div class='section'>ClickUp Tasks (Upcoming)</div>",
-        unsafe_allow_html=True,
-    )
+    st.markdown("<div class='card'><div class='section'>ClickUp Tasks (Upcoming)</div>", unsafe_allow_html=True)
     for name, status in tasks_sorted:
         st.markdown(
             f"<div class='grid-tasks-2'>"
@@ -273,22 +272,18 @@ with b1:
     st.markdown("</div>", unsafe_allow_html=True)
 
 with b2:
-    st.markdown(
-        "<div class='card'><div class='section'>Next Filming Timeslots</div>",
-        unsafe_allow_html=True,
-    )
+    st.markdown("<div class='card'><div class='section'>Next Filming Timeslots</div>", unsafe_allow_html=True)
+    # one-line rows: Date — Time — Title
     for daydate, time, label in filming:
         st.markdown(
-            f"<div class='film-grid'>"
-            f"<div><b>{daydate}</b><div class='small'>{time}</div></div>"
-            f"<div></div>"
-            f"<div class='film-title'>{label}</div>"
+            f"<div class='film-row'>"
+            f"<div><b>{daydate}</b> — {time}</div>"
+            f"<div class='film-right'>{label}</div>"
             f"</div>",
             unsafe_allow_html=True,
         )
     st.markdown("</div>", unsafe_allow_html=True)
 
 st.caption(
-    "Tip: add ?zoom=115 for TV distance and ?compact=1 for tighter spacing on phones. "
-    "Bars are left‑aligned; ClickUp shows bars only; filming slots include day, date, and time."
+    "Tips → ?zoom=115 for TV; ?compact=1 for phones. Map and cards are tightened for minimal vertical space."
 )
