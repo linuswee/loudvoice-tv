@@ -1,199 +1,276 @@
 import json
-import time
 import streamlit as st
 
-st.set_page_config(
-    page_title="LoudVoice TV Dashboard",
-    page_icon="🎛️",
-    layout="wide",
-)
+# ──────────────────────────────
+# Page & Theme
+# ──────────────────────────────
+st.set_page_config(page_title="LoudVoice Dashboard", page_icon="🎛️", layout="wide")
 
-# Auto-refresh every 60 seconds without experimental APIs
-st.markdown('<meta http-equiv="refresh" content="60">', unsafe_allow_html=True)
+# Optional zoom control: use ?zoom=115 in the URL for a TV farther away
+zoom = st.query_params.get("zoom", ["100"])[0]
+st.markdown(f"<style>body {{ zoom: {zoom}% }}</style>", unsafe_allow_html=True)
 
-# ---------- Secrets & Mock ----------
-USE_MOCK = st.secrets.get("USE_MOCK", "1") == "1"  # default to ON so it always runs
+# Brand colors
+YELLOW = "#ffd54a"  # LoudVoice-style yellow
+TEXT   = "#f5f7ff"
+MUTED  = "#8b93b5"
+ACCENT = "#58b1ff"  # secondary accent for lines, etc.
 
-# If later you add real keys, flip USE_MOCK to "0" in Streamlit Secrets and consume your APIs here:
-YOUTUBE_API_KEY = st.secrets.get("YOUTUBE_API_KEY")
-INSTAGRAM_ACCESS_TOKEN = st.secrets.get("INSTAGRAM_ACCESS_TOKEN")
-TIKTOK_ACCESS_TOKEN = st.secrets.get("TIKTOK_ACCESS_TOKEN")
-
-# ---------- Data Layer ----------
-DEFAULT_DATA = {
-    "kpis": {"youtube": 12345, "instagram": 4321, "tiktok": 6789},
-    "trending": [
-        {"title":"How to Share Your Testimony","value":95},
-        {"title":"The Power of Prayer","value":72},
-        {"title":"Overcoming Adversity","value":58},
-        {"title":"Faith in Action","value":45},
-        {"title":"The Importance of Service","value":33},
-    ],
-    "map_dots": [
-        {"x":25, "y":55, "r":6},
-        {"x":40, "y":50, "r":4},
-        {"x":75, "y":48, "r":4},
-        {"x":95, "y":43, "r":3},
-        {"x":120, "y":52, "r":5},
-        {"x":150, "y":50, "r":4},
-        {"x":175, "y":57, "r":5},
-    ],
-    "ministry": {
-        "prayer": 15,
-        "biblestudies": 8,
-        "baptisms": 1,
-        "weekly": [3,5,4,6,7,8,9,6,10,12,11,14]
-    },
-    "tasks": [
-        {"title":"Outline next video","status":"In Progress"},
-        {"title":"Shoot testimony interview","status":"Today"},
-        {"title":"Edit EP. 49 short","status":"To Do"},
-        {"title":"Publish Bahasa caption pack","status":"Queued"},
-    ],
-    "notes": "This is your TV dashboard. Add real data later; for now it’s using mock values."
-}
-
-def load_data():
-    # In the future, replace this with real fetches (YouTube/IG/TikTok/Sheets/ClickUp)
-    # when USE_MOCK is False and secrets are present.
-    return DEFAULT_DATA
-
-# ---------- Styles ----------
-st.markdown("""
+# Global CSS (TV/kiosk look)
+st.markdown(f"""
 <style>
-:root{
-  --bg:#0f1221; --panel:#161a31; --muted:#8b93b5; --text:#eef1ff; --accent:#5ab0ff;
-}
-html, body, [class^="css"]  { background-color: var(--bg) !important; color: var(--text) !important; }
-.block-container{ padding-top: 1.4rem; padding-bottom: 0rem; }
-.card{background: var(--panel); border: 1px solid #2b3362; border-radius: 14px; padding: 16px 18px;}
-.big{ font-size: 46px; font-weight: 800; margin: 0; }
-.kpi-label{ color: var(--muted); font-weight: 600; font-size: 14px; letter-spacing:.3px; }
-.row{ display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,.08); }
-.row:last-child{ border-bottom: none; }
-.bar{ height: 8px; background:#2a3054; border-radius:5px; flex:1; margin-left:12px; overflow:hidden; }
-.bar > span{ display:block; height:100%; background: var(--accent); }
-.muted{ color: var(--muted); font-size: 12px; }
-.pill{ font-size:12px; padding:4px 8px; border-radius:999px; background:#2a3054; color:#cdd3ff; }
-.section-title{ margin:0 0 12px 0; font-size:18px; color:#d6dbff; letter-spacing:.3px; }
-.map-wrap{ position: relative; height: 340px; }
-.map{ width: 100%; height: 100%; }
-.dot{ fill: var(--accent); opacity:.85; }
-.spark{ width: 100%; height: 100px; }
+/* Hide Streamlit chrome for TV use */
+header[data-testid="stHeader"]{{display:none;}}
+#MainMenu{{visibility:hidden;}}
+footer{{visibility:hidden;}}
+
+html, body, [class^="css"] {{
+  background:#000 !important; color:{TEXT}!important;
+}}
+.block-container {{ max-width: 1800px; padding-top: 16px; }}
+h1,h2,h3,h4,h5,h6,.section-title,.kpi-label {{ color: {YELLOW}!important; }}
+
+.card {{
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  padding: 18px 20px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+}}
+
+.kpi {{ display:flex; gap:12px; align-items:center; }}
+.kpi .icon {{
+  width:36px; height:36px; border-radius:10px;
+  display:flex; align-items:center; justify-content:center; font-size:18px;
+  background: #20242f; border:1px solid rgba(255,255,255,.06);
+}}
+.kpi .big {{ font-size: 56px; font-weight: 800; margin: 0; }}
+.kpi .kpi-label {{ font-size: 14px; letter-spacing:.3px; color:{YELLOW}; font-weight:700; }}
+
+.section-title {{ font-size: 22px; font-weight: 800; margin: 0 0 12px 0; }}
+
+.row, .row-sm {{
+  display:flex; align-items:center; justify-content:space-between;
+  gap: 12px; padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,.07);
+}}
+.row:last-child, .row-sm:last-child{{ border-bottom:none; }}
+
+.pill {{
+  font-size:12px; padding:4px 8px; border-radius:999px;
+  background:#23283b; color:#dfe5ff; border:1px solid rgba(255,255,255,.08);
+}}
+.small {{ color:{MUTED}; font-size:12px; }}
+
+/* Bars */
+.hbar {{ position:relative; height:12px; width:100%; background:#23283b; border-radius:6px; overflow:hidden; }}
+.hbar > span {{ position:absolute; left:0; top:0; bottom:0; display:block; border-radius:6px; }}
+.bar-red   {{ background:#ff5a5f; }}
+.bar-yellow{{ background:#ffd166; }}
+.bar-green {{ background:#2ECC71; }}
+
+.views-bar {{ height:14px; border-radius:7px; background:#23283b; overflow:hidden; }}
+.views-bar > span {{ display:block; height:100%; }}
+
+.map-wrap {{ position:relative; height: 420px; }}
+.map {{ width:100%; height:100%; }}
+.dot {{ fill: {YELLOW}; opacity:.95; }}
+
 </style>
 """, unsafe_allow_html=True)
 
-# ---------- Header ----------
-col_title, col_actions = st.columns([0.7, 0.3])
-with col_title:
-    st.markdown("### 🎛️ LoudVoice Dashboard")
-    st.caption("TV-friendly. Runs in Streamlit Cloud. Mock data by default.")
+# ──────────────────────────────
+# Data layer
+# ──────────────────────────────
+DEFAULT_DATA = {
+    "kpis": {"youtube": 12345, "instagram": 4321, "tiktok": 6789},
+    "map_dots": [
+        {"x": 13, "y": 28, "r": 3.2},
+        {"x": 32, "y": 30, "r": 1.2},
+        {"x": 53, "y": 27, "r": 2.6},
+        {"x": 67, "y": 29, "r": 2.8},
+        {"x": 78, "y": 35, "r": 2.0},
+        {"x": 86, "y": 48, "r": 2.4},
+    ],
+    "ministry": {"prayer": 15, "biblestudies": 8, "baptisms": 1, "weekly":[3,5,4,6,7,8,6,10,12,11,14,15]},
+    "timeslots": [
+        {"when":"Tue 1:00–3:00 PM","what":"LDE Ep.5 (Bahasa)"},
+        {"when":"Wed 10:30–12:00","what":"Testimony shoot (John)"},
+        {"when":"Fri 9:00–11:00 AM","what":"Music session — choir"},
+    ],
+    "daily_tasks": [
+        {"title":"Outline next video","status":"Not Ready"},
+        {"title":"Shoot testimony interview","status":"In Progress"},
+        {"title":"Edit promo cut","status":"In Progress"},
+        {"title":"Schedule weekend posts","status":"Done"},
+    ],
+    "weekly_tasks": [
+        "Plan outreach event schedule",
+        "Publish Bahasa caption pack",
+        "Update media kit",
+    ],
+    "last_week_views": { "music": 18234, "reels": 24790 },
+    "notes":"Tip: Add/override all data via Streamlit Secrets → key = DASHBOARD_JSON."
+}
 
-with col_actions:
-    st.caption("Auto-refresh every 60s")
-    st.button("Refresh now", on_click=lambda: None)
+# Allow full JSON override from Secrets (paste JSON into DASHBOARD_JSON)
+override = st.secrets.get("DASHBOARD_JSON")
+if override:
+    try:
+        parsed = json.loads(override) if isinstance(override, str) else override
+        DEFAULT_DATA.update(parsed)
+    except Exception:
+        st.warning("DASHBOARD_JSON is not valid JSON. Using defaults.")
 
+data = DEFAULT_DATA
 
-data = load_data()
+# Helpers for colored progress bars on daily tasks
+def status_to_pct_and_class(status: str):
+    s = (status or "").lower()
+    if "progress" in s:
+        return 55, "bar-yellow"
+    if "done" in s or "complete" in s:
+        return 100, "bar-green"
+    return 15, "bar-red"
 
-# ---------- KPI Row ----------
+def progress_bar_html(pct: int, css_class: str):
+    pct = max(0, min(100, int(pct)))
+    return f'<div class="hbar"><span class="{css_class}" style="width:{pct}%"></span></div>'
+
+# ──────────────────────────────
+# Header
+# ──────────────────────────────
+left, right = st.columns([0.7, 0.3])
+with left:
+    st.markdown("## **LOUDVOICE**")
+    st.caption("TV‑friendly dashboard • Streamlit Cloud • Black + Yellow theme")
+with right:
+    st.caption("Auto‑refresh your browser if needed • Use `?zoom=115` for larger UI")
+
+st.write("")
+
+# ──────────────────────────────
+# KPI Row
+# ──────────────────────────────
 c1, c2, c3 = st.columns(3)
 with c1:
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown('<div class="kpi-label">YouTube Subscribers</div>', unsafe_allow_html=True)
-    st.markdown(f'<p class="big">{data["kpis"]["youtube"]:,}</p>', unsafe_allow_html=True)
+    st.markdown('<div class="card kpi">', unsafe_allow_html=True)
+    st.markdown('<div class="icon">▶️</div>', unsafe_allow_html=True)
+    st.markdown('<div><div class="kpi-label">YouTube Subscribers</div>'
+                f'<p class="big">{data["kpis"]["youtube"]:,}</p></div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
+
 with c2:
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown('<div class="kpi-label">Instagram Followers</div>', unsafe_allow_html=True)
-    st.markdown(f'<p class="big">{data["kpis"]["instagram"]:,}</p>', unsafe_allow_html=True)
+    st.markdown('<div class="card kpi">', unsafe_allow_html=True)
+    st.markdown('<div class="icon">📸</div>', unsafe_allow_html=True)
+    st.markdown('<div><div class="kpi-label">Instagram Followers</div>'
+                f'<p class="big">{data["kpis"]["instagram"]:,}</p></div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
+
 with c3:
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown('<div class="kpi-label">TikTok Followers</div>', unsafe_allow_html=True)
-    st.markdown(f'<p class="big">{data["kpis"]["tiktok"]:,}</p>', unsafe_allow_html=True)
+    st.markdown('<div class="card kpi">', unsafe_allow_html=True)
+    st.markdown('<div class="icon">🎵</div>', unsafe_allow_html=True)
+    st.markdown('<div><div class="kpi-label">TikTok Followers</div>'
+                f'<p class="big">{data["kpis"]["tiktok"]:,}</p></div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 st.write("")
 
-# ---------- Map ----------
-st.markdown('<div class="card">', unsafe_allow_html=True)
-st.markdown('<div class="section-title">Global Viewer Map</div>', unsafe_allow_html=True)
+# ──────────────────────────────
+# Map (left) + Next Filming Timeslots (right)
+# ──────────────────────────────
+map_col, side_col = st.columns([0.62, 0.38])
 
-# Simple abstract world with dots (no external libs)
-svg_dots = "\n".join([
-    f'<circle class="dot" cx="{pt["x"]}%" cy="{pt["y"]}%" r="{pt["r"]}"></circle>'
-    for pt in data["map_dots"]
-])
-st.markdown(f"""
-<div class="map-wrap">
-  <svg class="map" viewBox="0 0 100 50" preserveAspectRatio="xMidYMid meet" aria-label="abstract world map">
-    <rect x="0" y="15" width="100" height="20" fill="#1b2040" rx="6"></rect>
-    <ellipse cx="28" cy="28" rx="18" ry="7" fill="#232a58"></ellipse>
-    <ellipse cx="60" cy="27" rx="22" ry="8" fill="#232a58"></ellipse>
-    <ellipse cx="82" cy="30" rx="10" ry="6" fill="#232a58"></ellipse>
-    {svg_dots}
-  </svg>
-</div>
-""", unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
-
-st.write("")
-
-# ---------- Trending + Ministry ----------
-left, right = st.columns([0.6, 0.4])
-
-with left:
+with map_col:
     st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">Trending Videos by Region</div>', unsafe_allow_html=True)
-    for item in data["trending"]:
-        st.markdown(
-            f'<div class="row"><div>{item["title"]}</div>'
-            f'<div class="bar"><span style="width:{item["value"]}%"></span></div></div>',
-            unsafe_allow_html=True
-        )
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Global Viewer Map</div>', unsafe_allow_html=True)
 
-with right:
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">Ministry Tracker</div>', unsafe_allow_html=True)
-    cA, cB, cC = st.columns(3)
-    cA.metric("Prayer Contacts", data["ministry"]["prayer"])
-    cB.metric("Bible Studies", data["ministry"]["biblestudies"])
-    cC.metric("Baptisms", data["ministry"]["baptisms"])
-
-    # Simple sparkline SVG
-    arr = data["ministry"]["weekly"]
-    mx = max(arr) if arr else 1
-    pts = " ".join([f"{i*100/(len(arr)-1):.2f},{100-(v/mx)*88-6:.2f}" for i, v in enumerate(arr)])
+    dots_svg = "\n".join([f'<circle class="dot" cx="{pt["x"]}" cy="{pt["y"]}" r="{pt["r"]}"></circle>' for pt in data["map_dots"]])
     st.markdown(f"""
-    <svg class="spark" viewBox="0 0 100 100" preserveAspectRatio="none">
-      <polygon fill="rgba(90,176,255,.18)" points="0,100 {pts} 100,100" />
-      <polyline fill="none" stroke="#5ab0ff" stroke-width="1.5" points="{pts}" />
-    </svg>
-    <div class="muted">Last 12 weeks</div>
+    <div class="map-wrap">
+      <svg class="map" viewBox="0 0 100 50" preserveAspectRatio="xMidYMid meet" aria-label="world map">
+        <rect x="2" y="14" width="96" height="22" rx="6" fill="#101319" stroke="rgba(255,255,255,0.04)"/>
+        <!-- abstract continents -->
+        <ellipse cx="28" cy="26" rx="18" ry="7" fill="#1a2030"></ellipse>
+        <ellipse cx="60" cy="25" rx="22" ry="8" fill="#1a2030"></ellipse>
+        <ellipse cx="82" cy="28" rx="10" ry="6" fill="#1a2030"></ellipse>
+        {dots_svg}
+      </svg>
+    </div>
     """, unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-st.write("")
-
-# ---------- Tasks + Notes ----------
-left2, right2 = st.columns([0.6, 0.4])
-
-with left2:
+with side_col:
     st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">Today’s Tasks</div>', unsafe_allow_html=True)
-    for t in data["tasks"]:
+    st.markdown('<div class="section-title">Next Filming Timeslots</div>', unsafe_allow_html=True)
+    for slot in data["timeslots"]:
         st.markdown(
-            f'<div class="row"><div>{t["title"]}</div><span class="pill">{t["status"]}</span></div>',
+            f'<div class="row-sm"><div><b>{slot["when"]}</b><div class="small">{slot["what"]}</div></div>'
+            f'<span class="pill">Upcoming</span></div>',
             unsafe_allow_html=True
         )
     st.markdown('</div>', unsafe_allow_html=True)
 
-with right2:
+st.write("")
+
+# ──────────────────────────────
+# Tasks Row (Daily with bars + Weekly list)
+# ──────────────────────────────
+daily_col, weekly_col = st.columns([0.55, 0.45])
+
+with daily_col:
     st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">Notes</div>', unsafe_allow_html=True)
-    st.markdown(f"<div class='muted'>{data['notes']}</div>", unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Daily Tasks</div>', unsafe_allow_html=True)
+    for t in data["daily_tasks"]:
+        pct, css = status_to_pct_and_class(t.get("status"))
+        bar = progress_bar_html(pct, css)
+        st.markdown(
+            f'<div class="row-sm"><div>{t["title"]}<div class="small">{t["status"]}</div></div><div style="flex:1;max-width:360px">{bar}</div></div>',
+            unsafe_allow_html=True
+        )
     st.markdown('</div>', unsafe_allow_html=True)
 
-st.caption("Tip: Put this app full screen on your TV (F11 or ⌃⌘F).")
+with weekly_col:
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Weekly Tasks</div>', unsafe_allow_html=True)
+    for item in data["weekly_tasks"]:
+        st.markdown(f'<div class="row-sm"><div>{item}</div><span class="pill">This week</span></div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+st.write("")
+
+# ──────────────────────────────
+# Last 7 Days Views + Ministry Tracker
+# ──────────────────────────────
+views_col, ministry_col = st.columns([0.55, 0.45])
+
+with views_col:
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Last 7 Days Views</div>', unsafe_allow_html=True)
+    music = int(data["last_week_views"]["music"])
+    reels = int(data["last_week_views"]["reels"])
+    total = max(music, reels, 1)
+
+    def views_bar(label, value, color):
+        pct = int(100 * value / max(total, 1))
+        return (f'<div class="row">'
+                f'<div style="min-width:180px">{label}</div>'
+                f'<div style="flex:1" class="views-bar"><span style="width:{pct}%; background:{color}"></span></div>'
+                f'<div style="min-width:110px; text-align:right">{value:,}</div>'
+                f'</div>')
+
+    st.markdown(views_bar("Music Videos", music, "#ff8a34"), unsafe_allow_html=True)  # orange
+    st.markdown(views_bar("Reels / Shorts", reels, "#4aa3ff"), unsafe_allow_html=True) # blue
+    st.markdown('</div>', unsafe_allow_html=True)
+
+with ministry_col:
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Ministry Tracker</div>', unsafe_allow_html=True)
+    a,b,c = st.columns(3)
+    a.metric("Prayer Contacts", data["ministry"]["prayer"])
+    b.metric("Bible Studies", data["ministry"]["biblestudies"])
+    c.metric("Baptisms", data["ministry"]["baptisms"])
+    st.markdown('<div class="small">Updated weekly</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+st.caption("Tip: Edit data without code via **Settings → Secrets → DASHBOARD_JSON**. Use `?zoom=115` if the TV is far.")
