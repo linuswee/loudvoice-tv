@@ -2,6 +2,10 @@ import json
 from pathlib import Path
 import streamlit as st
 
+from textwrap import dedent
+def html(md_str: str):
+    st.markdown(dedent(md_str).strip(), unsafe_allow_html=True)
+
 # ──────────────────────────────
 # Page / Theme
 # ──────────────────────────────
@@ -202,52 +206,32 @@ st.write("")
 map_col, side_col = st.columns([0.62, 0.38])
 
 with map_col:
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">Global Viewer Map</div>', unsafe_allow_html=True)
-
-    # Render background map, overlay glowing dots
-    circles = "".join([f'<circle class="dot" cx="{d["x"]}" cy="{d["y"]}" r="{d["r"]}"/>' for d in data["map_dots"]])
-    if WORLD:
-        st.markdown(
-            f'''
-            <div class="map-wrap">
-              {WORLD}
-              <svg viewBox="0 0 100 50" preserveAspectRatio="xMidYMid meet"
-                   style="position:absolute;left:0;top:0">
-                {circles}
-              </svg>
-            </div>
-            ''', unsafe_allow_html=True
-        )
-    else:
-        st.markdown(
-            f'''
-            <div class="map-wrap">
-              <svg class="map" viewBox="0 0 100 50" preserveAspectRatio="xMidYMid meet" aria-label="world map">
-                <rect x="2" y="14" width="96" height="22" rx="6" fill="#101319" stroke="rgba(255,255,255,0.08)"/>
-                <ellipse cx="28" cy="26" rx="18" ry="7" fill="#1a2030"/>
-                <ellipse cx="60" cy="25" rx="22" ry="8" fill="#1a2030"/>
-                <ellipse cx="82" cy="28" rx="10" ry="6" fill="#1a2030"/>
-                {circles}
-              </svg>
-            </div>
-            ''', unsafe_allow_html=True
-        )
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
+    html("""
+<div class="card">
+  <div class="section-title">Global Viewer Map</div>
+  <div class="map-wrap">
+    """ + WORLD + """
+    <svg viewBox="0 0 100 50" preserveAspectRatio="xMidYMid meet" style="position:absolute;left:0;top:0">
+      """ + "".join([f'<circle class="dot" cx="{d["x"]}" cy="{d["y"]}" r="{d["r"]}"></circle>' for d in data["map_dots"]]) + """
+    </svg>
+  </div>
+</div>
+""")
+    
 with side_col:
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">Next Filming Timeslots</div>', unsafe_allow_html=True)
+    html("""
+<div class="card">
+  <div class="section-title">Next Filming Timeslots</div>
+</div>
+""")
     for slot in data["timeslots"]:
-        st.markdown(
-            f'<div class="row-sm"><div><b>{slot["when"]}</b>'
-            f'<div class="small">{slot["what"]}</div></div>'
-            f'<span class="pill">Upcoming</span></div>',
-            unsafe_allow_html=True
-        )
-    st.markdown('</div>', unsafe_allow_html=True)
-
+        html(f"""
+<div class="row-sm">
+  <div><b>{slot["when"]}</b><div class="small">{slot["what"]}</div></div>
+  <span class="pill">Upcoming</span>
+</div>
+""")
+      
 st.write("")
 
 # ──────────────────────────────
