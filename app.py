@@ -1,183 +1,137 @@
-
-# app.py — LoudVoice Dashboard (reverted layout + requested changes)
 import streamlit as st
 import plotly.graph_objects as go
-import pandas as pd
-from datetime import datetime
+import datetime
 
-st.set_page_config(page_title="LoudVoice Dashboard", page_icon="🎛️", layout="wide")
+st.set_page_config(page_title="LoudVoice Dashboard", layout="wide")
 
-# ===================== Styles =====================
+# Custom CSS for styling
 st.markdown("""
-<style>
-@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css');
-
-.block-container{max-width:1820px;padding-top:8px;padding-bottom:8px}
-html,body,[class^="css"]{background:#0b0f16 !important;color:#eef3ff}
-header[data-testid="stHeader"],#MainMenu,footer{visibility:hidden}
-
-.title{color:#ffd54a;font-weight:850;font-size:28px;letter-spacing:.14em;margin:0 0 8px 0}
-.timestamp{color:#ffd54a;font-size:12px;font-weight:700;text-align:right}
-
-.card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.10);
-      border-radius:12px;padding:12px 14px;margin-bottom:10px;box-shadow:0 4px 12px rgba(0,0,0,.22)}
-.section{color:#ffd54a;font-weight:800;font-size:15px;margin:2px 0 8px 0}
-
-.kpi-row{display:grid;grid-template-columns: 1fr 1fr; gap:8px}
-.kpi-label{font-size:11px;color:#aab3cc;margin:0}
-.kpi-value{font-size:26px;font-weight:800;}
-
-.icon{font-size:16px;margin-right:6px}
-
-.small{font-size:12px;color:#9aa3bd}
-
-/* Grid rows so bars align left regardless of label length */
-.grid-views{display:grid;grid-template-columns:56px 1fr 76px;gap:10px;align-items:center;margin:4px 0}
-.grid-tasks{display:grid;grid-template-columns:260px 1fr 60px;gap:10px;align-items:center;margin:6px 0}
-
-.views-bar{height:10px;border-radius:6px;background:#1f2736;overflow:hidden}
-.views-bar>span{display:block;height:100%;background:#4aa3ff}
-
-.hbar{height:10px;border-radius:6px;background:#1f2736;overflow:hidden}
-.hbar>span{display:block;height:100%}
-.bar-green{background:#2ecc71}.bar-yellow{background:#ffd166}.bar-red{background:#ff5a5f}
-</style>
+    <style>
+        .main {background-color: #111;}
+        h1 {font-size: 42px !important; font-weight: 800;}
+        h2 {font-size: 28px !important;}
+        h3 {font-size: 22px !important;}
+        .stat-box {
+            background: #1f2736; padding: 15px; border-radius: 10px;
+            margin-bottom: 10px;
+        }
+        .bar {height: 12px; border-radius: 5px; margin-top: 5px;}
+        .bar-red {background:#ff5a5f;}
+        .bar-yellow {background:#ffd54a;}
+        .bar-green {background:#2ecc71;}
+        small {font-size:12px; color:#9aa3bd;}
+    </style>
 """, unsafe_allow_html=True)
 
-YELLOW = "#ffd54a"
+# ---- Header ----
+col1, col2 = st.columns([6,1])
+with col1:
+    st.markdown("<h1>LOUDVOICE</h1>", unsafe_allow_html=True)
+with col2:
+    now = datetime.datetime.now().strftime("%B %d, %Y %I:%M %p")
+    st.markdown(f"<p style='text-align:right; color:grey;'>{now}</p>", unsafe_allow_html=True)
 
-# ===================== Mock Data =====================
-youtube = {"subs": 15890, "total": 145_000_000}
-instagram = {"followers": 6050, "total": 2_340_000}
-tiktok = {"followers": 11032, "total": 9_450_000}
-yt_last7 = [23500, 27100, 24800, 30100, 28900, 33000, 35120]
 
-geo_df = pd.DataFrame({
-    "place": ["Malaysia","Philippines","United States","India","Kenya","Australia"],
-    "lat":   [4.21, 12.88, 37.09, 20.59, -0.02, -25.27],
-    "lon":   [101.98,121.77,-95.71, 78.96, 37.90, 133.77],
-    "views": [22000, 15000, 52000, 30000, 12000, 9000],
-})
+# ---- World Map (covers first 5 rows, col 1) ----
+with st.container():
+    st.subheader("🌍 World Map — YouTube Viewers")
+    fig = go.Figure()
 
-ministry = {"prayer": 15, "studies": 8, "baptisms": 1}
-
-tasks = [
-    ("Outline next video", "Not Done"),
-    ("Shoot testimony interview", "In Progress"),
-    ("Edit podcast episode", "Done"),
-    ("Schedule weekend posts", "In Progress"),
-]
-
-# include DATE in the filming slots
-filming = [
-    ("Tue, Aug 26", "1:00–3:00 PM", "Worship Set"),
-    ("Wed, Aug 27", "10:30–12:00", "Testimony Recording"),
-    ("Fri, Aug 29", "9:00–10:30 AM", "Youth Reels"),
-]
-
-# ===================== Header =====================
-h1, h2 = st.columns([0.75,0.25])
-with h1:
-    st.markdown("<div class='title'>LOUDVOICE</div>", unsafe_allow_html=True)
-with h2:
-    st.markdown(f"<div class='timestamp'>{datetime.now().strftime('%B %d, %Y %I:%M %p')}</div>", unsafe_allow_html=True)
-
-# ===================== Main two-column layout =====================
-left, right = st.columns([1.25, 0.75])
-
-# LEFT COLUMN — big world map spanning "5 rows"
-with left:
-    st.markdown("<div class='card'><div class='section'>World Map — YouTube Viewers</div>", unsafe_allow_html=True)
-    fig = go.Figure(go.Scattergeo(
-        lat=geo_df["lat"], lon=geo_df["lon"],
-        text=geo_df["place"] + " — " + geo_df["views"].map(lambda v: f"{v:,}"),
+    fig.add_trace(go.Scattergeo(
+        lon=[-95.7129, 101.9758, 151.2093, 37.6173, 78.9629],
+        lat=[37.0902, 4.2105, -33.8688, 55.7558, 20.5937],
+        text=["USA", "Malaysia", "Australia", "Russia", "India"],
         mode="markers",
-        marker=dict(size=(geo_df["views"]/3500).clip(lower=6, upper=24),
-                    color="#ffd54a", line=dict(color:'#111', width=0.6))
+        marker=dict(
+            size=[40, 20, 15, 10, 25],
+            color="#ffd54a",
+            line=dict(color="#111", width=0.6)   # ✅ fixed
+        )
     ))
-    fig.update_layout(
-        geo=dict(showland=True, landcolor="#0b0f16", showcountries=True, countrycolor="rgba(255,255,255,.15)",
-                 showocean=True, oceancolor="#070a0f"),
-        margin=dict(l=0,r=0,t=0,b=0),
-        height=560,
-        paper_bgcolor="rgba(0,0,0,0)"
+
+    fig.update_geos(
+        projection_type="natural earth",
+        showcountries=True, showcoastlines=True, showland=True, 
+        landcolor="#1f2736", oceancolor="#0e1117",
+        bgcolor="#0e1117"
     )
-    st.plotly_chart(fig, use_container_width=True, theme=None)
-    st.markdown("</div>", unsafe_allow_html=True)
+    fig.update_layout(
+        margin={"r":0,"t":0,"l":0,"b":0},
+        paper_bgcolor="#0e1117",
+        geo=dict(
+            showframe=False,
+            showcoastlines=True,
+            projection_type="equirectangular"
+        )
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
-# RIGHT COLUMN — stacked sections in this exact order
-with right:
-    # Row 1 — Ministry Tracker
-    st.markdown("<div class='card'><div class='section'><i class='fa-solid fa-hands-praying icon'></i>Ministry Tracker</div>", unsafe_allow_html=True)
-    a,b,c = st.columns(3)
-    a.metric("Prayer", ministry["prayer"])
-    b.metric("Studies", ministry["studies"])
-    c.metric("Baptisms", ministry["baptisms"])
-    st.markdown("</div>", unsafe_allow_html=True)
 
-    # Row 2 — YouTube Stats
-    st.markdown("<div class='card'><div class='section'><i class='fab fa-youtube icon' style='color:#ff3d3d'></i>YouTube</div>", unsafe_allow_html=True)
-    st.markdown(f"<div class='kpi-label'>Subscribers</div><div class='kpi-value'>{youtube['subs']:,}</div>", unsafe_allow_html=True)
-    st.markdown(f"<div class='kpi-label'>Total Views</div><div class='kpi-value'>{youtube['total']:,}</div>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+# ---- Column 2 stacked ----
+col_main = st.container()
 
-    # Row 3 — YouTube Views (Last 7 Days) with aligned bars
-    st.markdown("<div class='card'><div class='section'>YouTube Views (Last 7 Days)</div>", unsafe_allow_html=True)
-    days = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
-    maxv = max(yt_last7)
-    for d,v in zip(days, yt_last7):
-        pct = int((v/maxv)*100)
-        st.markdown(f"""
-        <div class='grid-views'>
-          <div>{d}</div>
-          <div class='views-bar'><span style='width:{pct}%'></span></div>
-          <div style='text-align:right'>{v:,}</div>
-        </div>
-        """, unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+with col_main:
+    # 1st row col 2 -> Ministry Tracker
+    st.subheader("⛪ Ministry Tracker")
+    st.write("Prayer: 15")
+    st.write("Studies: 8")
+    st.write("Baptisms: 1")
 
-    # Row 4 — Instagram Stats
-    st.markdown("<div class='card'><div class='section'><i class='fab fa-instagram icon' style='color:#e1306c'></i>Instagram</div>", unsafe_allow_html=True)
-    st.markdown(f"<div class='kpi-label'>Followers</div><div class='kpi-value'>{instagram['followers']:,}</div>", unsafe_allow_html=True)
-    st.markdown(f"<div class='kpi-label'>Total Views</div><div class='kpi-value'>{instagram['total']:,}</div>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+    # 2nd row col 2 -> YouTube Stats
+    st.subheader("▶️ YouTube Stats")
+    st.markdown("**Subscribers:** 15,890")
+    st.markdown("**Total Views:** 145,000,000")
 
-    # Row 5 — TikTok Stats
-    st.markdown("<div class='card'><div class='section'><i class='fab fa-tiktok icon'></i>TikTok</div>", unsafe_allow_html=True)
-    st.markdown(f"<div class='kpi-label'>Followers</div><div class='kpi-value'>{tiktok['followers']:,}</div>", unsafe_allow_html=True)
-    st.markdown(f"<div class='kpi-label'>Total Views</div><div class='kpi-value'>{tiktok['total']:,}</div>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+    # 3rd row col 2 -> YouTube Views (Last 7 Days)
+    st.subheader("📊 YouTube Views (Last 7 Days)")
+    yt_views = {
+        "Mon": 23500, "Tue": 27100, "Wed": 24800,
+        "Thu": 30100, "Fri": 28900, "Sat": 33000, "Sun": 35120
+    }
+    max_val = max(yt_views.values())
+    for day, val in yt_views.items():
+        bar_width = int((val / max_val) * 100)
+        st.markdown(
+            f"{day} {val:,} <div style='background:#2e86de;width:{bar_width}%;' class='bar'></div>", 
+            unsafe_allow_html=True
+        )
 
-# ===================== Bottom row: ClickUp + Next Filming =====================
-b1, b2 = st.columns([1.2, 0.8])
-with b1:
-    st.markdown("<div class='card'><div class='section'>ClickUp Tasks (Upcoming)</div>", unsafe_allow_html=True)
-    def pct(status:str)->int:
-        s=status.lower()
-        return 100 if "done" in s else 50 if "progress" in s else 10
-    def cls(status:str)->str:
-        s=status.lower()
-        return "bar-green" if "done" in s else "bar-yellow" if "progress" in s else "bar-red"
-    for name, status in tasks:
-        st.markdown(f"""
-        <div class='grid-tasks'>
-          <div>{name}<div class='small'>{status}</div></div>
-          <div class='hbar'><span class='{cls(status)}' style='width:{pct(status)}%'></span></div>
-          <div style='text-align:right'>{pct(status)}%</div>
-        </div>
-        """, unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+    # 4th row col 2 -> Instagram Stats
+    st.subheader("📸 Instagram Stats")
+    st.markdown("**Followers:** 6,050")
+    st.markdown("**Total Views:** 2,340,000")
 
-with b2:
-    st.markdown("<div class='card'><div class='section'>Next Filming Timeslots</div>", unsafe_allow_html=True)
-    for daydate, time, label in filming:
-        st.markdown(f"""
-        <div class='grid-tasks' style='grid-template-columns: 180px 1fr 170px;'>
-          <div><b>{daydate}</b><div class='small'>{time}</div></div>
-          <div></div>
-          <div style='color:{YELLOW}; text-align:right'>{label}</div>
-        </div>
-        """, unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+    # 5th row col 2 -> TikTok Stats
+    st.subheader("🎵 TikTok Stats")
+    st.markdown("**Followers:** 11,032")
+    st.markdown("**Total Views:** 9,450,000")
 
-st.caption("Layout per request: Big world map left; right column stacked (Ministry → YouTube → 7‑day Views → Instagram → TikTok). Bars aligned with grid; filming includes dates.")
+
+# ---- 3rd row, all columns ----
+col1, col2 = st.columns(2)
+
+with col1:
+    st.subheader("✅ ClickUp Tasks (Upcoming)")
+    tasks = {
+        "Outline next video": "red",
+        "Shoot testimony interview": "yellow",
+        "Edit podcast episode": "green",
+        "Schedule weekend posts": "yellow"
+    }
+    for task, status in tasks.items():
+        st.markdown(
+            f"{task} <div class='bar bar-{status}'></div>", 
+            unsafe_allow_html=True
+        )
+
+with col2:
+    st.subheader("🎬 Next Filming Timeslots")
+    filming = [
+        ("Tue 1:00–3:00 PM", "Worship Set"),
+        ("Wed 10:30–12:00", "Testimony Recording"),
+        ("Fri 9:00–10:30 AM", "Youth Reels")
+    ]
+    today = datetime.datetime.now().strftime("%B %d, %Y")
+    st.markdown(f"<small>{today}</small>", unsafe_allow_html=True)
+    for slot, activity in filming:
+        st.write(f"{slot} — {activity}")
