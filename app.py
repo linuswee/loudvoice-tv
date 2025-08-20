@@ -1,7 +1,4 @@
-# app.py — LoudVoice TV Dashboard (responsive)
-# Left: World Map • Right: (1) Ministry 3-col, (2) Social 3-up, (3) YT 7-day
-# Bottom: ClickUp (bars only, unfinished first) + Filming (one-line rows)
-
+# app.py — LoudVoice TV Dashboard (responsive + compact labels)
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
@@ -15,11 +12,10 @@ st.set_page_config(page_title="LoudVoice TV", page_icon="🎛️", layout="wide"
 qp = st.query_params
 ZOOM = qp.get("zoom", ["100"])[0]
 COMPACT = qp.get("compact", ["0"])[0].lower() in ("1", "true", "yes")
-
 st.markdown(f"<style>body{{zoom:{ZOOM}%}}</style>", unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────
-# Styles (cards, KPI grid, bars, filming rows)
+# Styles
 # ─────────────────────────────────────────────
 st.markdown(
     """
@@ -39,7 +35,7 @@ header[data-testid="stHeader"], #MainMenu, footer { visibility:hidden; }
   background:rgba(255,255,255,.03);
   border:1px solid rgba(255,255,255,.10);
   border-radius:12px;
-  padding:10px 14px;          /* tighter padding to save space */
+  padding:10px 14px;
   margin-bottom:14px;
   box-shadow:0 4px 12px rgba(0,0,0,.22);
 }
@@ -52,7 +48,7 @@ header[data-testid="stHeader"], #MainMenu, footer { visibility:hidden; }
 .mini-label{ font-size:11px; color:#aab3cc; margin:0 }
 .mini-value{ font-size:22px; font-weight:800; margin:2px 0 0 }
 
-/* Social KPI 3‑up grid that stays side‑by‑side on mobile landscape */
+/* Social KPI 3‑up grid */
 .kpi-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px }
 .kpi-card {
   background:rgba(255,255,255,.03);
@@ -62,6 +58,7 @@ header[data-testid="stHeader"], #MainMenu, footer { visibility:hidden; }
 }
 .kpi-card .kpi-head{ display:flex; align-items:center; gap:8px; margin-bottom:4px }
 .kpi-card .icon{ font-size:14px; margin-right:6px }
+.kpi-card .kpi-name{ font-size:14px; font-weight:800 }
 .kpi-card .kpi-label{ font-size:10px; color:#aab3cc; margin:0 }
 .kpi-card .kpi-value{ font-size:18px; font-weight:800; margin:0 }
 
@@ -81,7 +78,7 @@ header[data-testid="stHeader"], #MainMenu, footer { visibility:hidden; }
 .film-row{ display:grid; grid-template-columns: 1fr auto; gap:12px; align-items:center; padding:6px 0; }
 .film-right{ color:#ffd54a; white-space:nowrap }
 
-/* Mobile / tablet tweaks */
+/* Mobile tweaks */
 @media (max-width:1100px){
   .block-container{ padding-left:8px; padding-right:8px; max-width:100% }
   .title{ font-size:28px; letter-spacing:.10em }
@@ -100,8 +97,6 @@ header[data-testid="stHeader"], #MainMenu, footer { visibility:hidden; }
 """,
     unsafe_allow_html=True,
 )
-
-YELLOW = "#ffd54a"
 
 # ─────────────────────────────────────────────
 # Mock data
@@ -133,6 +128,19 @@ filming = [
     ("Fri, Aug 29, 2025", "9:00–10:30 AM", "Youth Reels"),
 ]
 
+# ─────────────────────────────────────────────
+# Helpers
+# ─────────────────────────────────────────────
+def fmt_num(n: int) -> str:
+    """15_890 -> 15.9K, 145_000_000 -> 145.0M"""
+    if n >= 1_000_000:
+        v = n / 1_000_000
+        return f"{v:.1f}M".rstrip('0').rstrip('.') + "M" if v < 10 else f"{int(v)}M"
+    if n >= 1_000:
+        v = n / 1_000
+        return f"{v:.1f}K".rstrip('0').rstrip('.') + "K" if v < 10 else f"{int(v)}K"
+    return f"{n}"
+
 def task_pct(status: str) -> int:
     s = status.lower()
     return 100 if "done" in s else 50 if "progress" in s else 10
@@ -156,25 +164,22 @@ with t2:
         unsafe_allow_html=True,
     )
 
-# Map height trimmed to remove white/black gaps; even tighter in compact mode
-MAP_HEIGHT = 360 if not COMPACT else 280
+# Map height trimmed to remove gaps; even tighter in compact mode
+MAP_HEIGHT = 340 if not COMPACT else 260
 
 # ─────────────────────────────────────────────
 # Main layout: Left (map) • Right (ministry + socials + 7‑day)
 # ─────────────────────────────────────────────
 left, right = st.columns([1.25, 0.75])
 
-# Left — World Map (tight top/bottom space)
+# Left — World Map (tight margins)
 with left:
-    st.markdown(
-        "<div class='card'><div class='section'>World Map — YouTube Viewers</div>",
-        unsafe_allow_html=True,
-    )
+    st.markdown("<div class='card'><div class='section'>World Map — YouTube Viewers</div>", unsafe_allow_html=True)
     fig = go.Figure(
         go.Scattergeo(
             lat=geo_df["lat"],
             lon=geo_df["lon"],
-            text=geo_df["place"] + " — " + geo_df["views"].map(lambda v: f"{v:,}"),
+            text=geo_df["place"] + " — " + geo_df["views"].map(lambda v: f"{fmt_num(v)}"),
             mode="markers",
             marker=dict(
                 size=(geo_df["views"] / 3500).clip(lower=6, upper=22),
@@ -189,7 +194,7 @@ with left:
             showcountries=True, countrycolor="rgba(255,255,255,.15)",
             showocean=True, oceancolor="#070a0f",
         ),
-        margin=dict(l=0, r=0, t=0, b=0),   # remove extra margins
+        margin=dict(l=0, r=0, t=0, b=0),
         height=MAP_HEIGHT,
         paper_bgcolor="rgba(0,0,0,0)",
     )
@@ -212,25 +217,25 @@ with right:
     )
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # Row 2 — Social channel stats (3‑up grid)
+    # Row 2 — Social channel stats (3‑up grid) with compact names & numbers
     st.markdown("<div class='card'><div class='section'>Channel Stats</div>", unsafe_allow_html=True)
     st.markdown(
         f"""
 <div class="kpi-grid">
   <div class="kpi-card">
-    <div class="kpi-head"><i class="fab fa-youtube icon" style="color:#ff3d3d"></i><b>YouTube</b></div>
-    <div class="kpi-label">Subscribers</div><div class="kpi-value">{youtube['subs']:,}</div>
-    <div class="kpi-label">Total Views</div><div class="kpi-value">{youtube['total']:,}</div>
+    <div class="kpi-head"><i class="fab fa-youtube icon" style="color:#ff3d3d"></i><span class="kpi-name">YT</span></div>
+    <div class="kpi-label">Subs</div><div class="kpi-value">{fmt_num(youtube['subs'])}</div>
+    <div class="kpi-label">Total</div><div class="kpi-value">{fmt_num(youtube['total'])}</div>
   </div>
   <div class="kpi-card">
-    <div class="kpi-head"><i class="fab fa-instagram icon" style="color:#e1306c"></i><b>Instagram</b></div>
-    <div class="kpi-label">Followers</div><div class="kpi-value">{instagram['followers']:,}</div>
-    <div class="kpi-label">Total Views</div><div class="kpi-value">{instagram['total']:,}</div>
+    <div class="kpi-head"><i class="fab fa-instagram icon" style="color:#e1306c"></i><span class="kpi-name">IG</span></div>
+    <div class="kpi-label">Follows</div><div class="kpi-value">{fmt_num(instagram['followers'])}</div>
+    <div class="kpi-label">Total</div><div class="kpi-value">{fmt_num(instagram['total'])}</div>
   </div>
   <div class="kpi-card">
-    <div class="kpi-head"><i class="fab fa-tiktok icon"></i><b>TikTok</b></div>
-    <div class="kpi-label">Followers</div><div class="kpi-value">{tiktok['followers']:,}</div>
-    <div class="kpi-label">Total Views</div><div class="kpi-value">{tiktok['total']:,}</div>
+    <div class="kpi-head"><i class="fab fa-tiktok icon"></i><span class="kpi-name">TT</span></div>
+    <div class="kpi-label">Follows</div><div class="kpi-value">{fmt_num(tiktok['followers'])}</div>
+    <div class="kpi-label">Total</div><div class="kpi-value">{fmt_num(tiktok['total'])}</div>
   </div>
 </div>
 """,
@@ -248,7 +253,7 @@ with right:
             f"<div class='grid-views'>"
             f"<div>{d}</div>"
             f"<div class='views-bar'><span style='width:{pct}%'></span></div>"
-            f"<div style='text-align:right'>{v:,}</div>"
+            f"<div style='text-align:right'>{fmt_num(v)}</div>"
             f"</div>",
             unsafe_allow_html=True,
         )
@@ -273,8 +278,8 @@ with b1:
 
 with b2:
     st.markdown("<div class='card'><div class='section'>Next Filming Timeslots</div>", unsafe_allow_html=True)
-    # one-line rows: Date — Time — Title
     for daydate, time, label in filming:
+        # one-line rows: Date — Time — Title
         st.markdown(
             f"<div class='film-row'>"
             f"<div><b>{daydate}</b> — {time}</div>"
@@ -284,6 +289,4 @@ with b2:
         )
     st.markdown("</div>", unsafe_allow_html=True)
 
-st.caption(
-    "Tips → ?zoom=115 for TV; ?compact=1 for phones. Map and cards are tightened for minimal vertical space."
-)
+st.caption("Tips → ?zoom=115 for TV; ?compact=1 for phones. Compact social labels & K/M formatting enabled.")
