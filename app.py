@@ -1,101 +1,315 @@
-import streamlit as st
-import pandas as pd
-import plotly.express as px
+import json
 from pathlib import Path
+import streamlit as st
 
-st.set_page_config(page_title="LoudVoice Dashboard", layout="wide")
+# ──────────────────────────────
+# Page / Theme
+# ──────────────────────────────
+st.set_page_config(page_title="LoudVoice Dashboard", page_icon="🎛️", layout="wide")
 
-# Load assets
+# Optional zoom for TV distance: use ?zoom=115 in URL
+zoom = st.query_params.get("zoom", ["100"])[0]
+st.markdown(f"<style>body {{ zoom: {zoom}% }}</style>", unsafe_allow_html=True)
+
+# Brand colors
+YELLOW = "#ffd54a"
+TEXT   = "#f5f7ff"
+MUTED  = "#8b93b5"
+
+# Hide Streamlit chrome; global styles
+st.markdown(f"""
+<style>
+header[data-testid="stHeader"]{{display:none;}}
+#MainMenu{{visibility:hidden;}}
+footer{{visibility:hidden;}}
+
+html, body, [class^="css"] {{ background:#000 !important; color:{TEXT}!important; }}
+.block-container {{ max-width: 1800px; padding-top: 16px; }}
+
+h1,h2,h3,h4,h5,h6,.section-title,.kpi-label {{ color: {YELLOW}!important; }}
+
+.card {{
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  padding: 18px 20px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+}}
+
+.kpi {{ display:flex; gap:12px; align-items:center; }}
+.kpi .icon {{
+  width:40px; height:40px; border-radius:10px;
+  display:flex; align-items:center; justify-content:center;
+  background: #20242f; border:1px solid rgba(255,255,255,.06);
+}}
+.kpi .big {{ font-size: 56px; font-weight: 800; margin: 0; }}
+.kpi .kpi-label {{ font-size: 14px; letter-spacing:.3px; font-weight:700; }}
+
+.section-title {{ font-size: 22px; font-weight: 800; margin: 0 0 12px 0; }}
+
+.row, .row-sm {{
+  display:flex; align-items:center; justify-content:space-between;
+  gap: 12px; padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,.07);
+}}
+.row:last-child, .row-sm:last-child{{ border-bottom:none; }}
+
+.pill {{
+  font-size:12px; padding:4px 8px; border-radius:999px;
+  background:#23283b; color:#dfe5ff; border:1px solid rgba(255,255,255,.08);
+}}
+.small {{ color:{MUTED}; font-size:12px; }}
+
+/* Progress bars */
+.hbar {{ position:relative; height:12px; width:100%; background:#23283b; border-radius:6px; overflow:hidden; }}
+.hbar > span {{ position:absolute; left:0; top:0; bottom:0; display:block; border-radius:6px; }}
+.bar-red   {{ background:#ff5a5f; }}
+.bar-yellow{{ background:#ffd166; }}
+.bar-green {{ background:#2ECC71; }}
+
+.views-bar {{ height:14px; border-radius:7px; background:#23283b; overflow:hidden; }}
+.views-bar > span {{ display:block; height:100%; }}
+
+.map-wrap {{ position:relative; height: 420px; }}
+.map-wrap svg {{ width:100%; height:100%; display:block; }}
+.dot {{ fill: {YELLOW}; filter: drop-shadow(0 0 6px rgba(255,213,74,.55)); }}
+
+.logo-wrap img, .logo-wrap svg {{ height: 42px; }}
+</style>
+""", unsafe_allow_html=True)
+
+# ──────────────────────────────
+# Assets loader
+# ──────────────────────────────
 ASSETS = Path(__file__).parent / "assets"
 
 def svg_str(name: str) -> str:
     p = ASSETS / name
-    return p.read_text(encoding="utf-8") if p.exists() else ""
+    if p.exists():
+        return p.read_text(encoding="utf-8")
+    return ""  # fallback handled where used
 
-# Header with logo
-st.markdown(
-    f"""
-    <div style='display:flex; align-items:center; justify-content:center; margin-bottom:20px;'>
-        <img src="data:image/svg+xml;utf8,{svg_str('logo_placeholder.svg')}" width="60">
-        <h1 style='color:yellow; margin-left:15px;'>LOUDVOICE Dashboard</h1>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+# Load icons (fallback to emoji if missing)
+YT = svg_str("youtube.svg") or "▶️"
+IG = svg_str("instagram.svg") or "📸"
+TT = svg_str("tiktok.svg") or "🎵"
 
-# Mock data
-views_data = pd.DataFrame({
-    "Category": ["Music Videos", "Reels"],
-    "Views": [12340, 8450]
-})
+WORLD = svg_str("worldmap.svg")  # background SVG for map (optional)
+LOGO_SVG = svg_str("logo.svg") or svg_str("logo_placeholder.svg")  # add assets/logo.svg if you have it
 
-map_data = pd.DataFrame({
-    "Country": ["Malaysia", "Thailand", "Philippines", "Indonesia"],
-    "Views": [3400, 2200, 1800, 1400]
-})
-
-tasks_data = pd.DataFrame({
-    "Task": ["Prepare filming", "Edit reels", "Upload content", "Team meeting"],
-    "Status": ["Not Ready", "In Progress", "Done", "In Progress"]
-})
-
-# Charts row
-col1, col2 = st.columns([2, 1])
-
-with col1:
-    st.subheader("Global Reach (Last 7 Days)")
-    fig_map = px.choropleth(
-        map_data, locations="Country", locationmode="country names",
-        color="Views", hover_name="Country",
-        color_continuous_scale=px.colors.sequential.YlOrRd
-    )
-    st.plotly_chart(fig_map, use_container_width=True)
-
-with col2:
-    st.subheader("Next Filming Timeslots")
-    st.write("📅 Monday 10 AM — Worship Set")
-    st.write("📅 Wednesday 2 PM — Testimony Recording")
-    st.write("📅 Friday 4 PM — Youth Reels")
-
-# Views bar chart
-st.subheader("Views by Category (Last Week)")
-fig_bar = px.bar(views_data, x="Category", y="Views",
-                 color="Category",
-                 color_discrete_map={
-                     "Music Videos": "royalblue",
-                     "Reels": "orange"
-                 })
-st.plotly_chart(fig_bar, use_container_width=True)
-
-# Tasks with progress bars
-st.subheader("Daily Tasks")
-
-status_colors = {
-    "Not Ready": "red",
-    "In Progress": "yellow",
-    "Done": "green"
+# ──────────────────────────────
+# Data layer (with Secrets override)
+# ──────────────────────────────
+DEFAULT_DATA = {
+    "kpis": {"youtube": 12345, "instagram": 4321, "tiktok": 6789},
+    "map_dots": [
+        {"x": 13, "y": 28, "r": 3.2},
+        {"x": 32, "y": 30, "r": 1.2},
+        {"x": 53, "y": 27, "r": 2.6},
+        {"x": 67, "y": 29, "r": 2.8},
+        {"x": 78, "y": 35, "r": 2.0},
+        {"x": 86, "y": 48, "r": 2.4},
+    ],
+    "ministry": {"prayer": 15, "biblestudies": 8, "baptisms": 1, "weekly":[3,5,4,6,7,8,6,10,12,11,14,15]},
+    "timeslots": [
+        {"when":"Tue 1:00–3:00 PM","what":"LDE Ep.5 (Bahasa)"},
+        {"when":"Wed 10:30–12:00","what":"Testimony shoot (John)"},
+        {"when":"Fri 9:00–11:00 AM","what":"Music session — choir"},
+    ],
+    "daily_tasks": [
+        {"title":"Outline next video","status":"Not Ready"},
+        {"title":"Shoot testimony interview","status":"In Progress"},
+        {"title":"Edit promo cut","status":"In Progress"},
+        {"title":"Schedule weekend posts","status":"Done"},
+    ],
+    "weekly_tasks": [
+        "Plan outreach event schedule",
+        "Publish Bahasa caption pack",
+        "Update media kit",
+    ],
+    "last_week_views": { "music": 18234, "reels": 24790 },
+    "notes":"Tip: Add/override all data via Streamlit Secrets → key = DASHBOARD_JSON."
 }
 
-for _, row in tasks_data.iterrows():
-    color = status_colors[row.Status]
-    st.markdown(f"""
-        <div style='margin-bottom:10px;'>
-            <strong>{row.Task}</strong>
-            <div style='background-color:lightgray; border-radius:5px; height:20px; position:relative;'>
-                <div style='background-color:{color}; width:{'100%' if row.Status=='Done' else '60%' if row.Status=='In Progress' else '20%'};
-                            height:100%; border-radius:5px;'></div>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
+# Allow JSON override from Secrets (paste JSON into Settings → Secrets → DASHBOARD_JSON)
+override = st.secrets.get("DASHBOARD_JSON")
+if override:
+    try:
+        parsed = json.loads(override) if isinstance(override, str) else override
+        DEFAULT_DATA.update(parsed)
+    except Exception:
+        st.warning("DASHBOARD_JSON is not valid JSON. Using defaults.")
 
-# Social media icons row
-st.markdown(
-    f"""
-    <div style='display:flex; justify-content:center; margin-top:40px;'>
-        <div style='margin:0 15px;'>{svg_str('youtube.svg')}</div>
-        <div style='margin:0 15px;'>{svg_str('instagram.svg')}</div>
-        <div style='margin:0 15px;'>{svg_str('tiktok.svg')}</div>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+data = DEFAULT_DATA
+
+# Helpers for colored progress bars on daily tasks
+def status_to_pct_and_class(status: str):
+    s = (status or "").lower()
+    if "progress" in s:
+        return 55, "bar-yellow"
+    if "done" in s or "complete" in s:
+        return 100, "bar-green"
+    return 15, "bar-red"
+
+def progress_bar_html(pct: int, css_class: str):
+    pct = max(0, min(100, int(pct)))
+    return f'<div class="hbar"><span class="{css_class}" style="width:{pct}%"></span></div>'
+
+# ──────────────────────────────
+# Header
+# ──────────────────────────────
+left, right = st.columns([0.7, 0.3])
+with left:
+    if LOGO_SVG:
+        st.markdown(f'<div class="logo-wrap">{LOGO_SVG}</div>', unsafe_allow_html=True)
+    st.markdown("## **LOUDVOICE**")
+    st.caption("TV‑friendly dashboard • Streamlit Cloud • Black + Yellow theme")
+with right:
+    st.caption("Use `?zoom=115` if the TV is far • Edit via Settings → Secrets → DASHBOARD_JSON")
+
+st.write("")
+
+# ──────────────────────────────
+# KPI Row (with SVG icons)
+# ──────────────────────────────
+c1, c2, c3 = st.columns(3)
+with c1:
+    st.markdown('<div class="card kpi">', unsafe_allow_html=True)
+    st.markdown(f'<div class="icon">{YT}</div>', unsafe_allow_html=True)
+    st.markdown('<div><div class="kpi-label">YouTube Subscribers</div>'
+                f'<p class="big">{data["kpis"]["youtube"]:,}</p></div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+with c2:
+    st.markdown('<div class="card kpi">', unsafe_allow_html=True)
+    st.markdown(f'<div class="icon">{IG}</div>', unsafe_allow_html=True)
+    st.markdown('<div><div class="kpi-label">Instagram Followers</div>'
+                f'<p class="big">{data["kpis"]["instagram"]:,}</p></div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+with c3:
+    st.markdown('<div class="card kpi">', unsafe_allow_html=True)
+    st.markdown(f'<div class="icon">{TT}</div>', unsafe_allow_html=True)
+    st.markdown('<div><div class="kpi-label">TikTok Followers</div>'
+                f'<p class="big">{data["kpis"]["tiktok"]:,}</p></div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+st.write("")
+
+# ──────────────────────────────
+# Map (left) + Next Filming Timeslots (right)
+# ──────────────────────────────
+map_col, side_col = st.columns([0.62, 0.38])
+
+with map_col:
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Global Viewer Map</div>', unsafe_allow_html=True)
+
+    # Render background map, overlay glowing dots
+    circles = "".join([f'<circle class="dot" cx="{d["x"]}" cy="{d["y"]}" r="{d["r"]}"/>' for d in data["map_dots"]])
+    if WORLD:
+        st.markdown(
+            f'''
+            <div class="map-wrap">
+              {WORLD}
+              <svg viewBox="0 0 100 50" preserveAspectRatio="xMidYMid meet"
+                   style="position:absolute;left:0;top:0">
+                {circles}
+              </svg>
+            </div>
+            ''', unsafe_allow_html=True
+        )
+    else:
+        st.markdown(
+            f'''
+            <div class="map-wrap">
+              <svg class="map" viewBox="0 0 100 50" preserveAspectRatio="xMidYMid meet" aria-label="world map">
+                <rect x="2" y="14" width="96" height="22" rx="6" fill="#101319" stroke="rgba(255,255,255,0.08)"/>
+                <ellipse cx="28" cy="26" rx="18" ry="7" fill="#1a2030"/>
+                <ellipse cx="60" cy="25" rx="22" ry="8" fill="#1a2030"/>
+                <ellipse cx="82" cy="28" rx="10" ry="6" fill="#1a2030"/>
+                {circles}
+              </svg>
+            </div>
+            ''', unsafe_allow_html=True
+        )
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+with side_col:
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Next Filming Timeslots</div>', unsafe_allow_html=True)
+    for slot in data["timeslots"]:
+        st.markdown(
+            f'<div class="row-sm"><div><b>{slot["when"]}</b>'
+            f'<div class="small">{slot["what"]}</div></div>'
+            f'<span class="pill">Upcoming</span></div>',
+            unsafe_allow_html=True
+        )
+    st.markdown('</div>', unsafe_allow_html=True)
+
+st.write("")
+
+# ──────────────────────────────
+# Tasks Row (Daily with progress bars + Weekly list)
+# ──────────────────────────────
+daily_col, weekly_col = st.columns([0.55, 0.45])
+
+with daily_col:
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Daily Tasks</div>', unsafe_allow_html=True)
+    for t in data["daily_tasks"]:
+        pct, css = status_to_pct_and_class(t.get("status"))
+        bar = progress_bar_html(pct, css)
+        st.markdown(
+            f'<div class="row-sm"><div>{t["title"]}'
+            f'<div class="small">{t["status"]}</div></div>'
+            f'<div style="flex:1;max-width:360px">{bar}</div></div>',
+            unsafe_allow_html=True
+        )
+    st.markdown('</div>', unsafe_allow_html=True)
+
+with weekly_col:
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Weekly Tasks</div>', unsafe_allow_html=True)
+    for item in data["weekly_tasks"]:
+        st.markdown(f'<div class="row-sm"><div>{item}</div><span class="pill">This week</span></div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+st.write("")
+
+# ──────────────────────────────
+# Last 7 Days Views + Ministry Tracker
+# ──────────────────────────────
+views_col, ministry_col = st.columns([0.55, 0.45])
+
+with views_col:
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Last 7 Days Views</div>', unsafe_allow_html=True)
+    music = int(data["last_week_views"]["music"])
+    reels = int(data["last_week_views"]["reels"])
+    total = max(music, reels, 1)
+
+    def views_bar(label, value, color):
+        pct = int(100 * value / max(total, 1))
+        return (f'<div class="row">'
+                f'<div style="min-width:180px">{label}</div>'
+                f'<div style="flex:1" class="views-bar"><span style="width:{pct}%; background:{color}"></span></div>'
+                f'<div style="min-width:110px; text-align:right">{value:,}</div>'
+                f'</div>')
+
+    st.markdown(views_bar("Music Videos", music, "#ff8a34"), unsafe_allow_html=True)   # orange
+    st.markdown(views_bar("Reels / Shorts", reels, "#4aa3ff"), unsafe_allow_html=True) # blue
+    st.markdown('</div>', unsafe_allow_html=True)
+
+with ministry_col:
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Ministry Tracker</div>', unsafe_allow_html=True)
+    a,b,c = st.columns(3)
+    a.metric("Prayer Contacts", data["ministry"]["prayer"])
+    b.metric("Bible Studies", data["ministry"]["biblestudies"])
+    c.metric("Baptisms", data["ministry"]["baptisms"])
+    st.markdown('<div class="small">Updated weekly</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+st.caption("Tip: Edit data without code via **Settings → Secrets → DASHBOARD_JSON**. Use `?zoom=115` if the TV is far.")
