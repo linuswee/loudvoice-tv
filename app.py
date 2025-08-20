@@ -8,6 +8,9 @@ st.set_page_config(
     layout="wide",
 )
 
+# Auto-refresh every 60 seconds without experimental APIs
+st.markdown('<meta http-equiv="refresh" content="60">', unsafe_allow_html=True)
+
 # ---------- Secrets & Mock ----------
 USE_MOCK = st.secrets.get("USE_MOCK", "1") == "1"  # default to ON so it always runs
 
@@ -90,9 +93,6 @@ with col_actions:
     st.caption("Auto-refresh every 60s")
     st.button("Refresh now", on_click=lambda: None)
 
-# Auto-refresh interval (no heavy calls here; safe)
-st_autorefresh = st.experimental_rerun  # alias; not used directly
-st.experimental_set_query_params(_=int(time.time()//60))  # forces rerun ~every minute
 
 data = load_data()
 
