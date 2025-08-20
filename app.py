@@ -1,118 +1,136 @@
+# app.py — LoudVoice Dashboard (Compact, Mock Data)
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
 from datetime import datetime
 
-# --- PAGE CONFIG ---
-st.set_page_config(page_title="LoudVoice Dashboard", layout="wide")
+# ---------------- Page config ----------------
+st.set_page_config(page_title="LoudVoice Dashboard", page_icon="🎛️", layout="wide")
 
-# --- CUSTOM CSS (smaller fonts, compact layout) ---
+# ---------------- Global styles (compact) ----------------
 st.markdown("""
-    <style>
-        body { zoom: 0.9; } /* make everything fit tighter */
-        .big-font { font-size:22px !important; font-weight:600; }
-        .med-font { font-size:18px !important; font-weight:500; }
-        .small-font { font-size:14px !important; }
-        .stMetric { font-size:18px !important; }
-        .block-container { padding-top: 1rem; padding-bottom: 0rem; }
-    </style>
-    <!-- Load FontAwesome for icons -->
-    <link rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<style>
+.block-container {max-width:1800px; padding-top:6px; padding-bottom:6px;}
+.title{color:#ffd54a; font-weight:800; font-size:22px; letter-spacing:.1em;}
+.section{color:#ffd54a; font-weight:700; font-size:15px; margin-bottom:8px;}
+.card{background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.1);
+      border-radius:12px; padding:10px 12px; margin-bottom:10px;
+      box-shadow:0 4px 12px rgba(0,0,0,.25);}
+.kpi-label{font-size:11px; color:#aaa; margin-bottom:2px;}
+.kpi-value{font-size:24px; font-weight:800;}
+.row{display:flex; justify-content:space-between; align-items:center; gap:8px;}
+.views-bar{height:10px; border-radius:5px; background:#1f2736; overflow:hidden;}
+.views-bar>span{display:block; height:100%; background:#4aa3ff;}
+.hbar{height:8px; background:#1f2736; border-radius:5px; overflow:hidden;}
+.hbar>span{display:block; height:100%;}
+.bar-green{background:#2ecc71;} .bar-yellow{background:#ffd166;} .bar-red{background:#ff5a5f;}
+.icon{font-size:16px; margin-right:6px;}
+html, body, [class^="css"] {background:#000 !important; color:#f5f7ff;}
+header[data-testid="stHeader"], #MainMenu, footer{visibility:hidden;}
+</style>
 """, unsafe_allow_html=True)
 
-# --- MOCK DATA ---
-yt_subs, yt_views = 15890, 145000000
-ig_followers, ig_views = 6050, 2340000
-tt_followers, tt_views = 11032, 9450000
-prayers, studies, baptisms = 15, 8, 1
+YELLOW = "#ffd54a"
+
+# ---------------- Mock data ----------------
+yt = {"subs": 15890, "views": 145_000_000}
+ig = {"follows": 6050, "views": 2_340_000}
+tt = {"follows": 11032, "views": 9_450_000}
 yt_last7 = [23500, 27100, 24800, 30100, 28900, 33000, 35120]
+ministry = {"prayer": 15, "studies": 8, "baptisms": 1}
+tasks = [
+    ("Outline next video", "Not Done"),
+    ("Shoot testimony interview", "In Progress"),
+    ("Edit podcast episode", "Done"),
+    ("Schedule weekend posts", "In Progress"),
+]
+timeslots = [
+    ("Tue 1:00–3:00 PM", "Worship Set"),
+    ("Wed 10:30–12:00", "Testimony Recording"),
+    ("Fri 9:00–10:30 AM", "Youth Reels"),
+]
 
-# --- HEADER ---
-st.markdown("<h2 style='color:gold; font-weight:700;'>LOUDVOICE DASHBOARD</h2>", unsafe_allow_html=True)
-st.markdown(f"<p style='color:gray;'>{datetime.now().strftime('%B %d, %Y %I:%M %p')}</p>", unsafe_allow_html=True)
+# ---------------- Header ----------------
+left, right = st.columns([0.75, 0.25])
+with left:
+    st.markdown(f"<div class='title'>LOUDVOICE</div>", unsafe_allow_html=True)
+with right:
+    st.markdown(f"<div style='text-align:right;color:{YELLOW};font-size:12px;font-weight:600'>"
+                f"{datetime.now().strftime('%B %d, %Y %I:%M %p')}</div>", unsafe_allow_html=True)
 
-# --- FIRST ROW ---
+# ---------------- Row 1: KPI cards ----------------
 c1, c2, c3 = st.columns(3)
-
 with c1:
-    st.markdown("<i class='fab fa-youtube' style='color:red;'></i> <span class='big-font'>YouTube</span>", unsafe_allow_html=True)
-    st.metric("Subscribers", f"{yt_subs:,}")
-    st.metric("Total Views", f"{yt_views:,}")
-
+    st.markdown("<div class='card'><div class='section'><i class='fab fa-youtube icon' style='color:#ff3d3d'></i>YouTube</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='kpi-label'>Subscribers</div><div class='kpi-value'>{yt['subs']:,}</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='kpi-label'>Total Views</div><div class='kpi-value'>{yt['views']:,}</div></div>", unsafe_allow_html=True)
 with c2:
-    st.markdown("<i class='fab fa-instagram' style='color:#E1306C;'></i> <span class='big-font'>Instagram</span>", unsafe_allow_html=True)
-    st.metric("Followers", f"{ig_followers:,}")
-    st.metric("Total Views", f"{ig_views:,}")
-
+    st.markdown("<div class='card'><div class='section'><i class='fab fa-instagram icon' style='color:#e1306c'></i>Instagram</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='kpi-label'>Followers</div><div class='kpi-value'>{ig['follows']:,}</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='kpi-label'>Total Views</div><div class='kpi-value'>{ig['views']:,}</div></div>", unsafe_allow_html=True)
 with c3:
-    st.markdown("<i class='fab fa-tiktok' style='color:white;'></i> <span class='big-font'>TikTok</span>", unsafe_allow_html=True)
-    st.metric("Followers", f"{tt_followers:,}")
-    st.metric("Total Views", f"{tt_views:,}")
+    st.markdown("<div class='card'><div class='section'><i class='fab fa-tiktok icon'></i>TikTok</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='kpi-label'>Followers</div><div class='kpi-value'>{tt['follows']:,}</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='kpi-label'>Total Views</div><div class='kpi-value'>{tt['views']:,}</div></div>", unsafe_allow_html=True)
 
-# --- SECOND ROW ---
-c4, c5, c6 = st.columns([2,1.5,1])
+# ---------------- Row 2: Map, views, ministry ----------------
+m1, m2, m3 = st.columns([2, 1.2, 0.8])
 
-# 🌍 World Map
-with c4:
-    st.markdown("<span class='big-font'>World Map - YouTube Viewers</span>", unsafe_allow_html=True)
-    df = pd.DataFrame({
-        "Country": ["Malaysia", "Philippines", "US", "India", "Kenya"],
-        "Lat": [4.2105, 12.8797, 37.0902, 20.5937, -0.0236],
-        "Lon": [101.9758, 121.7740, -95.7129, 78.9629, 37.9062],
-        "Views": [20000, 15000, 50000, 30000, 10000]
+with m1:
+    st.markdown("<div class='card'><div class='section'>World Map — YouTube Viewers</div>", unsafe_allow_html=True)
+    geo_df = pd.DataFrame({
+        "place": ["Malaysia", "Philippines", "United States", "India", "Kenya", "Australia"],
+        "lat": [4.21, 12.88, 37.09, 20.59, -0.02, -25.27],
+        "lon": [101.98, 121.77, -95.71, 78.96, 37.90, 133.77],
+        "views": [22000, 15000, 52000, 30000, 12000, 9000],
     })
     fig = go.Figure(go.Scattergeo(
-        lon = df["Lon"],
-        lat = df["Lat"],
-        text = df["Country"] + ": " + df["Views"].astype(str),
-        mode = "markers",
-        marker=dict(size=df["Views"]/2000, color="gold", line_color="black", line_width=0.5)
+        lat=geo_df["lat"], lon=geo_df["lon"],
+        text=geo_df["place"] + " — " + geo_df["views"].map(lambda v: f"{v:,}"),
+        mode="markers",
+        marker=dict(size=(geo_df["views"]/3000).clip(lower=6, upper=24),
+                    color="#ffd54a", line=dict(color="#111", width=0.6)),
+        hovertemplate="%{text}<extra></extra>"
     ))
-    fig.update_layout(
-        geo=dict(showland=True, landcolor="black", bgcolor="rgba(0,0,0,0)"),
-        margin={"r":0,"t":0,"l":0,"b":0},
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)"
-    )
-    st.plotly_chart(fig, use_container_width=True)
+    fig.update_layout(geo=dict(showland=True, landcolor="#0b0f16",
+                               showcountries=True, countrycolor="rgba(255,255,255,.15)",
+                               showocean=True, oceancolor="#070a0f"),
+                      margin=dict(l=0,r=0,t=0,b=0), height=280,
+                      paper_bgcolor="rgba(0,0,0,0)")
+    st.plotly_chart(fig, use_container_width=True, theme=None)
+    st.markdown("</div>", unsafe_allow_html=True)
 
-# 📊 YouTube Views Last 7 Days
-with c5:
-    st.markdown("<span class='big-font'>YouTube Views (Last 7 Days)</span>", unsafe_allow_html=True)
+with m2:
+    st.markdown("<div class='card'><div class='section'>YouTube Views (Last 7 Days)</div>", unsafe_allow_html=True)
     days = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
-    views_df = pd.DataFrame({"Day": days, "Views": yt_last7})
-    st.bar_chart(views_df.set_index("Day"))
+    maxv = max(yt_last7)
+    for d,v in zip(days, yt_last7):
+        pct = int((v/maxv)*100)
+        st.markdown(f"<div class='row'><div>{d}</div>"
+                    f"<div class='views-bar' style='flex:1'><span style='width:{pct}%'></span></div>"
+                    f"<div>{v:,}</div></div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
-# 🛐 Ministry Tracker
-with c6:
-    st.markdown("<span class='big-font'>Ministry Tracker</span>", unsafe_allow_html=True)
-    st.metric("Prayer", prayers)
-    st.metric("Studies", studies)
-    st.metric("Baptisms", baptisms)
+with m3:
+    st.markdown("<div class='card'><div class='section'>Ministry Tracker</div>", unsafe_allow_html=True)
+    st.markdown(f"Prayer: {ministry['prayer']}<br>Studies: {ministry['studies']}<br>Baptisms: {ministry['baptisms']}", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
-# --- THIRD ROW ---
-c7, c8 = st.columns([2,1])
+# ---------------- Row 3: Tasks + Filming ----------------
+b1, b2 = st.columns([1.3, 0.7])
+with b1:
+    st.markdown("<div class='card'><div class='section'>ClickUp Tasks (Upcoming)</div>", unsafe_allow_html=True)
+    for task, status in tasks:
+        color = "bar-red" if status=="Not Done" else "bar-yellow" if status=="In Progress" else "bar-green"
+        st.markdown(f"<div class='row'><div>{task}</div>"
+                    f"<div class='hbar' style='flex:1'><span class='{color}' style='width:70%'></span></div></div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
-with c7:
-    st.markdown("<span class='big-font'>ClickUp Tasks (Upcoming)</span>", unsafe_allow_html=True)
-    tasks = {
-        "Outline next video": "Not Done",
-        "Shoot testimony interview": "In Progress",
-        "Edit podcast episode": "Done",
-        "Schedule weekend posts": "In Progress"
-    }
-    colors = {"Not Done": "red", "In Progress": "orange", "Done": "green"}
-    for task, status in tasks.items():
-        st.markdown(f"<span class='small-font'>{task}</span>", unsafe_allow_html=True)
-        st.progress(1 if status=="Done" else (0.5 if status=="In Progress" else 0), text=status)
-
-with c8:
-    st.markdown("<span class='big-font'>Next Filming Timeslots</span>", unsafe_allow_html=True)
-    filming = [
-        ("Tue 1–3 PM", "Worship Set"),
-        ("Wed 10:30–12", "Testimony Recording"),
-        ("Fri 9–10:30 AM", "Youth Reels")
-    ]
-    for t, act in filming:
-        st.markdown(f"<b>{t}</b> – {act}", unsafe_allow_html=True)
+with b2:
+    st.markdown("<div class='card'><div class='section'>Next Filming Timeslots</div>", unsafe_allow_html=True)
+    for t, label in timeslots:
+        st.markdown(f"<div class='row'><div>{t}</div><div style='color:{YELLOW}'>{label}</div></div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
