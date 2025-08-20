@@ -1,4 +1,4 @@
-# app.py — LoudVoice Dashboard (requested layout + aligned bars + dates in filming)
+# app.py — LoudVoice Dashboard (compact right column: Ministry → 3‑up KPIs → 7‑day views)
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
@@ -20,10 +20,12 @@ header[data-testid="stHeader"],#MainMenu,footer{visibility:hidden}
 
 .card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.10);
       border-radius:12px;padding:12px 14px;margin-bottom:10px;box-shadow:0 4px 12px rgba(0,0,0,.22)}
-.section{color:#ffd54a;font-weight:800;font-size:15px;margin:2px 0 8px 0}
+.section{color:#ffd54a;font-weight:800;font-size:15px;margin:2px 0 6px 0}
 
+/* Compact KPI pieces */
+.kpi-head{display:flex;align-items:center;gap:8px;margin-bottom:4px}
 .kpi-label{font-size:11px;color:#aab3cc;margin:0}
-.kpi-value{font-size:26px;font-weight:800}
+.kpi-value{font-size:24px;font-weight:800;margin:0}
 .icon{font-size:16px;margin-right:6px}
 .small{font-size:12px;color:#9aa3bd}
 
@@ -64,7 +66,6 @@ tasks = [
     ("Schedule weekend posts", "In Progress"),
 ]
 
-# include DATE (day + date) in the filming slots
 filming = [
     ("Tue, Aug 26, 2025", "1:00–3:00 PM", "Worship Set"),
     ("Wed, Aug 27, 2025", "10:30–12:00", "Testimony Recording"),
@@ -81,7 +82,7 @@ with h2:
 # ===================== Main two-column layout =====================
 left, right = st.columns([1.25, 0.75])
 
-# LEFT COLUMN — large world map spanning ~5 visual rows
+# LEFT COLUMN — large world map (slightly reduced height to save space)
 with left:
     st.markdown("<div class='card'><div class='section'>World Map — YouTube Viewers</div>", unsafe_allow_html=True)
     fig = go.Figure(go.Scattergeo(
@@ -95,15 +96,15 @@ with left:
         geo=dict(showland=True, landcolor="#0b0f16", showcountries=True, countrycolor="rgba(255,255,255,.15)",
                  showocean=True, oceancolor="#070a0f"),
         margin=dict(l=0,r=0,t=0,b=0),
-        height=560,
+        height=500,   # was 560 — trimmed so bottom row has more room
         paper_bgcolor="rgba(0,0,0,0)"
     )
     st.plotly_chart(fig, use_container_width=True, theme=None)
     st.markdown("</div>", unsafe_allow_html=True)
 
-# RIGHT COLUMN — stacked sections in this order
+# RIGHT COLUMN — 1) Ministry  2) Three‑up KPIs  3) 7‑day views
 with right:
-    # (1) Ministry Tracker
+    # Row 1 — compact Ministry
     st.markdown("<div class='card'><div class='section'><i class='fa-solid fa-hands-praying icon'></i>Ministry Tracker</div>", unsafe_allow_html=True)
     a,b,c = st.columns(3)
     a.metric("Prayer", ministry["prayer"])
@@ -111,13 +112,25 @@ with right:
     c.metric("Baptisms", ministry["baptisms"])
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # (2) YouTube Stats
-    st.markdown("<div class='card'><div class='section'><i class='fab fa-youtube icon' style='color:#ff3d3d'></i>YouTube</div>", unsafe_allow_html=True)
-    st.markdown(f"<div class='kpi-label'>Subscribers</div><div class='kpi-value'>{youtube['subs']:,}</div>", unsafe_allow_html=True)
-    st.markdown(f"<div class='kpi-label'>Total Views</div><div class='kpi-value'>{youtube['total']:,}</div>", unsafe_allow_html=True)
+    # Row 2 — three inner columns of KPIs (YT / IG / TT)
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.markdown("<div class='section'>Channel Stats</div>", unsafe_allow_html=True)
+    k1,k2,k3 = st.columns(3)
+    with k1:
+        st.markdown("<div class='kpi-head'><i class='fab fa-youtube icon' style='color:#ff3d3d'></i><b>YouTube</b></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='kpi-label'>Subscribers</div><div class='kpi-value'>{youtube['subs']:,}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='kpi-label'>Total Views</div><div class='kpi-value'>{youtube['total']:,}</div>", unsafe_allow_html=True)
+    with k2:
+        st.markdown("<div class='kpi-head'><i class='fab fa-instagram icon' style='color:#e1306c'></i><b>Instagram</b></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='kpi-label'>Followers</div><div class='kpi-value'>{instagram['followers']:,}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='kpi-label'>Total Views</div><div class='kpi-value'>{instagram['total']:,}</div>", unsafe_allow_html=True)
+    with k3:
+        st.markdown("<div class='kpi-head'><i class='fab fa-tiktok icon'></i><b>TikTok</b></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='kpi-label'>Followers</div><div class='kpi-value'>{tiktok['followers']:,}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='kpi-label'>Total Views</div><div class='kpi-value'>{tiktok['total']:,}</div>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # (3) YouTube Views (Last 7 Days) — aligned bars
+    # Row 3 — YouTube 7‑day views (aligned bars)
     st.markdown("<div class='card'><div class='section'>YouTube Views (Last 7 Days)</div>", unsafe_allow_html=True)
     days = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
     maxv = max(yt_last7)
@@ -130,18 +143,6 @@ with right:
             f"<div style='text-align:right'>{v:,}</div>"
             f"</div>",
             unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    # (4) Instagram Stats
-    st.markdown("<div class='card'><div class='section'><i class='fab fa-instagram icon' style='color:#e1306c'></i>Instagram</div>", unsafe_allow_html=True)
-    st.markdown(f"<div class='kpi-label'>Followers</div><div class='kpi-value'>{instagram['followers']:,}</div>", unsafe_allow_html=True)
-    st.markdown(f"<div class='kpi-label'>Total Views</div><div class='kpi-value'>{instagram['total']:,}</div>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    # (5) TikTok Stats
-    st.markdown("<div class='card'><div class='section'><i class='fab fa-tiktok icon'></i>TikTok</div>", unsafe_allow_html=True)
-    st.markdown(f"<div class='kpi-label'>Followers</div><div class='kpi-value'>{tiktok['followers']:,}</div>", unsafe_allow_html=True)
-    st.markdown(f"<div class='kpi-label'>Total Views</div><div class='kpi-value'>{tiktok['total']:,}</div>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
 # ===================== Bottom row: ClickUp + Next Filming =====================
@@ -176,5 +177,5 @@ with b2:
             unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-st.caption("Two-column layout: Large world map left; right column stacked (Ministry → YouTube → 7‑day Views → Instagram → TikTok). "
-           "Bars aligned with grid; Next Filming shows day, date, and time.")
+st.caption("Right column is compact: Row1 Ministry, Row2 3‑up KPIs, Row3 7‑day views. "
+           "Bars aligned; filming includes day, date, and time.")
