@@ -1,14 +1,41 @@
+
 import json
 from pathlib import Path
 import streamlit as st
-
 from textwrap import dedent
-def html(md_str: str):
+from streamlit.components.v1 import html as component_html  # for rendering SVG map reliably
+
+# ---------- small helpers ----------
+def md(md_str: str):
+    """Render HTML/Markdown (with allow_html)."""
     st.markdown(dedent(md_str).strip(), unsafe_allow_html=True)
 
-# ──────────────────────────────
-# Page / Theme
-# ──────────────────────────────
+def render_world_map(dots_svg: str, bg_svg: str | None, height: int = 420):
+    """Render the world map in an iframe so SVG never shows as escaped text."""
+    component_html(f"""
+<div style="position:relative;height:{height}px">
+  <style>
+    .map-wrap svg {{ width:100%; height:100%; display:block; }}
+    .dot {{ fill:#ffd54a; filter:drop-shadow(0 0 6px rgba(255,213,74,.55)); }}
+  </style>
+  <div class="map-wrap" style="position:relative;">
+    { (bg_svg or """
+    <svg viewBox="0 0 100 50" preserveAspectRatio="xMidYMid meet">
+      <rect x="2" y="14" width="96" height="22" rx="6" fill="#101319" stroke="rgba(255,255,255,0.08)"/>
+      <ellipse cx="28" cy="26" rx="18" ry="7" fill="#1a2030"/>
+      <ellipse cx="60" cy="25" rx="22" ry="8" fill="#1a2030"/>
+      <ellipse cx="82" cy="28" rx="10" ry="6" fill="#1a2030"/>
+    </svg>
+    """) }
+    <svg viewBox="0 0 100 50" preserveAspectRatio="xMidYMid meet"
+         style="position:absolute;left:0;top:0">
+      {dots_svg}
+    </svg>
+  </div>
+</div>
+""", height=height)
+
+# ---------- page / theme ----------
 st.set_page_config(page_title="LoudVoice Dashboard", page_icon="🎛️", layout="wide")
 
 # Optional zoom for TV distance: use ?zoom=115 in URL
@@ -20,7 +47,7 @@ YELLOW = "#ffd54a"
 TEXT   = "#f5f7ff"
 MUTED  = "#8b93b5"
 
-# Hide Streamlit chrome; global styles
+# Hide Streamlit chrome & set global styles
 st.markdown(f"""
 <style>
 header[data-testid="stHeader"]{{display:none;}}
@@ -76,34 +103,27 @@ h1,h2,h3,h4,h5,h6,.section-title,.kpi-label {{ color: {YELLOW}!important; }}
 
 .map-wrap {{ position:relative; height: 420px; }}
 .map-wrap svg {{ width:100%; height:100%; display:block; }}
-.dot {{ fill: {YELLOW}; filter: drop-shadow(0 0 6px rgba(255,213,74,.55)); }}
-
 .logo-wrap img, .logo-wrap svg {{ height: 42px; }}
 </style>
 """, unsafe_allow_html=True)
 
-# ──────────────────────────────
-# Assets loader
-# ──────────────────────────────
+# ---------- assets loader ----------
 ASSETS = Path(__file__).parent / "assets"
 
 def svg_str(name: str) -> str:
     p = ASSETS / name
     if p.exists():
         return p.read_text(encoding="utf-8")
-    return ""  # fallback handled where used
+    return ""
 
-# Load icons (fallback to emoji if missing)
+# icons & images
 YT = svg_str("youtube.svg") or "▶️"
 IG = svg_str("instagram.svg") or "📸"
 TT = svg_str("tiktok.svg") or "🎵"
+WORLD = svg_str("worldmap.svg")
+LOGO_SVG = svg_str("logo.svg") or svg_str("logo_placeholder.svg")
 
-WORLD = svg_str("worldmap.svg")  # background SVG for map (optional)
-LOGO_SVG = svg_str("logo.svg") or svg_str("logo_placeholder.svg")  # add assets/logo.svg if you have it
-
-# ──────────────────────────────
-# Data layer (with Secrets override)
-# ──────────────────────────────
+# ---------- data layer (with optional Secrets override) ----------
 DEFAULT_DATA = {
     "kpis": {"youtube": 12345, "instagram": 4321, "tiktok": 6789},
     "map_dots": [
@@ -114,11 +134,11 @@ DEFAULT_DATA = {
         {"x": 78, "y": 35, "r": 2.0},
         {"x": 86, "y": 48, "r": 2.4},
     ],
-    "ministry": {"prayer": 15, "biblestudies": 8, "baptisms": 1, "weekly":[3,5,4,6,7,8,6,10,12,11,14,15]},
+    "ministry": {"prayer": 15, "biblestudies": 8, "baptisms": 1},
     "timeslots": [
-        {"when":"Tue 1:00–3:00 PM","what":"LDE Ep.5 (Bahasa)"},
-        {"when":"Wed 10:30–12:00","what":"Testimony shoot (John)"},
-        {"when":"Fri 9:00–11:00 AM","what":"Music session — choir"},
+        {"when":"Thu 2:00–4:00 PM","what":"Bahasa short — EP12"},
+        {"when":"Sat 9:30–11:00 AM","what":"Choir session"},
+        {"when":"Tue 3:00–5:00 PM","what":"Testimony w/ Mary"},
     ],
     "daily_tasks": [
         {"title":"Outline next video","status":"Not Ready"},
@@ -132,10 +152,8 @@ DEFAULT_DATA = {
         "Update media kit",
     ],
     "last_week_views": { "music": 18234, "reels": 24790 },
-    "notes":"Tip: Add/override all data via Streamlit Secrets → key = DASHBOARD_JSON."
 }
 
-# Allow JSON override from Secrets (paste JSON into Settings → Secrets → DASHBOARD_JSON)
 override = st.secrets.get("DASHBOARD_JSON")
 if override:
     try:
@@ -146,7 +164,7 @@ if override:
 
 data = DEFAULT_DATA
 
-# Helpers for colored progress bars on daily tasks
+# ---------- progress bars ----------
 def status_to_pct_and_class(status: str):
     s = (status or "").lower()
     if "progress" in s:
@@ -159,117 +177,82 @@ def progress_bar_html(pct: int, css_class: str):
     pct = max(0, min(100, int(pct)))
     return f'<div class="hbar"><span class="{css_class}" style="width:{pct}%"></span></div>'
 
-# ──────────────────────────────
-# Header
-# ──────────────────────────────
+# ---------- header ----------
 left, right = st.columns([0.7, 0.3])
 with left:
     if LOGO_SVG:
-        st.markdown(f'<div class="logo-wrap">{LOGO_SVG}</div>', unsafe_allow_html=True)
-    st.markdown("## **LOUDVOICE**")
+        md(f'<div class="logo-wrap">{LOGO_SVG}</div>')
+    md("## **LOUDVOICE**")
     st.caption("TV‑friendly dashboard • Streamlit Cloud • Black + Yellow theme")
 with right:
     st.caption("Use `?zoom=115` if the TV is far • Edit via Settings → Secrets → DASHBOARD_JSON")
 
 st.write("")
 
-# ──────────────────────────────
-# KPI Row (with SVG icons)
-# ──────────────────────────────
+# ---------- KPI row ----------
 c1, c2, c3 = st.columns(3)
 with c1:
-    st.markdown('<div class="card kpi">', unsafe_allow_html=True)
-    st.markdown(f'<div class="icon">{YT}</div>', unsafe_allow_html=True)
-    st.markdown('<div><div class="kpi-label">YouTube Subscribers</div>'
-                f'<p class="big">{data["kpis"]["youtube"]:,}</p></div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    md('<div class="card kpi">')
+    md(f'<div class="icon">{YT}</div>')
+    md('<div><div class="kpi-label">YouTube Subscribers</div>'
+       f'<p class="big">{data["kpis"]["youtube"]:,}</p></div>')
+    md('</div>')
 
 with c2:
-    st.markdown('<div class="card kpi">', unsafe_allow_html=True)
-    st.markdown(f'<div class="icon">{IG}</div>', unsafe_allow_html=True)
-    st.markdown('<div><div class="kpi-label">Instagram Followers</div>'
-                f'<p class="big">{data["kpis"]["instagram"]:,}</p></div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    md('<div class="card kpi">')
+    md(f'<div class="icon">{IG}</div>')
+    md('<div><div class="kpi-label">Instagram Followers</div>'
+       f'<p class="big">{data["kpis"]["instagram"]:,}</p></div>')
+    md('</div>')
 
 with c3:
-    st.markdown('<div class="card kpi">', unsafe_allow_html=True)
-    st.markdown(f'<div class="icon">{TT}</div>', unsafe_allow_html=True)
-    st.markdown('<div><div class="kpi-label">TikTok Followers</div>'
-                f'<p class="big">{data["kpis"]["tiktok"]:,}</p></div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    md('<div class="card kpi">')
+    md(f'<div class="icon">{TT}</div>')
+    md('<div><div class="kpi-label">TikTok Followers</div>'
+       f'<p class="big">{data["kpis"]["tiktok"]:,}</p></div>')
+    md('</div>')
 
 st.write("")
 
-# ──────────────────────────────
-# Map (left) + Next Filming Timeslots (right)
-# ──────────────────────────────
+# ---------- Map (left) + Next Filming Timeslots (right) ----------
 map_col, side_col = st.columns([0.62, 0.38])
-
 with map_col:
-    html("""
-<div class="card">
-  <div class="section-title">Global Viewer Map</div>
-  <div class="map-wrap">
-    """ + WORLD + """
-    <svg viewBox="0 0 100 50" preserveAspectRatio="xMidYMid meet" style="position:absolute;left:0;top:0">
-      """ + "".join([f'<circle class="dot" cx="{d["x"]}" cy="{d["y"]}" r="{d["r"]}"></circle>' for d in data["map_dots"]]) + """
-    </svg>
-  </div>
-</div>
-""")
-    
+    md('<div class="card"><div class="section-title">Global Viewer Map</div>')
+    circles = "".join([f'<circle class="dot" cx="{d["x"]}" cy="{d["y"]}" r="{d["r"]}"></circle>' for d in data["map_dots"]])
+    render_world_map(circles, WORLD if WORLD.strip() else None, height=420)
+    md('</div>')
+
 with side_col:
-    html("""
-<div class="card">
-  <div class="section-title">Next Filming Timeslots</div>
-</div>
-""")
+    md('<div class="card"><div class="section-title">Next Filming Timeslots</div>')
     for slot in data["timeslots"]:
-        html(f"""
-<div class="row-sm">
-  <div><b>{slot["when"]}</b><div class="small">{slot["what"]}</div></div>
-  <span class="pill">Upcoming</span>
-</div>
-""")
-      
+        md(f'<div class="row-sm"><div><b>{slot["when"]}</b><div class="small">{slot["what"]}</div></div><span class="pill">Upcoming</span></div>')
+    md('</div>')
+
 st.write("")
 
-# ──────────────────────────────
-# Tasks Row (Daily with progress bars + Weekly list)
-# ──────────────────────────────
+# ---------- Tasks Row (Daily with bars + Weekly list) ----------
 daily_col, weekly_col = st.columns([0.55, 0.45])
-
 with daily_col:
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">Daily Tasks</div>', unsafe_allow_html=True)
+    md('<div class="card"><div class="section-title">Daily Tasks</div>')
     for t in data["daily_tasks"]:
         pct, css = status_to_pct_and_class(t.get("status"))
         bar = progress_bar_html(pct, css)
-        st.markdown(
-            f'<div class="row-sm"><div>{t["title"]}'
-            f'<div class="small">{t["status"]}</div></div>'
-            f'<div style="flex:1;max-width:360px">{bar}</div></div>',
-            unsafe_allow_html=True
-        )
-    st.markdown('</div>', unsafe_allow_html=True)
+        md(f'<div class="row-sm"><div>{t["title"]}<div class="small">{t["status"]}</div></div><div style="flex:1;max-width:360px">{bar}</div></div>')
+    md('</div>')
 
 with weekly_col:
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">Weekly Tasks</div>', unsafe_allow_html=True)
+    md('<div class="card"><div class="section-title">Weekly Tasks</div>')
     for item in data["weekly_tasks"]:
-        st.markdown(f'<div class="row-sm"><div>{item}</div><span class="pill">This week</span></div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+        md(f'<div class="row-sm"><div>{item}</div><span class="pill">This week</span></div>')
+    md('</div>')
 
 st.write("")
 
-# ──────────────────────────────
-# Last 7 Days Views + Ministry Tracker
-# ──────────────────────────────
+# ---------- Last 7 Days Views + Ministry Tracker ----------
 views_col, ministry_col = st.columns([0.55, 0.45])
 
 with views_col:
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">Last 7 Days Views</div>', unsafe_allow_html=True)
+    md('<div class="card"><div class="section-title">Last 7 Days Views</div>')
     music = int(data["last_week_views"]["music"])
     reels = int(data["last_week_views"]["reels"])
     total = max(music, reels, 1)
@@ -282,18 +265,17 @@ with views_col:
                 f'<div style="min-width:110px; text-align:right">{value:,}</div>'
                 f'</div>')
 
-    st.markdown(views_bar("Music Videos", music, "#ff8a34"), unsafe_allow_html=True)   # orange
-    st.markdown(views_bar("Reels / Shorts", reels, "#4aa3ff"), unsafe_allow_html=True) # blue
-    st.markdown('</div>', unsafe_allow_html=True)
+    md(views_bar("Music Videos", music, "#ff8a34"))   # orange
+    md(views_bar("Reels / Shorts", reels, "#4aa3ff")) # blue
+    md('</div>')
 
 with ministry_col:
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">Ministry Tracker</div>', unsafe_allow_html=True)
+    md('<div class="card"><div class="section-title">Ministry Tracker</div>')
     a,b,c = st.columns(3)
     a.metric("Prayer Contacts", data["ministry"]["prayer"])
     b.metric("Bible Studies", data["ministry"]["biblestudies"])
     c.metric("Baptisms", data["ministry"]["baptisms"])
-    st.markdown('<div class="small">Updated weekly</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    md('<div class="small">Updated weekly</div>')
+    md('</div>')
 
-st.caption("Tip: Edit data without code via **Settings → Secrets → DASHBOARD_JSON**. Use `?zoom=115` if the TV is far.")
+st.caption("Tip: Edit data without code via Settings → Secrets → DASHBOARD_JSON. Use ?zoom=115 if the TV is far.")
