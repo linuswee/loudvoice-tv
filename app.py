@@ -11,13 +11,21 @@ import pandas as pd
 # Helpers
 # ===========================
 
-def human_format(num):
-    num = float(num)
-    for unit in ['', 'K', 'M', 'B']:
-        if abs(num) < 1000.0:
-            return f"{num:3.1f}{unitx}".rstrip('0').rstrip('.')
+def human_format(value):
+    """Format numbers as K / M / B with trimmed decimals."""
+    if value is None:
+        return "0"
+    try:
+        num = float(value)
+    except Exception:
+        return str(value)
+
+    units = ["", "K", "M", "B", "T"]
+    for u in units:
+        if abs(num) < 1000 or u == units[-1]:
+            s = f"{num:.1f}".rstrip("0").rstrip(".")
+            return f"{s}{u}"
         num /= 1000.0
-    return f"{num:.1f}B"
 
 def load_secrets():
     return {
@@ -57,7 +65,7 @@ def get_youtube_7day_views():
 
 def main():
     secrets = load_secrets()
-    tz = pytz.timezone(secrets["TIMEZONE"])
+    tz = pytz.timezone(secrets["TIMEZONE"])	
     now = dt.datetime.now(tz)
     
     st.set_page_config(layout="wide")
