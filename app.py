@@ -1,24 +1,17 @@
-# --- iOS-friendly OAuth to mint a YouTube refresh token ---
-from google_auth_oauthlib.flow import Flow
 import streamlit as st
+from google_auth_oauthlib.flow import Flow
 
+st.set_page_config(page_title="Dashboard", layout="wide")
+
+# --- iOS-friendly OAuth to mint a YouTube refresh token ---
 SCOPES = ["https://www.googleapis.com/auth/yt-analytics.readonly"]
 
 def mobile_oauth_setup_ui():
-    """
-    Shows a Sign in with Google button if YT_REFRESH_TOKEN is missing.
-    Forces account chooser and uses redirect URI from secrets to avoid mismatch.
-    """
-    # If we already have a refresh token, nothing to do
     if st.secrets.get("YT_REFRESH_TOKEN"):
         return
 
     client_id = st.secrets.get("YT_CLIENT_ID")
     client_secret = st.secrets.get("YT_CLIENT_SECRET")
-    # Set this in Secrets exactly to your app URL (or localhost when testing)
-    # Examples:
-    #   YT_REDIRECT_URI = "https://loudvoice-tv.streamlit.app/"
-    #   YT_REDIRECT_URI = "http://localhost:8501"
     redirect_uri = st.secrets.get("YT_REDIRECT_URI")
 
     st.title("🔐 Connect YouTube Analytics")
@@ -42,13 +35,11 @@ def mobile_oauth_setup_ui():
     )
     flow.redirect_uri = redirect_uri
 
-    # If we don't have a code param yet, show the Google button
     code = st.query_params.get("code", [None])[0]
     if not code:
         auth_url, _state = flow.authorization_url(
             access_type="offline",
             include_granted_scopes="true",
-            # Force account chooser + new consent to ensure a refresh token is returned
             prompt="consent select_account",
         )
         st.link_button("🔐 Sign in with Google (YouTube Analytics)", auth_url, type="primary")
@@ -58,13 +49,11 @@ def mobile_oauth_setup_ui():
         )
         st.stop()
 
-    # Exchange code for tokens
     try:
         flow.fetch_token(code=code)
         creds = flow.credentials
         refresh = getattr(creds, "refresh_token", None)
 
-        # Optional: clean up URL so ?code=... disappears
         st.experimental_set_query_params()
 
         if refresh:
@@ -75,9 +64,16 @@ def mobile_oauth_setup_ui():
             st.error("No refresh token returned. Tap sign-in again (we forced consent & account chooser).")
     except Exception as e:
         st.error(
-            "OAuth exchange failed.\n\n"
-            "• Ensure the redirect URI in **Secrets** exactly matches your app URL.\n"
-            "• Add it under **Google Cloud → APIs & Services → Credentials → OAuth client → Authorized redirect URIs**.\n"
+            "OAuth exchange failed. Check redirect URI matches.
+"
             f"Error: {e}"
         )
     st.stop()
+
+# If no refresh token, run setup UI
+if not st.secrets.get("YT_REFRESH_TOKEN"):
+    mobile_oauth_setup_ui()
+
+# --- Your dashboard code goes here ---
+st.title("📊 LoudVoice Dashboard")
+st.write("Now integrated with YouTube OAuth flow (refresh token).")
