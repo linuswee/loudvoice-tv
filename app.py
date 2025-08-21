@@ -8,6 +8,72 @@ import streamlit as st
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 
+# --- Mobile OAuth setup (iOS-friendly) to mint YT refresh token ---
+from google_auth_oauthlib.flow import Flow
+from google.oauth2.credentials import Credentials
+import streamlit as st
+
+SCOPES = ["https://www.googleapis.com/auth/yt-analytics.readonly"]
+
+def mobile_oauth_setup_ui():
+    # Skip if we already have a refresh token
+    if st.secrets.get("YT_REFRESH_TOKEN"):
+        return
+
+    client_id = st.secrets.get("YT_CLIENT_ID")
+    client_secret = st.secrets.get("YT_CLIENT_SECRET")
+    redirect_uri = "https://loudvoice-tv.streamlit.app/"  # your Streamlit app URL
+
+    if not (client_id and client_secret):
+        st.warning("Add YT_CLIENT_ID and YT_CLIENT_SECRET to Secrets first.")
+        return
+
+    st.info("Sign in to generate your YouTube **refresh token** (iPhone-friendly).")
+
+    flow = Flow.from_client_config(
+        {
+            "web": {
+                "client_id": client_id,
+                "client_secret": client_secret,
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "redirect_uris": [redirect_uri],
+            }
+        },
+        scopes=SCOPES,
+    )
+    flow.redirect_uri = redirect_uri
+
+    code = st.query_params.get("code", [None])[0]
+
+    if not code:
+        auth_url, _state = flow.authorization_url(
+            access_type="offline",
+            include_granted_scopes="true",
+            prompt="consent",
+        )
+        st.link_button("🔐 Sign in with Google (YouTube Analytics)", auth_url, type="primary")
+        st.stop()
+
+    # Exchange code for tokens
+    try:
+        flow.fetch_token(code=code)
+        creds = flow.credentials
+        refresh = getattr(creds, "refresh_token", None)
+
+        # Clean up the URL (optional)
+        st.experimental_set_query_params()
+
+        if refresh:
+            st.success("Copy this refresh token into Streamlit **Secrets → YT_REFRESH_TOKEN**")
+            st.code(refresh)
+            st.info("After pasting it into Secrets, redeploy the app and you can remove this setup block.")
+        else:
+            st.error("No refresh token returned. Tap the sign-in button again and ensure prompt='consent' remained.")
+    except Exception as e:
+        st.error("OAuth exchange failed. Double-check the redirect URI matches your app URL exactly.")
+        st.stop()
+
 # Google libs (only used if YouTube Analytics secrets present)
 try:
     from google.oauth2.credentials import Credentials
