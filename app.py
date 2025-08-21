@@ -64,8 +64,7 @@ def mobile_oauth_setup_ui():
             st.error("No refresh token returned. Tap sign-in again (we forced consent & account chooser).")
     except Exception as e:
         st.error(
-            "OAuth exchange failed. Check redirect URI matches.
-"
+            "OAuth exchange failed. Check redirect URI matches."
             f"Error: {e}"
         )
     st.stop()
