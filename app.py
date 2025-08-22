@@ -89,7 +89,7 @@ st.markdown(
 
 LOCAL_TZ = "Asia/Kuala_Lumpur"   # change if your Studio timezone differs
 DAYS_FOR_MAP = 28                # 28‑day country map window
-MAP_HEIGHT = 560 if not COMPACT else 420  # taller map so it fills space
+MAP_HEIGHT = 600 if not COMPACT else 420  # taller map so it fills space
 
 def fmt_num(n: int) -> str:
     if n >= 1_000_000_000: v = n / 1_000_000_000; return (f"{v:.1f}".rstrip("0").rstrip(".")) + "B"
@@ -280,9 +280,9 @@ def build_choropleth(choro_df: pd.DataFrame, height: int) -> go.Figure:
     
     tickvals, ticktext = _adaptive_ticks(int(z_raw.max()))
 
-    # Reserve a bottom band just for the colorbar so there’s no overlap
-    bottom_band = 0.16          # height portion for the colorbar area
-    colorbar_y  = bottom_band/2 # vertical center of the colorbar
+    # Reserve a *thin* bottom band just for the colorbar
+    bottom_band = 0.08                 # was ~0.16; smaller = more room for the map
+    colorbar_y  = bottom_band / 2.0    # centers the bar in that band
     fig = go.Figure(
         go.Choropleth(
             locations=choro_df["iso3"],
@@ -302,8 +302,8 @@ def build_choropleth(choro_df: pd.DataFrame, height: int) -> go.Figure:
                 title="Views (log scale)",
                 orientation="h",
                 x=0.5, xanchor="center",
-                y=colorbar_y, yanchor="middle",   # stays entirely in the bottom band
-                lenmode="fraction", len=0.92,
+                y=colorbar_y, yanchor="middle",   # drop it further down
+                lenmode="fraction", len=0.96,     # make it almost full width
                 thickness=16,
                 outlinewidth=0,
                 ticks="outside",
@@ -314,19 +314,17 @@ def build_choropleth(choro_df: pd.DataFrame, height: int) -> go.Figure:
     )
 
     fig.update_layout(
-        geo=dict(
-            projection_type="natural earth",
-            bgcolor="rgba(0,0,0,0)",
-            showocean=True, oceancolor="#070a0f",
-            showland=True, landcolor="#0b0f16",
-            showcountries=True, countrycolor="rgba(255,255,255,.10)",
-            # Map occupies everything *above* the reserved bottom band
-            domain=dict(x=[0.00, 1.00], y=[bottom_band, 1.00]),
-        ),
-        # give the figure extra bottom margin so labels never clip
-        margin=dict(l=0, r=0, t=0, b=64),
-        height=height,
-        paper_bgcolor="rgba(0,0,0,0)",
+    geo=dict(
+        projection_type="natural earth",
+        bgcolor="rgba(0,0,0,0)",
+        showocean=True, oceancolor="#070a0f",
+        showland=True, landcolor="#0b0f16",
+        showcountries=True, countrycolor="rgba(255,255,255,.10)",
+        domain=dict(x=[0.00, 1.00], y=[bottom_band, 1.00]),  # map uses everything above the legend
+    ),
+    margin=dict(l=0, r=0, t=0, b=0),  # no extra bottom margin
+    height=height,
+    paper_bgcolor="rgba(0,0,0,0)",
     )
     return fig
 
