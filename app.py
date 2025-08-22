@@ -114,11 +114,12 @@ def yt_channel_stats(api_key: str, channel_id: str):
     stats = items[0]["statistics"]
     return {"subs": int(stats.get("subscriberCount", 0)), "total": int(stats.get("viewCount", 0))}
 
-# YouTube Analytics: last N days (default 28) + countries
+# YouTube Analytics: last N days (default 28) + countries  → returns (daily_df, cdf)
 @st.cache_data(ttl=300)
 def yt_analytics_lastN_and_countries(client_id, client_secret, refresh_token, days: int = 28):
     if not GOOGLE_OK:
         raise RuntimeError("Google client libraries unavailable.")
+
     creds = Credentials(
         None,
         refresh_token=refresh_token,
@@ -129,11 +130,13 @@ def yt_analytics_lastN_and_countries(client_id, client_secret, refresh_token, da
     )
     if not creds.valid:
         creds.refresh(Request())
+
     analytics = build("youtubeAnalytics", "v2", credentials=creds, cache_discovery=False)
 
     end_date = datetime.utcnow().date()
     start_date = end_date - timedelta(days=days - 1)  # inclusive window
 
+    # 1) Daily views
     daily = analytics.reports().query(
         ids="channel==MINE",
         startDate=start_date.isoformat(),
@@ -142,7 +145,13 @@ def yt_analytics_lastN_and_countries(client_id, client_secret, refresh_token, da
         dimensions="day",
         sort="day",
     ).execute()
+    rows = daily.get("rows", []) or []
+    daily_df = pd.DataFrame(rows, columns=["date", "views"])
+    if not daily_df.empty:
+        daily_df["date"] = pd.to_datetime(daily_df["date"])
+        daily_df["views"] = daily_df["views"].astype(int)
 
+    # 2) Country views
     country = analytics.reports().query(
         ids="channel==MINE",
         startDate=start_date.isoformat(),
@@ -152,12 +161,11 @@ def yt_analytics_lastN_and_countries(client_id, client_secret, refresh_token, da
         sort="-views",
         maxResults=200,
     ).execute()
-
-    daily_vals = [int(row[1]) for row in daily.get("rows", [])]
     cdf = pd.DataFrame(country.get("rows", []) or [], columns=["country", "views"])
     if not cdf.empty:
         cdf["views"] = cdf["views"].astype(int)
-    return daily_vals, cdf
+
+    return daily_df, cdf
 
 @st.cache_data
 def country_centroids():
@@ -239,9 +247,7 @@ analytics_ok = False
 if yt_client_id and yt_client_secret and yt_refresh_token:
     try:
         DAYS_FOR_MAP = 28
-        lstN, cdf = yt_analytics_lastN_and_countries(
-            yt_client_id, yt_client_secret, yt_refresh_token, days=DAYS_FOR_MAP
-        )
+        daily_df, cdf = yt_analytics_lastN_and_countries(yt_client_id, yt_client_secret, yt_refresh_token, days=DAYS_FOR_MAP)
         if lstN:
             yt_last_vals = lstN
         if cdf is not None and not cdf.empty:
