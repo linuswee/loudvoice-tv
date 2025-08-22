@@ -116,6 +116,55 @@ def yt_channel_stats(api_key: str, channel_id: str):
     stats = items[0]["statistics"]
     return {"subs": int(stats.get("subscriberCount", 0)), "total": int(stats.get("viewCount", 0))}
 
+# ---- YouTube Analytics: country views (last N days) ----
+@st.cache_data(ttl=300)
+def yt_analytics_country_lastN(
+    client_id: str,
+    client_secret: str,
+    refresh_token: str,
+    days: int = 28,
+    channel_id: str | None = None,
+):
+    """
+    Returns a DataFrame with columns: ['country', 'views'] for the last N days.
+    Uses *yesterday* as end date to match Studio’s published windows.
+    """
+    if not GOOGLE_OK:
+        raise RuntimeError("Google client libraries unavailable.")
+
+    creds = Credentials(
+        None,
+        refresh_token=refresh_token,
+        token_uri="https://oauth2.googleapis.com/token",
+        client_id=client_id,
+        client_secret=client_secret,
+        scopes=["https://www.googleapis.com/auth/yt-analytics.readonly"],
+    )
+    if not creds.valid:
+        creds.refresh(Request())
+
+    analytics = build("youtubeAnalytics", "v2", credentials=creds, cache_discovery=False)
+
+    end_date = (datetime.utcnow().date() - timedelta(days=1))          # yesterday
+    start_date = end_date - timedelta(days=days - 1)                   # inclusive window
+    ids_val = f"channel=={channel_id}" if channel_id else "channel==MINE"
+
+    resp = analytics.reports().query(
+        ids=ids_val,
+        startDate=start_date.isoformat(),
+        endDate=end_date.isoformat(),
+        metrics="views",
+        dimensions="country",
+        sort="-views",
+        maxResults=200,
+    ).execute()
+
+    rows = resp.get("rows", []) or []
+    df = pd.DataFrame(rows, columns=["country", "views"])
+    if not df.empty:
+        df["views"] = df["views"].astype(int)
+    return df
+
 @st.cache_data(ttl=300)
 def yt_analytics_lastN_and_countries(client_id, client_secret, refresh_token, days: int = 28):
     """
@@ -553,7 +602,39 @@ with left:
     )
 
     # Use hard-mapped Studio data for now; every other country is present with 0
-    choro_df = build_choro_dataframe(STUDIO_COUNTRY_VIEWS)
+    # choro_df = build_choro_dataframe(STUDIO_COUNTRY_VIEWS)
+    
+    # ---- Country map dataframe (live from YouTube Analytics if available) ----
+    yt_client_id     = st.secrets.get("YT_CLIENT_ID")
+    yt_client_secret = st.secrets.get("YT_CLIENT_SECRET")
+    yt_refresh_token = st.secrets.get("YT_REFRESH_TOKEN")
+    yt_channel_id    = st.secrets.get("YT_PRIMARY_CHANNEL_ID") or st.secrets.get("YOUTUBE_CHANNEL_ID")
+    
+    cdf = pd.DataFrame()
+    analytics_err = ""
+    
+    if yt_client_id and yt_client_secret and yt_refresh_token:
+        try:
+            cdf = yt_analytics_country_lastN(
+                yt_client_id, yt_client_secret, yt_refresh_token,
+                days=DAYS_FOR_MAP, channel_id=yt_channel_id
+            )
+        except Exception as e:
+            analytics_err = str(e)
+    
+    # Build the choropleth input. If API fails, we fall back to your mock.
+    if not cdf.empty:
+        # Use ALL countries present; missing ones will default to 0 inside build_choro_dataframe
+        country_views = dict(zip(cdf["country"], cdf["views"]))
+    else:
+        # Fallback to your mock/sample until API is configured
+        country_views = {c: int(v) for c, v in zip(MOCK["yt_countries"]["country"], MOCK["yt_countries"]["views"])}
+    
+    # This uses your existing helper from the previous iteration
+    choro_df = build_choro_dataframe(country_views)
+    
+    if analytics_err:
+        st.warning(f"YT Analytics (country) error: {analytics_err}")
     fig = build_choropleth(choro_df, MAP_HEIGHT)
 
     st.plotly_chart(fig, use_container_width=True, theme=None,
