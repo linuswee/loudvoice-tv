@@ -175,8 +175,6 @@ def yt_analytics_lastN_and_countries(client_id, client_secret, refresh_token, da
     except Exception as e:
         return pd.DataFrame(), pd.DataFrame(), str(e)
 
-
-
 @st.cache_data
 def add_country_names(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()
@@ -205,7 +203,7 @@ def build_country_choropleth(cdf: pd.DataFrame, height: int = 460) -> go.Figure:
     zmax = df["views"].max()
     fig = go.Figure(
         go.Choropleth(
-            locations=df["country"],           # ISO-2 codes
+            locations=df["iso3"],           # ISO-3 codes
             z=df["views"],
             text=df["name"] + " — " + df["views"].astype(int).map(fmt_num),
             colorscale="YlOrRd",               # yellow -> deep red
@@ -228,6 +226,34 @@ def build_country_choropleth(cdf: pd.DataFrame, height: int = 460) -> go.Figure:
         paper_bgcolor="rgba(0,0,0,0)",
     )
     return fig
+
+def country_to_iso3(name: str) -> str:
+    """Convert country name to ISO-3 code for Plotly choropleth."""
+    try:
+        return pycountry.countries.lookup(name).alpha_3
+    except LookupError:
+        overrides = {
+            "United States": "USA",
+            "South Korea": "KOR",
+            "North Korea": "PRK",
+            "Russia": "RUS",
+            "Iran": "IRN",
+            "Vietnam": "VNM",
+            "Taiwan": "TWN",
+            "Bolivia": "BOL",
+            "Venezuela": "VEN",
+            "Tanzania": "TZA",
+            "Syria": "SYR",
+            "Laos": "LAO",
+            "Brunei": "BRN",
+            "Czechia": "CZE",
+            "Slovakia": "SVK",
+            "Macedonia": "MKD",
+            "Moldova": "MDA",
+            "Palestine": "PSE",
+            "Kosovo": "XKX",
+        }
+        return overrides.get(name, None)
 
 def normalize_daily_to_local(daily_df: pd.DataFrame, tz: str) -> pd.DataFrame:
     """
@@ -342,9 +368,13 @@ else:
 
 # Country map dataframe for choropleth (no lat/lon needed)
 if not cdf.empty:
-    choro_df = cdf.copy()  # columns: country, views
+    choro_df = cdf.copy()
 else:
     choro_df = MOCK["yt_countries"].copy()
+
+# Ensure we have ISO-3 codes
+choro_df["iso3"] = choro_df["country"].apply(country_to_iso3)
+choro_df = choro_df.dropna(subset=["iso3"])
 
 analytics_ok = (not daily_df.empty) or (not cdf.empty)
 if not analytics_ok and analytics_err:
