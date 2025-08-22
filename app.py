@@ -277,7 +277,7 @@ MAP_HEIGHT = 340 if not COMPACT else 260
 left, right = st.columns([1.25, 0.75])
 
 with left:
-    st.markdown("<div class='card'><div class='section'>World Map — YouTube Viewers (True, last 7 days)</div>", unsafe_allow_html=True)
+    st.markdown("<div class='card'><div class='section'>World Map — YouTube Viewers (True, last 28 days)</div>", unsafe_allow_html=True)
     fig = go.Figure(
         go.Scattergeo(
             lat=map_df["lat"],
