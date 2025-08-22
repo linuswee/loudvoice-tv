@@ -255,24 +255,30 @@ def _nice_k_ticks(vmax: int):
     return tickvals, ticktext
 
 def build_choropleth(choro_df: pd.DataFrame, height: int) -> go.Figure:
-    """
-    Log‑scaled choropleth with bottom (horizontal) colorbar and 1K/2K/5K ticks.
-    choro_df must have columns: ['iso3', 'name', 'views'].
-    """
+    import numpy as np
+
     z_raw = choro_df["views"].astype(int).clip(lower=0)
-    z = np.log10(z_raw + 1)  # log for contrast
+    z = np.log10(z_raw + 1)
+
+    # nice ticks in real units (1k, 2k, 5k, …)
+    def _nice_k_ticks(vmax: int):
+        steps = [100, 300, 500, 1_000, 2_000, 5_000, 10_000, 20_000, 50_000]
+        vals = [s for s in steps if s <= max(vmax, 1)] or [1_000]
+        return [np.log10(v+1) for v in vals], [f"{v//1000}K" if v < 1_000_000 else f"{v//1_000_000}M" for v in vals]
 
     tickvals, ticktext = _nice_k_ticks(int(z_raw.max()))
 
+    # Reserve a bottom band just for the colorbar so there’s no overlap
+    bottom_band = 0.16          # height portion for the colorbar area
+    colorbar_y  = bottom_band/2 # vertical center of the colorbar
     fig = go.Figure(
         go.Choropleth(
             locations=choro_df["iso3"],
             z=z,
             customdata=np.stack([choro_df["name"], z_raw], axis=1),
             hovertemplate="<b>%{customdata[0]}</b><br>Views: %{customdata[1]:,}<extra></extra>",
-            # Expanded 5‑stop colorscale: black → yellow → red → blue → green
             colorscale=[
-                [0.00, "#0b0f16"],  # very low
+                [0.00, "#0b0f16"],  # black
                 [0.20, "#ffe600"],  # yellow
                 [0.40, "#ff3b3b"],  # red
                 [0.70, "#4285f4"],  # blue
@@ -284,8 +290,8 @@ def build_choropleth(choro_df: pd.DataFrame, height: int) -> go.Figure:
                 title="Views (log scale)",
                 orientation="h",
                 x=0.5, xanchor="center",
-                y=0.02, yanchor="bottom",   # place under the map
-                len=0.92,
+                y=colorbar_y, yanchor="middle",   # stays entirely in the bottom band
+                lenmode="fraction", len=0.92,
                 thickness=16,
                 outlinewidth=0,
                 ticks="outside",
@@ -294,6 +300,7 @@ def build_choropleth(choro_df: pd.DataFrame, height: int) -> go.Figure:
             ),
         )
     )
+
     fig.update_layout(
         geo=dict(
             projection_type="natural earth",
@@ -301,8 +308,11 @@ def build_choropleth(choro_df: pd.DataFrame, height: int) -> go.Figure:
             showocean=True, oceancolor="#070a0f",
             showland=True, landcolor="#0b0f16",
             showcountries=True, countrycolor="rgba(255,255,255,.10)",
+            # Map occupies everything *above* the reserved bottom band
+            domain=dict(x=[0.00, 1.00], y=[bottom_band, 1.00]),
         ),
-        margin=dict(l=0, r=0, t=0, b=58),  # extra bottom for the horizontal colorbar
+        # give the figure extra bottom margin so labels never clip
+        margin=dict(l=0, r=0, t=0, b=64),
         height=height,
         paper_bgcolor="rgba(0,0,0,0)",
     )
