@@ -317,34 +317,33 @@ left, right = st.columns([1.25, 0.75])
 with left:
     st.markdown("<div class='card'><div class='section'>World Map — YouTube Viewers (True, last 28 days)</div>", unsafe_allow_html=True)
     # assumes map_df already has columns: country (ISO2), name (long), views, lat, lon
-
-fig = go.Figure(
-    go.Scattergeo(
-        lat=map_df["lat"],
-        lon=map_df["lon"],
-        text=map_df["name"] + " — " + map_df["views"].astype(int).map(fmt_num),  # ← long names
-        mode="markers",
-        marker=dict(
-            # bubble size scaled to max, clamped to [6, 22] px
-            size=(map_df["views"] / max(map_df["views"].max(), 1) * 22).clip(lower=6, upper=22),
-            color="#ffd54a",
-            line=dict(color="#111", width=0.6),
-        ),
-        # prettier tooltip (optional)
-        hovertemplate="<b>%{text}</b><extra></extra>",
+    fig = go.Figure(
+        go.Scattergeo(
+            lat=map_df["lat"],
+            lon=map_df["lon"],
+            text=map_df["name"] + " — " + map_df["views"].astype(int).map(fmt_num),  # ← long names
+            mode="markers",
+            marker=dict(
+                # bubble size scaled to max, clamped to [6, 22] px
+                size=(map_df["views"] / max(map_df["views"].max(), 1) * 22).clip(lower=6, upper=22),
+                color="#ffd54a",
+                line=dict(color="#111", width=0.6),
+            ),
+            # prettier tooltip (optional)
+            hovertemplate="<b>%{text}</b><extra></extra>",
+        )
     )
-)
 
-fig.update_layout(
-    geo=dict(
-        showland=True, landcolor="#0b0f16",
-        showcountries=True, countrycolor="rgba(255,255,255,.15)",
-        showocean=True, oceancolor="#070a0f"
-    ),
-    margin=dict(l=0, r=0, t=0, b=0),
-    height=MAP_HEIGHT,
-    paper_bgcolor="rgba(0,0,0,0)",
-)
+    fig.update_layout(
+        geo=dict(
+            showland=True, landcolor="#0b0f16",
+            showcountries=True, countrycolor="rgba(255,255,255,.15)",
+            showocean=True, oceancolor="#070a0f"
+        ),
+        margin=dict(l=0, r=0, t=0, b=0),
+        height=MAP_HEIGHT,
+        paper_bgcolor="rgba(0,0,0,0)",
+    )
     st.plotly_chart(fig, use_container_width=True, theme=None, config={"displayModeBar": False})
     st.markdown("</div>", unsafe_allow_html=True)
 # === [ANCHOR] LAYOUT: MAP CARD END ===
