@@ -592,8 +592,6 @@ if yt_api_key and yt_channel_id:
 yt_client_id = st.secrets.get("YT_CLIENT_ID")
 yt_client_secret = st.secrets.get("YT_CLIENT_SECRET")
 yt_refresh_token = st.secrets.get("YT_REFRESH_TOKEN")
-who = oauth_channel_identity(yt_client_id, yt_client_secret, yt_refresh_token)
-st.warning(f"OAuth channel: {who['title']} — subs: {fmt_num(who['subs'])}, total views: {fmt_num(who['views'])}")
 
 daily_df = pd.DataFrame()
 cdf = pd.DataFrame()
@@ -619,6 +617,9 @@ if yt_client_id and yt_client_secret and yt_refresh_token:
         last7_df = yt_analytics_daily_lastN(
             yt_client_id, yt_client_secret, yt_refresh_token,
             days=7
+
+            who = oauth_channel_identity(yt_client_id, yt_client_secret, yt_refresh_token)
+            st.warning(f"OAuth channel: {who['title']} — subs: {fmt_num(who['subs'])}, total views: {fmt_num(who['views'])}")
         )
         # If you use timezone normalization elsewhere, uncomment:
         # last7_df = normalize_daily_to_local(last7_df, LOCAL_TZ)
