@@ -253,7 +253,6 @@ else:
     DAYS_FOR_MAP = 28  # just keep label coherent
 
 st.write("Analytics OK:", analytics_ok)
-st.write("Daily values:", yt_last7_vals)
 
 # Build map_df once (with long names), fallback to mock if empty
 cent = country_centroids()
