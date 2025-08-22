@@ -82,19 +82,18 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# -------------------------------
+# =======================
 # Helpers & Data calls
-# -------------------------------
+# =======================
+
+LOCAL_TZ = "Asia/Kuala_Lumpur"   # change if your Studio timezone differs
+DAYS_FOR_MAP = 28                # 28‑day country map window
+MAP_HEIGHT = 460 if not COMPACT else 340  # taller map so it fills space
+
 def fmt_num(n: int) -> str:
-    if n >= 1_000_000_000:
-        v = n / 1_000_000_000
-        return (f"{v:.1f}".rstrip("0").rstrip(".")) + "B"
-    if n >= 1_000_000:
-        v = n / 1_000_000
-        return (f"{v:.1f}".rstrip("0").rstrip(".")) + "M"
-    if n >= 1_000:
-        v = n / 1_000
-        return (f"{v:.1f}".rstrip("0").rstrip(".")) + "K"
+    if n >= 1_000_000_000: v = n / 1_000_000_000; return (f"{v:.1f}".rstrip("0").rstrip(".")) + "B"
+    if n >= 1_000_000:     v = n / 1_000_000;     return (f"{v:.1f}".rstrip("0").rstrip(".")) + "M"
+    if n >= 1_000:         v = n / 1_000;         return (f"{v:.1f}".rstrip("0").rstrip(".")) + "K"
     return f"{n}"
 
 @st.cache_data(ttl=300)
@@ -105,24 +104,24 @@ def http_get(url, params=None, headers=None):
 
 @st.cache_data(ttl=300)
 def yt_channel_stats(api_key: str, channel_id: str):
-    url = "https://www.googleapis.com/youtube/v3/channels"
-    p = {"part": "statistics", "id": channel_id, "key": api_key}
-    data = http_get(url, p)
+    """Simple KPI card numbers (subs + lifetime views)."""
+    data = http_get(
+        "https://www.googleapis.com/youtube/v3/channels",
+        {"part": "statistics", "id": channel_id, "key": api_key},
+    )
     items = data.get("items", [])
     if not items:
         raise RuntimeError("No channel found for the given ID/API key.")
     stats = items[0]["statistics"]
     return {"subs": int(stats.get("subscriberCount", 0)), "total": int(stats.get("viewCount", 0))}
 
-# YouTube Analytics: last N days (default 28) + countries  → returns (daily_df, cdf)
 @st.cache_data(ttl=300)
-def yt_analytics_lastN_and_countries(
-    client_id,
-    client_secret,
-    refresh_token,
-    days: int = 28,
-    channel_id: str | None = None,
-):
+def yt_analytics_lastN_and_countries(client_id, client_secret, refresh_token, days: int = 28):
+    """
+    YouTube Analytics: daily views (last N) + country views (last N).
+    Uses yesterday as end date to avoid partial-day lag.
+    Returns: daily_df[date, views], cdf[country, views]
+    """
     if not GOOGLE_OK:
         return pd.DataFrame(), pd.DataFrame(), "Google client libraries unavailable."
 
@@ -140,14 +139,12 @@ def yt_analytics_lastN_and_countries(
 
         analytics = build("youtubeAnalytics", "v2", credentials=creds, cache_discovery=False)
 
-        # end on *yesterday* to avoid partial/lagging data
-        end_date = (datetime.utcnow().date() - timedelta(days=1))
+        end_date = (datetime.utcnow().date() - timedelta(days=1))  # yesterday
         start_date = end_date - timedelta(days=days - 1)
-        ids_val = f"channel=={channel_id}" if channel_id else "channel==MINE"
 
-        # Daily views
+        # Daily views (channel timezone is not directly controllable; we normalize below)
         daily = analytics.reports().query(
-            ids=ids_val,
+            ids="channel==MINE",
             startDate=start_date.isoformat(),
             endDate=end_date.isoformat(),
             metrics="views",
@@ -160,9 +157,9 @@ def yt_analytics_lastN_and_countries(
             daily_df["date"] = pd.to_datetime(daily_df["date"])
             daily_df["views"] = daily_df["views"].astype(int)
 
-        # Country views
+        # Country views (ISO‑2)
         country = analytics.reports().query(
-            ids=ids_val,
+            ids="channel==MINE",
             startDate=start_date.isoformat(),
             endDate=end_date.isoformat(),
             metrics="views",
@@ -203,138 +200,26 @@ def add_country_names(df: pd.DataFrame) -> pd.DataFrame:
         out["name"] = out["country"].apply(to_name)
     return out
 
-# -------------------------------
-# Mock data (when live calls fail)
-# -------------------------------
-MOCK = {
-    "yt_subs": 30_800, "yt_total": 5_991_195,
-    "yt_last7": [23500, 27100, 24800, 30100, 28900, 33000, 35120],
-    "yt_countries": pd.DataFrame({"country":["US","MY","PH","IN","KE","AU"], "views":[52000,22000,15000,30000,12000,9000]}),
-    "ig_followers": 6_000, "ig_views7": 42_300,
-    "tt_followers": 11_000, "tt_views7": 57_900,
-    "ministry": {"prayer": 15, "studies": 8, "baptisms": 1},
-    "tasks": [
-        ("Shoot testimony interview", "In Progress"),
-        ("Schedule weekend posts", "In Progress"),
-        ("Outline next video", "Not Done"),
-        ("Edit podcast episode", "Done"),
-    ],
-    "filming": [
-        ("Tue, Aug 26, 2025", "1:00–3:00 PM", "Worship Set"),
-        ("Wed, Aug 27, 2025", "10:30–12:00", "Testimony Recording"),
-        ("Fri, Aug 29, 2025", "9:00–10:30 AM", "Youth Reels"),
-    ],
-}
-
-def task_pct(status: str) -> int:
-    s = status.lower()
-    return 100 if "done" in s else 50 if "progress" in s else 10
-
-def task_cls(status: str) -> str:
-    s = status.lower()
-    return "bar-green" if "done" in s else "bar-yellow" if "progress" in s else "bar-red"
-
-
-# -------------------------------
-# Fetch live data (with fallbacks)
-# -------------------------------
-
-# Defaults used everywhere (safe even if APIs fail)
-DAYS_FOR_MAP = 28
-youtube = {"subs": MOCK["yt_subs"], "total": MOCK["yt_total"]}
-ig = {"followers": MOCK["ig_followers"], "views7": MOCK["ig_views7"]}
-tt = {"followers": MOCK["tt_followers"], "views7": MOCK["tt_views7"]}
-ministry = MOCK["ministry"]
-tasks = sorted(MOCK["tasks"], key=lambda t: 1 if "done" in t[1].lower() else 0)
-filming = MOCK["filming"]
-
-yt_last7_vals = MOCK["yt_last7"]
-yt_last7_labels = []  # real dates will be filled if Analytics works
-yt_country_df = MOCK["yt_countries"]
-map_df = add_country_names(yt_country_df).merge(
-    country_centroids(), on="country", how="left"
-).dropna()
-
-# --- Channel KPIs via Data API ---
-yt_api_key = st.secrets.get("YOUTUBE_API_KEY")
-yt_channel_id = st.secrets.get("YT_PRIMARY_CHANNEL_ID") or st.secrets.get("YOUTUBE_CHANNEL_ID")
-if yt_api_key and yt_channel_id:
-    try:
-        live = yt_channel_stats(yt_api_key, yt_channel_id)
-        youtube = {"subs": live["subs"], "total": live["total"]}
-    except Exception:
-        pass  # keep mock if it fails
-
-# --- Analytics (28‑day map + real last‑7 with dates) ---
-yt_client_id = st.secrets.get("YT_CLIENT_ID")
-yt_client_secret = st.secrets.get("YT_CLIENT_SECRET")
-yt_refresh_token = st.secrets.get("YT_REFRESH_TOKEN")
-
-analytics_ok = False
-analytics_err = ""
-if yt_client_id and yt_client_secret and yt_refresh_token:
-    daily_df, cdf, analytics_err = yt_analytics_lastN_and_countries(
-        yt_client_id,
-        yt_client_secret,
-        yt_refresh_token,
-        days=DAYS_FOR_MAP,
-        channel_id=yt_channel_id,
+def normalize_daily_to_local(daily_df: pd.DataFrame, tz: str) -> pd.DataFrame:
+    """
+    Studio graphs are shown in the property’s timezone.
+    API days can feel off if your local TZ differs.
+    We shift the date label so totals by 'day' match Studio’s day buckets.
+    """
+    if daily_df.empty:
+        return daily_df
+    # Treat API day boundaries as UTC midnight and map to local date
+    s = pd.to_datetime(daily_df["date"], utc=True)
+    local_dates = s.dt.tz_convert(tz).dt.date
+    out = (
+        pd.DataFrame({"date": local_dates, "views": daily_df["views"].astype(int)})
+        .groupby("date", as_index=False)["views"]
+        .sum()
     )
+    out["date"] = pd.to_datetime(out["date"])
+    return out
 
-if not daily_df.empty:
-    last7 = daily_df.sort_values("date").tail(7)
-    # ensure we have exactly 7 rows; if fewer, left‑pad with 0s so UI doesn’t break
-    if len(last7) < 7:
-        need = 7 - len(last7)
-        pad_dates = pd.date_range(
-            end=last7["date"].iloc[0] - pd.Timedelta(days=1),
-            periods=need
-        )
-        pad_df = pd.DataFrame({"date": pad_dates, "views": [0]*need})
-        last7 = pd.concat([pad_df, last7], ignore_index=True)
-
-    yt_last7_vals = last7["views"].astype(int).tolist()
-    yt_last7_labels = last7["date"].dt.strftime("%b %d").tolist()
-
-if not cdf.empty:
-    yt_country_df = cdf.copy()
-    map_df = add_country_names(yt_country_df).merge(
-        country_centroids(), on="country", how="left"
-    ).dropna()
-
-analytics_ok = not (daily_df.empty and cdf.empty)
-
-st.caption(f"Analytics OK: {analytics_ok}")
-if not analytics_ok and analytics_err:
-    st.warning(f"YT Analytics error: {analytics_err}")
-
-# -------------------------------
-# Header
-# -------------------------------
-st.caption(f"Analytics OK: {analytics_ok}")
-t1, t2 = st.columns([0.75, 0.25])
-with t1:
-    st.markdown("<div class='title'>LOUDVOICE</div>", unsafe_allow_html=True)
-with t2:
-    now = datetime.now().strftime('%B %d, %Y %I:%M %p')
-    st.markdown(f"<div class='timestamp'>{now}</div>", unsafe_allow_html=True)
-
-if not analytics_ok:
-    st.info("Using mock for YT 7‑day & country (Analytics call failed or not configured).")
-
-MAP_HEIGHT = 340 if not COMPACT else 260
-
-# -------------------------------
-# Main layout
-# -------------------------------
-left, right = st.columns([1.25, 0.75])
-
-with left:
-    st.markdown(
-        f"<div class='card'><div class='section'>World Map — YouTube Viewers (True, last {DAYS_FOR_MAP} days)</div>",
-        unsafe_allow_html=True,
-    )
-    # bubble size scaled to max, clamped to [6, 22] px
+def build_world_map(map_df: pd.DataFrame, height: int) -> go.Figure:
     sizes = (map_df["views"] / max(map_df["views"].max(), 1) * 22).clip(lower=6, upper=22)
     fig = go.Figure(
         go.Scattergeo(
@@ -350,23 +235,121 @@ with left:
         geo=dict(
             showland=True, landcolor="#0b0f16",
             showcountries=True, countrycolor="rgba(255,255,255,.15)",
-            showocean=True, oceancolor="#070a0f"
+            showocean=True, oceancolor="#070a0f",
+            fitbounds="locations",  # <— zoom to your bubbles so it fills the card
         ),
         margin=dict(l=0, r=0, t=0, b=0),
-        height=MAP_HEIGHT,
+        height=height,
         paper_bgcolor="rgba(0,0,0,0)",
     )
-    st.plotly_chart(fig, use_container_width=True, theme=None, config={"displayModeBar": False})
+    return fig
+
+# =======================
+# Defaults / mocks (safe)
+# =======================
+MOCK = {
+    "yt_subs": 30_800, "yt_total": 5_991_195,
+    "yt_last7": [23500, 27100, 24800, 30100, 28900, 33000, 35120],
+    "yt_countries": pd.DataFrame({"country":["US","MY","PH","IN","KE","AU"], "views":[52000,22000,15000,30000,12000,9000]}),
+    "ig_followers": 6_000, "ig_views7": 42_300,
+    "tt_followers": 11_000, "tt_views7": 57_900,
+    "ministry": {"prayer": 15, "studies": 8, "baptisms": 1},
+    "tasks": [("Shoot testimony interview","In Progress"),("Schedule weekend posts","In Progress"),
+              ("Outline next video","Not Done"),("Edit podcast episode","Done")],
+    "filming": [("Tue, Aug 26, 2025","1:00–3:00 PM","Worship Set"),
+                ("Wed, Aug 27, 2025","10:30–12:00","Testimony Recording"),
+                ("Fri, Aug 29, 2025","9:00–10:30 AM","Youth Reels")],
+}
+
+def task_pct(status: str) -> int:
+    s = status.lower(); return 100 if "done" in s else 50 if "progress" in s else 10
+def task_cls(status: str) -> str:
+    s = status.lower(); return "bar-green" if "done" in s else "bar-yellow" if "progress" in s else "bar-red"
+
+# =======================
+# Fetch live data
+# =======================
+youtube = {"subs": MOCK["yt_subs"], "total": MOCK["yt_total"]}
+ig = {"followers": MOCK["ig_followers"], "views7": MOCK["ig_views7"]}
+tt = {"followers": MOCK["tt_followers"], "views7": MOCK["tt_views7"]}
+ministry = MOCK["ministry"]
+tasks = sorted(MOCK["tasks"], key=lambda t: 1 if "done" in t[1].lower() else 0)
+filming = MOCK["filming"]
+
+# KPI card via Data API
+yt_api_key = st.secrets.get("YOUTUBE_API_KEY")
+yt_channel_id = st.secrets.get("YT_PRIMARY_CHANNEL_ID") or st.secrets.get("YOUTUBE_CHANNEL_ID")
+if yt_api_key and yt_channel_id:
+    try:
+        youtube = yt_channel_stats(yt_api_key, yt_channel_id)
+    except Exception:
+        pass
+
+# Analytics (28‑day map + real last‑7 with *local* dates)
+yt_client_id = st.secrets.get("YT_CLIENT_ID")
+yt_client_secret = st.secrets.get("YT_CLIENT_SECRET")
+yt_refresh_token = st.secrets.get("YT_REFRESH_TOKEN")
+
+daily_df = pd.DataFrame()
+cdf = pd.DataFrame()
+analytics_err = ""
+if yt_client_id and yt_client_secret and yt_refresh_token:
+    daily_df, cdf, analytics_err = yt_analytics_lastN_and_countries(
+        yt_client_id, yt_client_secret, yt_refresh_token, days=DAYS_FOR_MAP
+    )
+    if not daily_df.empty:
+        daily_df = normalize_daily_to_local(daily_df, LOCAL_TZ)
+
+# Last‑7 bar figures + labels (fallback to mocks if needed)
+if not daily_df.empty:
+    last7 = daily_df.sort_values("date").tail(7)
+    yt_last7_vals = last7["views"].astype(int).tolist()
+    yt_last7_labels = last7["date"].dt.strftime("%b %d").tolist()
+else:
+    yt_last7_vals = MOCK["yt_last7"]
+    # make 7 dummy labels to keep layout stable
+    base = (datetime.utcnow().date() - timedelta(days=1))
+    yt_last7_labels = [(base - timedelta(days=i)).strftime("%b %d") for i in range(6,-1,-1)]
+
+# Country map dataframe with long names + centroids
+if not cdf.empty:
+    map_df = add_country_names(cdf).merge(country_centroids(), on="country", how="left").dropna()
+else:
+    map_df = add_country_names(MOCK["yt_countries"]).merge(country_centroids(), on="country", how="left").dropna()
+
+analytics_ok = (not daily_df.empty) or (not cdf.empty)
+if not analytics_ok and analytics_err:
+    st.warning(f"YT Analytics error: {analytics_err}")
+
+# =======================
+# Header
+# =======================
+t1, t2 = st.columns([0.75, 0.25])
+with t1:
+    st.markdown("<div class='title'>LOUDVOICE</div>", unsafe_allow_html=True)
+with t2:
+    now = datetime.now().strftime('%B %d, %Y %I:%M %p')
+    st.markdown(f"<div class='timestamp'>{now}</div>", unsafe_allow_html=True)
+
+if not analytics_ok:
+    st.info("Using mock for YT 7‑day & country (Analytics call failed or not configured).")
+
+# =======================
+# Main layout
+# =======================
+left, right = st.columns([1.35, 0.65])  # wider map column so it fills visually
+
+with left:
+    st.markdown(
+        f"<div class='card'><div class='section'>World Map — YouTube Viewers (True, last {DAYS_FOR_MAP} days)</div>",
+        unsafe_allow_html=True,
+    )
+    st.plotly_chart(build_world_map(map_df, MAP_HEIGHT), use_container_width=True, theme=None,
+                    config={"displayModeBar": False})
     st.markdown("</div>", unsafe_allow_html=True)
 
 with right:
     # Ministry tracker
-    # Ministry tracker mock (replace with real data later)
-    ministry = {
-        "prayer": 15,
-        "studies": 8,
-        "baptisms": 1,
-    }
     st.markdown("<div class='card'><div class='section'>Ministry Tracker</div>", unsafe_allow_html=True)
     st.markdown(
         f"""
@@ -406,14 +389,11 @@ with right:
     )
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # YouTube Views (Last 7 Days)
+    # YouTube Views (Last 7 Days) — with real daily dates
     st.markdown("<div class='card'><div class='section'>YouTube Views (Last 7 Days)</div>", unsafe_allow_html=True)
-    
     vals = yt_last7_vals[:]
     maxv = max(vals) if vals else 1
-    labels = yt_last7_labels if 'yt_last7_labels' in locals() else [""]*len(vals)
-    
-    for d, v in zip(labels, vals):
+    for d, v in zip(yt_last7_labels, vals):
         pct = int((v / maxv) * 100) if maxv else 0
         st.markdown(
             f"<div class='grid-views'>"
@@ -423,14 +403,10 @@ with right:
             f"</div>",
             unsafe_allow_html=True,
         )
-    
     st.markdown("</div>", unsafe_allow_html=True)
 
-# -------------------------------
-# Bottom: ClickUp tasks + Filming
-# -------------------------------
+# Bottom: ClickUp tasks + Filming (unchanged)
 b1, b2 = st.columns([1.2, 0.8])
-
 with b1:
     st.markdown("<div class='card'><div class='section'>ClickUp Tasks (Upcoming)</div>", unsafe_allow_html=True)
     for name, status in tasks:
@@ -442,7 +418,6 @@ with b1:
             unsafe_allow_html=True,
         )
     st.markdown("</div>", unsafe_allow_html=True)
-
 with b2:
     st.markdown("<div class='card'><div class='section'>Next Filming Timeslots</div>", unsafe_allow_html=True)
     for daydate, time_str, label in filming:
