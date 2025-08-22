@@ -11,6 +11,7 @@ import streamlit as st
 
 # Optional: long country names
 import pycountry
+import numpy as np
 
 # Optional Google libs (only needed for YouTube Analytics)
 GOOGLE_OK = True
@@ -299,6 +300,153 @@ def build_world_map(map_df: pd.DataFrame, height: int) -> go.Figure:
     )
     return fig
 
+# --- Studio hard-map: country name -> views (you can extend this anytime) ---
+STUDIO_COUNTRY_VIEWS = {
+    "Philippines": 11163,
+    "United States": 2849,
+    "Malaysia": 1254,
+    "Indonesia": 1178,
+    "India": 828,
+    "Australia": 564,
+    "Canada": 461,
+    "Thailand": 377,
+    "United Kingdom": 264,
+    "Singapore": 197,
+    "South Africa": 193,
+    "United Arab Emirates": 169,
+    "Austria": 116,
+    "Kenya": 102,
+    "New Zealand": 101,
+    "Romania": 86,
+    "Germany": 73,
+    "Taiwan": 61,
+    "Cambodia": 58,
+    "Vietnam": 57,
+    "Hong Kong": 53,
+    "Japan": 51,
+    "Papua New Guinea": 50,
+    "Mexico": 39,
+    "Myanmar (Burma)": 34,
+    "Brazil": 30,
+    "Croatia": 27,
+    "Peru": 24,
+    "Dominican Republic": 22,
+    "Saudi Arabia": 22,
+    "Botswana": 21,
+    "Denmark": 20,
+    "Nigeria": 15,
+    "Qatar": 14,
+    "Guyana": 13,
+    "Sri Lanka": 12,
+    "Zambia": 11,
+    "Jamaica": 10,
+    "South Korea": 10,
+    # "Uganda": <value not shown in your list>
+}
+
+# Name → ISO3 overrides for tricky names
+ISO3_OVERRIDES = {
+    "United States": "USA",
+    "United Kingdom": "GBR",
+    "South Korea": "KOR",
+    "North Korea": "PRK",
+    "Myanmar (Burma)": "MMR",
+    "Taiwan": "TWN",
+    "Hong Kong": "HKG",
+    "United Arab Emirates": "ARE",
+    "Vietnam": "VNM",
+    "Czechia": "CZE",
+    "Ivory Coast": "CIV",
+    "Côte d’Ivoire": "CIV",
+    "Russia": "RUS",
+    "Syria": "SYR",
+    "Palestine": "PSE",
+    "Tanzania": "TZA",
+    "DR Congo": "COD",
+    "Republic of the Congo": "COG",
+    "Eswatini": "SWZ",
+    "Cabo Verde": "CPV",
+    "Micronesia": "FSM",
+    "Papua New Guinea": "PNG",
+    "North Macedonia": "MKD",
+}
+
+def name_to_iso3(name: str) -> str | None:
+    if name in ISO3_OVERRIDES:
+        return ISO3_OVERRIDES[name]
+    try:
+        return pycountry.countries.lookup(name).alpha_3
+    except Exception:
+        return None
+
+def build_choro_dataframe(views_by_name: dict) -> pd.DataFrame:
+    """
+    Build a dataframe with one row for EVERY country in the world (pycountry),
+    filling views=0 where we don't have data. Also returns nice local names.
+    """
+    # Map your provided names -> ISO3
+    mapped = {}
+    for nm, v in views_by_name.items():
+        iso3 = name_to_iso3(nm)
+        if iso3:
+            mapped[iso3] = int(v)
+
+    # Base list: all countries (ISO3 + long name)
+    rows = []
+    for c in pycountry.countries:
+        iso3 = getattr(c, "alpha_3", None)
+        if not iso3:
+            continue
+        rows.append({"iso3": iso3, "name": c.name, "views": mapped.get(iso3, 0)})
+
+    df = pd.DataFrame(rows)
+    return df
+
+def build_choropleth(choro_df: pd.DataFrame, height: int) -> go.Figure:
+    """
+    Log-scaled color so high-view countries pop. Countries with 0 are very dim.
+    """
+    # Log scale for contrast (add 1 to keep zeros)
+    z_raw = choro_df["views"].astype(int)
+    z = np.log10(z_raw + 1)
+
+    fig = go.Figure(
+        go.Choropleth(
+            locations=choro_df["iso3"],
+            z=z,
+            customdata=np.stack([choro_df["name"], z_raw], axis=1),
+            hovertemplate="<b>%{customdata[0]}</b><br>Views: %{customdata[1]:,}<extra></extra>",
+            colorscale=[
+                [0.00, "#0b0f16"],   # background-ish for 0
+                [0.05, "#2b2f3b"],
+                [0.20, "#ffeebe"],
+                [0.55, "#ffb347"],
+                [1.00, "#e53935"],   # hot
+            ],
+            colorbar=dict(
+                title="Views (log scale)",
+                outlinewidth=0,
+                ticks=""
+            ),
+            marker_line_color="rgba(255,255,255,.08)",
+            marker_line_width=0.5,
+        )
+    )
+    fig.update_layout(
+        geo=dict(
+            projection_type="natural earth",
+            bgcolor="rgba(0,0,0,0)",
+            showocean=True, oceancolor="#070a0f",
+            showland=True, landcolor="#0b0f16",
+            showcountries=True, countrycolor="rgba(255,255,255,.10)",
+            lataxis=dict(showgrid=False), lonaxis=dict(showgrid=False),
+        ),
+        margin=dict(l=0, r=0, t=0, b=0),
+        height=height,
+        paper_bgcolor="rgba(0,0,0,0)",
+    )
+    return fig
+
 # =======================
 # Defaults / mocks (safe)
 # =======================
@@ -403,12 +551,13 @@ with left:
         f"<div class='card'><div class='section'>World Map — YouTube Viewers (True, last {DAYS_FOR_MAP} days)</div>",
         unsafe_allow_html=True,
     )
-    st.plotly_chart(
-        build_country_choropleth(choro_df, MAP_HEIGHT),
-        use_container_width=True,
-        theme=None,
-        config={"displayModeBar": False}
-    )
+
+    # Use hard-mapped Studio data for now; every other country is present with 0
+    choro_df = build_choro_dataframe(STUDIO_COUNTRY_VIEWS)
+    fig = build_choropleth(choro_df, MAP_HEIGHT)
+
+    st.plotly_chart(fig, use_container_width=True, theme=None,
+                    config={"displayModeBar": False})
     st.markdown("</div>", unsafe_allow_html=True)
 
 with right:
