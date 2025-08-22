@@ -240,17 +240,27 @@ def add_country_names(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 def _nice_k_ticks(vmax: int):
-    # 1K, 2K, 5K, 10K, 20K, 50K, 100K, 200K, 500K, 1M, 2M, 5M ...
-    thresholds = [1_000, 2_000, 5_000,
-                  10_000, 20_000, 50_000,
-                  100_000, 200_000, 500_000,
-                  1_000_000, 2_000_000, 5_000_000]
-    vals = [t for t in thresholds if t <= max(vmax, 1)]
+    """
+    Adaptive ticks for log scale:
+    - If under 1K, show raw values like 10, 50, 100, 500
+    - If >= 1K, show in 1K, 2K, 5K, … style
+    """
+    if vmax < 1000:
+        # sub-1k range: finer steps
+        steps = [10, 20, 50, 100, 200, 500]
+        vals = [s for s in steps if s <= vmax]
+        fmt = lambda v: str(v)   # show as 10, 50, 500 (no K)
+    else:
+        # 1k+ range: coarser, K/M
+        steps = [1_000, 2_000, 5_000, 10_000, 20_000, 50_000,
+                 100_000, 200_000, 500_000, 1_000_000, 2_000_000, 5_000_000]
+        vals = [s for s in steps if s <= vmax]
+        fmt = lambda v: f"{v//1000}K" if v < 1_000_000 else f"{v//1_000_000}M"
+
     if not vals:
-        vals = [1_000]
-    tickvals = [np.log10(v + 1) for v in vals]  # log scale to match z
-    def fmt(v):
-        return f"{int(v/1_000)}K" if v < 1_000_000 else f"{v/1_000_000:.0f}M"
+        vals = [1]
+
+    tickvals = [np.log10(v + 1) for v in vals]
     ticktext = [fmt(v) for v in vals]
     return tickvals, ticktext
 
@@ -262,7 +272,7 @@ def build_choropleth(choro_df: pd.DataFrame, height: int) -> go.Figure:
 
     # nice ticks in real units (1k, 2k, 5k, …)
     def _nice_k_ticks(vmax: int):
-        steps = [100, 300, 500, 1_000, 2_000, 5_000, 10_000, 20_000, 50_000]
+        steps = [10, 20, 50, 100, 200, 500, 1_000, 2_000, 5_000, 10_000, 20_000, 50_000]
         vals = [s for s in steps if s <= max(vmax, 1)] or [1_000]
         return [np.log10(v+1) for v in vals], [f"{v//1000}K" if v < 1_000_000 else f"{v//1_000_000}M" for v in vals]
 
