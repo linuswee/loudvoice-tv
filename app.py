@@ -626,8 +626,6 @@ yt_channel_id    = st.secrets.get("YT_PRIMARY_CHANNEL_ID") or st.secrets.get("YO
 who = None
 if yt_client_id and yt_client_secret and yt_refresh_token:
     try:
-        who = oauth_channel_identity(yt_client_id, yt_client_secret, yt_refresh_token)
-        st.warning(f"OAuth channel: {who['title']} — subs: {fmt_num(who['subs'])}, total views: {fmt_num(who['views'])}")
         if yt_channel_id and who["id"] and who["id"] != yt_channel_id:
             st.error(
                 f"Your OAuth token is for **{who['title']}** (ID: {who['id']}). "
