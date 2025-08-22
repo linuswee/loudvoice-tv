@@ -254,15 +254,31 @@ def build_country_choropleth(cdf: pd.DataFrame, height: int = 460) -> go.Figure:
     zmax = df["views"].max()
     fig = go.Figure(
         go.Choropleth(
-            locations=df["iso3"],           # ISO-3 codes
-            z=df["views"],
-            text=df["name"] + " — " + df["views"].astype(int).map(fmt_num),
-            colorscale="YlOrRd",               # yellow -> deep red
-            zmin=0,
-            zmax=zmax,                         # auto-scales intensity to your top countries
-            marker_line_color="rgba(255,255,255,.15)",
-            colorbar_title="Views",
-            hovertemplate="<b>%{text}</b><extra></extra>",
+            locations=choro_df["iso3"],
+            z=z,
+            customdata=np.stack([choro_df["name"], z_raw], axis=1),
+            hovertemplate="<b>%{customdata[0]}</b><br>Views: %{customdata[1]:,}<extra></extra>",
+            colorscale=[
+                [0.00, "#0b0f16"],   # black
+                [0.20, "#ffe600"],   # yellow
+                [0.40, "#ff3b3b"],   # red
+                [0.70, "#4285f4"],   # blue
+                [1.00, "#34a853"],   # green
+            ],
+            marker_line_color="rgba(255,255,255,.08)",
+            marker_line_width=0.5,
+            colorbar=dict(
+                title="Views",
+                orientation="h",
+                x=0.5, xanchor="center",
+                y=0.01, yanchor="bottom",
+                len=0.90,
+                thickness=16,
+                outlinewidth=0,
+                ticks="outside",
+                tickvals=tickvals,
+                ticktext=ticktext,
+            ),
         )
     )
     fig.update_layout(
