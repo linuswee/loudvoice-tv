@@ -314,6 +314,31 @@ MAP_HEIGHT = 340 if not COMPACT else 260
 # -------------------------------
 left, right = st.columns([1.25, 0.75])
 
+# --- Build map_df for the world map (28 days, with long country names) ---
+# (Assumes yt_country_df already set from Analytics, else falls back to MOCK)
+try:
+    cent = country_centroids()
+    map_df = yt_country_df.merge(cent, on="country", how="left").dropna()
+except Exception:
+    # safe empty frame if merge fails
+    map_df = pd.DataFrame(columns=["country", "views", "lat", "lon"])
+
+# Add long country names (pycountry if available; else fall back to code)
+try:
+    import pycountry
+    def code_to_name(code: str):
+        rec = pycountry.countries.get(alpha_2=code)
+        return rec.name if rec else code
+except Exception:
+    def code_to_name(code: str):
+        return code
+
+if not map_df.empty:
+    map_df["name"] = map_df["country"].apply(code_to_name)
+else:
+    # ensure column exists to avoid NameError later
+    map_df["name"] = []
+
 with left:
     st.markdown("<div class='card'><div class='section'>World Map — YouTube Viewers (True, last 28 days)</div>", unsafe_allow_html=True)
     # assumes map_df already has columns: country (ISO2), name (long), views, lat, lon
