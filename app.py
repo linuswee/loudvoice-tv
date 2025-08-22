@@ -115,7 +115,7 @@ def yt_channel_stats(api_key: str, channel_id: str):
     return {"subs": int(stats.get("subscriberCount", 0)), "total": int(stats.get("viewCount", 0))}
 
 @st.cache_data(ttl=300)
-def yt_analytics_last7_and_countries(client_id, client_secret, refresh_token):
+def yt_analytics_lastN_and_countries(client_id, client_secret, refresh_token, days=28):
     if not GOOGLE_OK:
         raise RuntimeError("Google client libraries unavailable.")
     creds = Credentials(
@@ -129,8 +129,10 @@ def yt_analytics_last7_and_countries(client_id, client_secret, refresh_token):
     if not creds.valid:
         creds.refresh(Request())
     analytics = build("youtubeAnalytics", "v2", credentials=creds, cache_discovery=False)
+
     end_date = datetime.utcnow().date()
-    start_date = end_date - timedelta(days=6)
+    # inclusive range → for N days, subtract (N-1)
+    start_date = end_date - timedelta(days=days - 1)
 
     daily = analytics.reports().query(
         ids="channel==MINE",
@@ -226,7 +228,9 @@ yt_refresh_token = st.secrets.get("YT_REFRESH_TOKEN")
 analytics_ok = False
 if yt_client_id and yt_client_secret and yt_refresh_token:
     try:
-        lst7, cdf = yt_analytics_last7_and_countries(yt_client_id, yt_client_secret, yt_refresh_token)
+        DAYS_FOR_MAP = 28
+        lst7, cdf = yt_analytics_lastN_and_countries(
+            yt_client_id, yt_client_secret, yt_refresh_token, days=DAYS_FOR_MAP)
         if lst7:
             yt_last7_vals = lst7
         if cdf is not None and not cdf.empty:
