@@ -227,9 +227,12 @@ def task_cls(status: str) -> str:
 # Fetch live data (with fallbacks)
 # -------------------------------
 youtube = {"subs": MOCK["yt_subs"], "total": MOCK["yt_total"]}
-yt_last_vals = MOCK["yt_last7"]               # we’ll slice to 7 for the bar
+yt_last7_vals = MOCK["yt_last7"]
+yt_last7_labels = ["Thu","Fri","Sat","Sun","Mon","Tue","YTD"]  # will be replaced by real dates
 yt_country_df = MOCK["yt_countries"]
+map_df = yt_country_df.merge(country_centroids(), on="country", how="left").dropna()
 
+# --- Channel KPIs via Data API ---
 yt_api_key = st.secrets.get("YOUTUBE_API_KEY")
 yt_channel_id = st.secrets.get("YT_PRIMARY_CHANNEL_ID") or st.secrets.get("YOUTUBE_CHANNEL_ID")
 if yt_api_key and yt_channel_id:
@@ -237,8 +240,9 @@ if yt_api_key and yt_channel_id:
         live = yt_channel_stats(yt_api_key, yt_channel_id)
         youtube = {"subs": live["subs"], "total": live["total"]}
     except Exception:
-        pass
+        pass  # keep mock if it fails
 
+# --- Analytics (28‑day map + real last‑7 with dates) ---
 yt_client_id = st.secrets.get("YT_CLIENT_ID")
 yt_client_secret = st.secrets.get("YT_CLIENT_SECRET")
 yt_refresh_token = st.secrets.get("YT_REFRESH_TOKEN")
@@ -247,42 +251,32 @@ analytics_ok = False
 if yt_client_id and yt_client_secret and yt_refresh_token:
     try:
         DAYS_FOR_MAP = 28
-        daily_df, cdf = yt_analytics_lastN_and_countries(yt_client_id, yt_client_secret, yt_refresh_token, days=DAYS_FOR_MAP)
-        if lstN:
-            yt_last_vals = lstN
+        daily_df, cdf = yt_analytics_lastN_and_countries(
+            yt_client_id, yt_client_secret, yt_refresh_token, days=DAYS_FOR_MAP
+        )
+
+        # last 7 days (numbers + labels)
+        if daily_df is not None and not daily_df.empty:
+            last7 = daily_df.sort_values("date").tail(7)
+            yt_last7_vals = last7["views"].astype(int).tolist()
+            yt_last7_labels = last7["date"].dt.strftime("%b %d").tolist()  # e.g., Aug 15
+
+        # country map
         if cdf is not None and not cdf.empty:
-            yt_country_df = cdf
+            yt_country_df = cdf.copy()
+            # merge centroids + add long names
+            map_df = add_country_names(yt_country_df).merge(
+                country_centroids(), on="country", how="left"
+            ).dropna()
+
         analytics_ok = True
     except Exception:
         analytics_ok = False
-else:
-    DAYS_FOR_MAP = 28  # just keep label coherent
-
-st.write("Analytics OK:", analytics_ok)
-
-# Build map_df once (with long names), fallback to mock if empty
-cent = country_centroids()
-map_df = add_country_names(yt_country_df).merge(cent, on="country", how="left").dropna()
-if map_df.empty:
-    map_df = add_country_names(MOCK["yt_countries"]).merge(cent, on="country", how="left").dropna()
-
-# IG / TT (still optional placeholders)
-ig = {
-    "followers": st.secrets.get("IG_FOLLOWERS", MOCK["ig_followers"]),
-    "views7":    st.secrets.get("IG_VIEWS7", MOCK["ig_views7"]),
-}
-tt = {
-    "followers": st.secrets.get("TT_FOLLOWERS", MOCK["tt_followers"]),
-    "views7":    st.secrets.get("TT_VIEWS7", MOCK["tt_views7"]),
-}
-
-ministry = MOCK["ministry"]
-tasks = sorted(MOCK["tasks"], key=lambda t: 1 if "done" in t[1].lower() else 0)
-filming = MOCK["filming"]
 
 # -------------------------------
 # Header
 # -------------------------------
+st.caption(f"Analytics OK: {analytics_ok}")
 t1, t2 = st.columns([0.75, 0.25])
 with t1:
     st.markdown("<div class='title'>LOUDVOICE</div>", unsafe_allow_html=True)
@@ -371,11 +365,13 @@ with right:
     )
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # YouTube Views (Last 7 Days) — aligned bars
+    # YouTube Views (Last 7 Days)
     st.markdown("<div class='card'><div class='section'>YouTube Views (Last 7 Days)</div>", unsafe_allow_html=True)
-    labels = ["YTD", "Tue", "Mon", "Sun", "Sat", "Fri", "Thu"]  # agreed order
-    vals = yt_last_vals[-7:] if len(yt_last_vals) >= 7 else (yt_last_vals + [yt_last_vals[-1]] * (7 - len(yt_last_vals)))
+    
+    vals = yt_last7_vals[:]
     maxv = max(vals) if vals else 1
+    labels = yt_last7_labels if 'yt_last7_labels' in locals() else [""]*len(vals)
+    
     for d, v in zip(labels, vals):
         pct = int((v / maxv) * 100) if maxv else 0
         st.markdown(
@@ -386,6 +382,7 @@ with right:
             f"</div>",
             unsafe_allow_html=True,
         )
+    
     st.markdown("</div>", unsafe_allow_html=True)
 
 # -------------------------------
