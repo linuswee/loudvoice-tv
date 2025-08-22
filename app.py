@@ -306,13 +306,13 @@ def country_to_iso3(name: str) -> str:
         }
         return overrides.get(name, None)
 
-def oauth_channel_identity(client_id, client_secret, refresh_token):
+def oauth_channel_identity(client_id: str, client_secret: str, refresh_token: str) -> dict:
     """
-    Identify which YouTube channel the OAuth refresh token belongs to.
-    Returns: {"id": <channelId>, "title": ..., "subs": int, "views": int}
+    Returns the OAuth-authenticated channel identity + stats:
+    {channelId, title, subs, views}
     """
-    from google.oauth2.credentials import Credentials
-    from googleapiclient.discovery import build
+    if not GOOGLE_OK:
+        raise RuntimeError("Google client libraries unavailable.")
 
     creds = Credentials(
         None,
@@ -320,19 +320,23 @@ def oauth_channel_identity(client_id, client_secret, refresh_token):
         token_uri="https://oauth2.googleapis.com/token",
         client_id=client_id,
         client_secret=client_secret,
-        scopes=["https://www.googleapis.com/auth/youtube.readonly"],
+        scopes=[
+            "https://www.googleapis.com/auth/youtube.readonly",
+            "https://www.googleapis.com/auth/yt-analytics.readonly",
+        ],
     )
-    youtube = build("youtube", "v3", credentials=creds, cache_discovery=False)
-    resp = youtube.channels().list(part="snippet,statistics", mine=True).execute()
-    if not resp.get("items"):
-        return {"id": None, "title": "Unknown", "subs": 0, "views": 0}
+    if not creds.valid:
+        creds.refresh(Request())
 
-    it = resp["items"][0]
+    yt = build("youtube", "v3", credentials=creds, cache_discovery=False)
+    info = yt.channels().list(part="snippet,statistics", mine=True).execute()
+    item = (info.get("items") or [{}])[0]
+
     return {
-        "id": it["id"],
-        "title": it["snippet"]["title"],
-        "subs": int(it["statistics"]["subscriberCount"]),
-        "views": int(it["statistics"]["viewCount"]),
+        "channelId": item.get("id"),
+        "title": (item.get("snippet") or {}).get("title", ""),
+        "subs": int((item.get("statistics") or {}).get("subscriberCount", 0)),
+        "views": int((item.get("statistics") or {}).get("viewCount", 0)),
     }
 
 # ---- YouTube Analytics: daily views (last N days) ----
@@ -621,20 +625,20 @@ if yt_api_key and yt_channel_id:
 yt_client_id     = st.secrets.get("YT_CLIENT_ID")
 yt_client_secret = st.secrets.get("YT_CLIENT_SECRET")
 yt_refresh_token = st.secrets.get("YT_REFRESH_TOKEN")
-yt_channel_id    = st.secrets.get("YT_PRIMARY_CHANNEL_ID") or st.secrets.get("YOUTUBE_CHANNEL_ID")
 
-who = None
+# Use OAuth identity to 1) confirm we’re on the right channel and
+# 2) drive Channel Stats numbers (subs + lifetime views).
+oauth_title = ""
 if yt_client_id and yt_client_secret and yt_refresh_token:
     try:
-        if yt_channel_id and who["id"] and who["id"] != yt_channel_id:
-            st.error(
-                f"Your OAuth token is for **{who['title']}** (ID: {who['id']}). "
-                f"Your dashboard is set to **{yt_channel_id}**. "
-                "Analytics will not match until you create a refresh token for the correct channel."
-            )
+        who = oauth_channel_identity(yt_client_id, yt_client_secret, yt_refresh_token)
+        oauth_title = who.get("title", "")
+        # Override the KPI card numbers with the *actual* authenticated channel’s stats
+        youtube = {"subs": who["subs"], "total": who["views"]}
     except Exception as _e:
-        st.warning(f"Could not verify OAuth channel: {_e}")
-
+        # keep existing youtube numbers if this fails
+        pass
+        
 daily_df = pd.DataFrame()
 cdf = pd.DataFrame()
 analytics_err = ""
@@ -771,7 +775,8 @@ with right:
     st.markdown("</div>", unsafe_allow_html=True)
 
     # Channel stats
-    st.markdown("<div class='card'><div class='section'>Channel Stats</div>", unsafe_allow_html=True)
+    connected = f"<span class='small'>Connected: <b>{oauth_title}</b></span>" if oauth_title else ""
+    st.markdown(f"<div class='card'><div class='section'>Channel Stats {connected}</div>", unsafe_allow_html=True)
     st.markdown(
         f"""
         <div class="kpi-grid">
