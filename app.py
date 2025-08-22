@@ -116,7 +116,13 @@ def yt_channel_stats(api_key: str, channel_id: str):
 
 # YouTube Analytics: last N days (default 28) + countries  → returns (daily_df, cdf)
 @st.cache_data(ttl=300)
-def yt_analytics_lastN_and_countries(client_id, client_secret, refresh_token, days: int = 28):
+def yt_analytics_lastN_and_countries(
+    client_id,
+    client_secret,
+    refresh_token,
+    days: int = 28,
+    channel_id: str | None = None,
+):
     if not GOOGLE_OK:
         raise RuntimeError("Google client libraries unavailable.")
 
@@ -133,12 +139,15 @@ def yt_analytics_lastN_and_countries(client_id, client_secret, refresh_token, da
 
     analytics = build("youtubeAnalytics", "v2", credentials=creds, cache_discovery=False)
 
-    end_date = datetime.utcnow().date()
-    start_date = end_date - timedelta(days=days - 1)  # inclusive window
+    # Use yesterday to avoid data-latency gap; window is inclusive.
+    end_date = (datetime.utcnow().date() - timedelta(days=1))
+    start_date = end_date - timedelta(days=days - 1)
+
+    ids_val = f"channel=={channel_id}" if channel_id else "channel==MINE"
 
     # 1) Daily views
     daily = analytics.reports().query(
-        ids="channel==MINE",
+        ids=ids_val,
         startDate=start_date.isoformat(),
         endDate=end_date.isoformat(),
         metrics="views",
@@ -153,7 +162,7 @@ def yt_analytics_lastN_and_countries(client_id, client_secret, refresh_token, da
 
     # 2) Country views
     country = analytics.reports().query(
-        ids="channel==MINE",
+        ids=ids_val,
         startDate=start_date.isoformat(),
         endDate=end_date.isoformat(),
         metrics="views",
@@ -263,7 +272,11 @@ analytics_ok = False
 if yt_client_id and yt_client_secret and yt_refresh_token:
     try:
         daily_df, cdf = yt_analytics_lastN_and_countries(
-            yt_client_id, yt_client_secret, yt_refresh_token, days=DAYS_FOR_MAP
+            yt_client_id,
+            yt_client_secret,
+            yt_refresh_token,
+            days=DAYS_FOR_MAP,
+            channel_id=yt_channel_id  # ← pin to the exact channel
         )
 
         # last 7 days (numbers + labels → daily dates)
