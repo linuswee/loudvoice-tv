@@ -89,7 +89,7 @@ st.markdown(
 
 LOCAL_TZ = "Asia/Kuala_Lumpur"   # change if your Studio timezone differs
 DAYS_FOR_MAP = 28                # 28‑day country map window
-MAP_HEIGHT = 460 if not COMPACT else 340  # taller map so it fills space
+MAP_HEIGHT = 560 if not COMPACT else 420  # taller map so it fills space
 
 def fmt_num(n: int) -> str:
     if n >= 1_000_000_000: v = n / 1_000_000_000; return (f"{v:.1f}".rstrip("0").rstrip(".")) + "B"
@@ -537,11 +537,31 @@ def build_choro_dataframe(views_by_name: dict) -> pd.DataFrame:
 
 def build_choropleth(choro_df: pd.DataFrame, height: int) -> go.Figure:
     import numpy as np
+
     z_raw = choro_df["views"].astype(int)
     z = np.log10(z_raw + 1)
 
-    # leave ~12–14% height at the bottom for the horizontal colorbar
-    bottom_pad = 0.14 if not COMPACT else 0.18
+    # ---- tick labels in real units (1k, 2k, …) even though z is log10 ----
+    vmax = int(z_raw.max()) if len(z_raw) else 0
+    if vmax <= 0:
+        vmax = 1
+
+    # choose a friendly step (1k/2k/5k/10k…) based on range
+    def _step(n: int) -> int:
+        if n <= 8000:   return 1000
+        if n <= 20000:  return 2000
+        if n <= 50000:  return 5000
+        if n <= 100000: return 10000
+        if n <= 500000: return 50000
+        return 100000
+
+    step = _step(vmax)
+    ticks_real = list(range(step, vmax + step, step))         # 1k, 2k, …
+    tickvals   = [np.log10(t + 1) for t in ticks_real]        # map to log space
+    ticktext   = [f"{t//1000}k" if t >= 1000 else f"{t}" for t in ticks_real]
+
+    # leave a bottom strip for the horizontal colorbar
+    bottom_pad = 0.18 if not COMPACT else 0.22
 
     fig = go.Figure(
         go.Choropleth(
@@ -560,13 +580,15 @@ def build_choropleth(choro_df: pd.DataFrame, height: int) -> go.Figure:
             marker_line_width=0.5,
             colorbar=dict(
                 title="Views (log scale)",
-                orientation="h",        # ← horizontal
-                x=0.5, xanchor="center",# center it
-                y=0.02, yanchor="bottom",  # place in the reserved strip
-                len=0.66,               # width of the bar (as fraction of plot width)
-                thickness=14,           # height of the bar
+                orientation="h",        # horizontal
+                x=0.5, xanchor="center",
+                y=0.01, yanchor="bottom",   # push it to the very bottom of the card
+                len=0.90,                  # make it almost full-width
+                thickness=16,
                 outlinewidth=0,
-                ticks=""
+                ticks="outside",
+                tickvals=tickvals,
+                ticktext=ticktext,
             ),
         )
     )
@@ -579,7 +601,7 @@ def build_choropleth(choro_df: pd.DataFrame, height: int) -> go.Figure:
             showland=True,  landcolor="#0b0f16",
             showcountries=True, countrycolor="rgba(255,255,255,.10)",
             lataxis=dict(showgrid=False), lonaxis=dict(showgrid=False),
-            domain=dict(x=[0.00, 1.00], y=[bottom_pad, 1.00])  # ← reserve space for the bar
+            domain=dict(x=[0.00, 1.00], y=[bottom_pad, 1.00]),
         ),
         margin=dict(l=0, r=0, t=0, b=0),
         height=height,
