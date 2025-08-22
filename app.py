@@ -305,6 +305,55 @@ def country_to_iso3(name: str) -> str:
         }
         return overrides.get(name, None)
 
+# ---- YouTube Analytics: daily views (last N days) ----
+@st.cache_data(ttl=300)
+def yt_analytics_daily_lastN(
+    client_id: str,
+    client_secret: str,
+    refresh_token: str,
+    days: int = 7,
+    channel_id: str | None = None,
+):
+    """
+    Returns a DataFrame with columns: ['date', 'views'] for the last N days.
+    Uses *yesterday* as end date (Studio shows complete days).
+    """
+    if not GOOGLE_OK:
+        raise RuntimeError("Google client libraries unavailable.")
+
+    creds = Credentials(
+        None,
+        refresh_token=refresh_token,
+        token_uri="https://oauth2.googleapis.com/token",
+        client_id=client_id,
+        client_secret=client_secret,
+        scopes=["https://www.googleapis.com/auth/yt-analytics.readonly"],
+    )
+    if not creds.valid:
+        creds.refresh(Request())
+
+    analytics = build("youtubeAnalytics", "v2", credentials=creds, cache_discovery=False)
+
+    end_date = (datetime.utcnow().date() - timedelta(days=1))          # yesterday
+    start_date = end_date - timedelta(days=days - 1)                   # inclusive window
+    ids_val = f"channel=={channel_id}" if channel_id else "channel==MINE"
+
+    resp = analytics.reports().query(
+        ids=ids_val,
+        startDate=start_date.isoformat(),
+        endDate=end_date.isoformat(),
+        metrics="views",
+        dimensions="day",
+        sort="day",
+    ).execute()
+
+    rows = resp.get("rows", []) or []
+    df = pd.DataFrame(rows, columns=["date", "views"])
+    if not df.empty:
+        df["date"] = pd.to_datetime(df["date"])
+        df["views"] = df["views"].astype(int)
+    return df
+
 def normalize_daily_to_local(daily_df: pd.DataFrame, tz: str) -> pd.DataFrame:
     """
     Studio graphs are shown in the property’s timezone.
@@ -552,16 +601,38 @@ if yt_client_id and yt_client_secret and yt_refresh_token:
     if not daily_df.empty:
         daily_df = normalize_daily_to_local(daily_df, LOCAL_TZ)
 
-# Last‑7 bar figures + labels (fallback to mocks if needed)
-if not daily_df.empty:
-    last7 = daily_df.sort_values("date").tail(7)
-    yt_last7_vals = last7["views"].astype(int).tolist()
-    yt_last7_labels = last7["date"].dt.strftime("%b %d").tolist()
+# ---- Last‑7 bars from YouTube Analytics (fallback to mock if needed) ----
+yt_client_id     = st.secrets.get("YT_CLIENT_ID")
+yt_client_secret = st.secrets.get("YT_CLIENT_SECRET")
+yt_refresh_token = st.secrets.get("YT_REFRESH_TOKEN")
+yt_channel_id    = st.secrets.get("YT_PRIMARY_CHANNEL_ID") or st.secrets.get("YOUTUBE_CHANNEL_ID")
+
+last7_df = pd.DataFrame()
+bars_err = ""
+
+if yt_client_id and yt_client_secret and yt_refresh_token:
+    try:
+        last7_df = yt_analytics_daily_lastN(
+            yt_client_id, yt_client_secret, yt_refresh_token,
+            days=7, channel_id=yt_channel_id
+        )
+        # If you use timezone normalization elsewhere, uncomment:
+        # last7_df = normalize_daily_to_local(last7_df, LOCAL_TZ)
+    except Exception as e:
+        bars_err = str(e)
+
+if not last7_df.empty:
+    # Already ordered by 'day'; keep as-is for labels like "Aug 15"
+    yt_last7_vals   = last7_df["views"].astype(int).tolist()
+    yt_last7_labels = last7_df["date"].dt.strftime("%b %d").tolist()
 else:
+    # Fallback to your existing mock numbers & generated labels
     yt_last7_vals = MOCK["yt_last7"]
-    # make 7 dummy labels to keep layout stable
     base = (datetime.utcnow().date() - timedelta(days=1))
-    yt_last7_labels = [(base - timedelta(days=i)).strftime("%b %d") for i in range(6,-1,-1)]
+    yt_last7_labels = [(base - timedelta(days=i)).strftime("%b %d") for i in range(6, -1, -1)]
+
+if bars_err:
+    st.warning(f"YT Analytics (daily) error: {bars_err}")
 
 # Country map dataframe for choropleth (no lat/lon needed)
 if not cdf.empty:
