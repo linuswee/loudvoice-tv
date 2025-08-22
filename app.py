@@ -252,6 +252,9 @@ if yt_client_id and yt_client_secret and yt_refresh_token:
 else:
     DAYS_FOR_MAP = 28  # just keep label coherent
 
+st.write("Analytics OK:", analytics_ok)
+st.write("Daily values:", yt_last7_vals)
+
 # Build map_df once (with long names), fallback to mock if empty
 cent = country_centroids()
 map_df = add_country_names(yt_country_df).merge(cent, on="country", how="left").dropna()
