@@ -175,19 +175,9 @@ def yt_analytics_lastN_and_countries(client_id, client_secret, refresh_token, da
     except Exception as e:
         return pd.DataFrame(), pd.DataFrame(), str(e)
 
-@st.cache_data
-def country_centroids():
-    data = [
-        ("US", 37.09, -95.71), ("MY", 4.21, 101.98), ("PH", 12.88, 121.77),
-        ("IN", 20.59, 78.96), ("KE", -0.02, 37.90), ("AU", -25.27, 133.77),
-        ("ID", -0.79, 113.92), ("SG", 1.29, 103.85), ("GB", 55.38, -3.43),
-        ("CA", 56.13, -106.35), ("NG", 9.08, 8.68), ("BR", -14.23, -51.92),
-        ("DE", 51.17, 10.45), ("FR", 46.23, 2.21), ("JP", 36.20, 138.25),
-        ("KR", 35.91, 127.76), ("TH", 15.87, 100.99), ("VN", 14.06, 108.28),
-        ("MX", 23.63, -102.55), ("ES", 40.46, -3.75),
-    ]
-    return pd.DataFrame(data, columns=["country", "lat", "lon"])
 
+
+@st.cache_data
 def add_country_names(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()
     def to_name(code: str):
@@ -199,6 +189,45 @@ def add_country_names(df: pd.DataFrame) -> pd.DataFrame:
     if "country" in out.columns:
         out["name"] = out["country"].apply(to_name)
     return out
+
+def build_country_choropleth(cdf: pd.DataFrame, height: int = 460) -> go.Figure:
+    """
+    Country-fill (choropleth) map. Higher views -> stronger color intensity.
+    Expects columns: country (ISO-2), views. Adds 'name' for tooltips.
+    """
+    df = add_country_names(cdf.copy())
+    # safety: drop non-positive values to avoid color issues
+    df = df[df["views"].fillna(0) > 0]
+    if df.empty:
+        # minimal empty figure
+        return go.Figure().update_layout(height=height, margin=dict(l=0, r=0, t=0, b=0))
+
+    zmax = df["views"].max()
+    fig = go.Figure(
+        go.Choropleth(
+            locations=df["country"],           # ISO-2 codes
+            z=df["views"],
+            text=df["name"] + " — " + df["views"].astype(int).map(fmt_num),
+            colorscale="YlOrRd",               # yellow -> deep red
+            zmin=0,
+            zmax=zmax,                         # auto-scales intensity to your top countries
+            marker_line_color="rgba(255,255,255,.15)",
+            colorbar_title="Views",
+            hovertemplate="<b>%{text}</b><extra></extra>",
+        )
+    )
+    fig.update_layout(
+        geo=dict(
+            showframe=False,
+            showcoastlines=False,
+            projection_type="equirectangular",
+            bgcolor="#0b0f16"
+        ),
+        margin=dict(l=0, r=0, t=0, b=0),
+        height=height,
+        paper_bgcolor="rgba(0,0,0,0)",
+    )
+    return fig
 
 def normalize_daily_to_local(daily_df: pd.DataFrame, tz: str) -> pd.DataFrame:
     """
@@ -311,11 +340,11 @@ else:
     base = (datetime.utcnow().date() - timedelta(days=1))
     yt_last7_labels = [(base - timedelta(days=i)).strftime("%b %d") for i in range(6,-1,-1)]
 
-# Country map dataframe with long names + centroids
+# Country map dataframe for choropleth (no lat/lon needed)
 if not cdf.empty:
-    map_df = add_country_names(cdf).merge(country_centroids(), on="country", how="left").dropna()
+    choro_df = cdf.copy()  # columns: country, views
 else:
-    map_df = add_country_names(MOCK["yt_countries"]).merge(country_centroids(), on="country", how="left").dropna()
+    choro_df = MOCK["yt_countries"].copy()
 
 analytics_ok = (not daily_df.empty) or (not cdf.empty)
 if not analytics_ok and analytics_err:
@@ -344,8 +373,12 @@ with left:
         f"<div class='card'><div class='section'>World Map — YouTube Viewers (True, last {DAYS_FOR_MAP} days)</div>",
         unsafe_allow_html=True,
     )
-    st.plotly_chart(build_world_map(map_df, MAP_HEIGHT), use_container_width=True, theme=None,
-                    config={"displayModeBar": False})
+    st.plotly_chart(
+        build_country_choropleth(choro_df, MAP_HEIGHT),
+        use_container_width=True,
+        theme=None,
+        config={"displayModeBar": False}
+    )
     st.markdown("</div>", unsafe_allow_html=True)
 
 with right:
