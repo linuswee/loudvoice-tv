@@ -239,29 +239,37 @@ def add_country_names(df: pd.DataFrame) -> pd.DataFrame:
         out["name"] = out["country"].apply(to_name)
     return out
 
-def _nice_k_ticks(vmax: int):
+def _adaptive_ticks(z_raw_max: int):
     """
-    Adaptive ticks for log scale:
-    - If under 1K, show raw values like 10, 50, 100, 500
-    - If >= 1K, show in 1K, 2K, 5K, … style
+    Build log-scale ticks from real counts:
+      - include 10, 20, 50, 100, 200, 500 if useful
+      - then 1K, 2K, 5K, 10K, ... up to the max
     """
-    if vmax < 1000:
-        # sub-1k range: finer steps
-        steps = [10, 20, 50, 100, 200, 500]
-        vals = [s for s in steps if s <= vmax]
-        fmt = lambda v: str(v)   # show as 10, 50, 500 (no K)
-    else:
-        # 1k+ range: coarser, K/M
-        steps = [1_000, 2_000, 5_000, 10_000, 20_000, 50_000,
-                 100_000, 200_000, 500_000, 1_000_000, 2_000_000, 5_000_000]
-        vals = [s for s in steps if s <= vmax]
-        fmt = lambda v: f"{v//1000}K" if v < 1_000_000 else f"{v//1_000_000}M"
+    import numpy as np
 
+    vmax = int(z_raw_max) if z_raw_max is not None else 0
+    if vmax < 1:
+        vmax = 1
+
+    candidates = [
+        10, 20, 50, 100, 200, 500,
+        1_000, 2_000, 5_000, 10_000, 20_000, 50_000,
+        100_000, 200_000, 500_000,
+        1_000_000, 2_000_000, 5_000_000
+    ]
+    vals = [v for v in candidates if v <= vmax]
     if not vals:
         vals = [1]
 
-    tickvals = [np.log10(v + 1) for v in vals]
-    ticktext = [fmt(v) for v in vals]
+    def human(v: int) -> str:
+        if v < 1_000:
+            return str(v)
+        if v < 1_000_000:
+            return f"{v // 1_000}K"
+        return f"{v // 1_000_000}M"
+
+    tickvals = [np.log10(v + 1) for v in vals]  # map real counts to log axis
+    ticktext = [human(v) for v in vals]
     return tickvals, ticktext
 
 def build_choropleth(choro_df: pd.DataFrame, height: int) -> go.Figure:
@@ -269,14 +277,8 @@ def build_choropleth(choro_df: pd.DataFrame, height: int) -> go.Figure:
 
     z_raw = choro_df["views"].astype(int).clip(lower=0)
     z = np.log10(z_raw + 1)
-
-    # nice ticks in real units (1k, 2k, 5k, …)
-    def _nice_k_ticks(vmax: int):
-        steps = [10, 20, 50, 100, 200, 500, 1_000, 2_000, 5_000, 10_000, 20_000, 50_000]
-        vals = [s for s in steps if s <= max(vmax, 1)] or [1_000]
-        return [np.log10(v+1) for v in vals], [f"{v//1000}K" if v < 1_000_000 else f"{v//1_000_000}M" for v in vals]
-
-    tickvals, ticktext = _nice_k_ticks(int(z_raw.max()))
+    
+    tickvals, ticktext = _adaptive_ticks(int(z_raw.max()))
 
     # Reserve a bottom band just for the colorbar so there’s no overlap
     bottom_band = 0.16          # height portion for the colorbar area
