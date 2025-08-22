@@ -632,7 +632,8 @@ else:
     yt_last7_vals = MOCK["yt_last7"]
     base = (datetime.utcnow().date() - timedelta(days=1))
     yt_last7_labels = [(base - timedelta(days=i)).strftime("%b %d") for i in range(6, -1, -1)]
-
+who = oauth_channel_identity(yt_client_id, yt_client_secret, yt_refresh_token)
+st.warning(f"OAuth channel: {who['title']} — subs: {fmt_num(who['subs'])}, total views: {fmt_num(who['views'])}")
 if bars_err:
     st.warning(f"YT Analytics (daily) error: {bars_err}")
 
