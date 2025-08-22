@@ -239,40 +239,53 @@ def add_country_names(df: pd.DataFrame) -> pd.DataFrame:
         out["name"] = out["country"].apply(to_name)
     return out
 
-def build_country_choropleth(cdf: pd.DataFrame, height: int = 460) -> go.Figure:
-    """
-    Country-fill (choropleth) map. Higher views -> stronger color intensity.
-    Expects columns: country (ISO-2), views. Adds 'name' for tooltips.
-    """
-    df = add_country_names(cdf.copy())
-    # safety: drop non-positive values to avoid color issues
-    df = df[df["views"].fillna(0) > 0]
-    if df.empty:
-        # minimal empty figure
-        return go.Figure().update_layout(height=height, margin=dict(l=0, r=0, t=0, b=0))
+def _nice_k_ticks(vmax: int):
+    # 1K, 2K, 5K, 10K, 20K, 50K, 100K, 200K, 500K, 1M, 2M, 5M ...
+    thresholds = [1_000, 2_000, 5_000,
+                  10_000, 20_000, 50_000,
+                  100_000, 200_000, 500_000,
+                  1_000_000, 2_000_000, 5_000_000]
+    vals = [t for t in thresholds if t <= max(vmax, 1)]
+    if not vals:
+        vals = [1_000]
+    tickvals = [np.log10(v + 1) for v in vals]  # log scale to match z
+    def fmt(v):
+        return f"{int(v/1_000)}K" if v < 1_000_000 else f"{v/1_000_000:.0f}M"
+    ticktext = [fmt(v) for v in vals]
+    return tickvals, ticktext
 
-    zmax = df["views"].max()
+def build_choropleth(choro_df: pd.DataFrame, height: int) -> go.Figure:
+    """
+    Log‑scaled choropleth with bottom (horizontal) colorbar and 1K/2K/5K ticks.
+    choro_df must have columns: ['iso3', 'name', 'views'].
+    """
+    z_raw = choro_df["views"].astype(int).clip(lower=0)
+    z = np.log10(z_raw + 1)  # log for contrast
+
+    tickvals, ticktext = _nice_k_ticks(int(z_raw.max()))
+
     fig = go.Figure(
         go.Choropleth(
             locations=choro_df["iso3"],
             z=z,
             customdata=np.stack([choro_df["name"], z_raw], axis=1),
             hovertemplate="<b>%{customdata[0]}</b><br>Views: %{customdata[1]:,}<extra></extra>",
+            # Expanded 5‑stop colorscale: black → yellow → red → blue → green
             colorscale=[
-                [0.00, "#0b0f16"],   # black
-                [0.20, "#ffe600"],   # yellow
-                [0.40, "#ff3b3b"],   # red
-                [0.70, "#4285f4"],   # blue
-                [1.00, "#34a853"],   # green
+                [0.00, "#0b0f16"],  # very low
+                [0.20, "#ffe600"],  # yellow
+                [0.40, "#ff3b3b"],  # red
+                [0.70, "#4285f4"],  # blue
+                [1.00, "#34a853"],  # green
             ],
             marker_line_color="rgba(255,255,255,.08)",
             marker_line_width=0.5,
             colorbar=dict(
-                title="Views",
+                title="Views (log scale)",
                 orientation="h",
                 x=0.5, xanchor="center",
-                y=0.01, yanchor="bottom",
-                len=0.90,
+                y=0.02, yanchor="bottom",   # place under the map
+                len=0.92,
                 thickness=16,
                 outlinewidth=0,
                 ticks="outside",
@@ -283,12 +296,13 @@ def build_country_choropleth(cdf: pd.DataFrame, height: int = 460) -> go.Figure:
     )
     fig.update_layout(
         geo=dict(
-            showframe=False,
-            showcoastlines=False,
-            projection_type="equirectangular",
-            bgcolor="#0b0f16"
+            projection_type="natural earth",
+            bgcolor="rgba(0,0,0,0)",
+            showocean=True, oceancolor="#070a0f",
+            showland=True, landcolor="#0b0f16",
+            showcountries=True, countrycolor="rgba(255,255,255,.10)",
         ),
-        margin=dict(l=0, r=0, t=0, b=0),
+        margin=dict(l=0, r=0, t=0, b=58),  # extra bottom for the horizontal colorbar
         height=height,
         paper_bgcolor="rgba(0,0,0,0)",
     )
