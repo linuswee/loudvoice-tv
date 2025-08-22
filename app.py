@@ -592,6 +592,8 @@ if yt_api_key and yt_channel_id:
 yt_client_id = st.secrets.get("YT_CLIENT_ID")
 yt_client_secret = st.secrets.get("YT_CLIENT_SECRET")
 yt_refresh_token = st.secrets.get("YT_REFRESH_TOKEN")
+who = oauth_channel_identity(yt_client_id, yt_client_secret, yt_refresh_token)
+st.warning(f"OAuth channel: {who['title']} — subs: {fmt_num(who['subs'])}, total views: {fmt_num(who['views'])}")
 
 daily_df = pd.DataFrame()
 cdf = pd.DataFrame()
@@ -632,8 +634,6 @@ else:
     yt_last7_vals = MOCK["yt_last7"]
     base = (datetime.utcnow().date() - timedelta(days=1))
     yt_last7_labels = [(base - timedelta(days=i)).strftime("%b %d") for i in range(6, -1, -1)]
-who = oauth_channel_identity(yt_client_id, yt_client_secret, yt_refresh_token)
-st.warning(f"OAuth channel: {who['title']} — subs: {fmt_num(who['subs'])}, total views: {fmt_num(who['views'])}")
 if bars_err:
     st.warning(f"YT Analytics (daily) error: {bars_err}")
 
