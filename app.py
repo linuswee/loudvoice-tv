@@ -306,6 +306,38 @@ def country_to_iso3(name: str) -> str:
         }
         return overrides.get(name, None)
 
+def oauth_channel_identity(client_id, client_secret, refresh_token):
+    """
+    Fetch channel title, subs, and total views for the authenticated account.
+    """
+    import google.oauth2.credentials
+    from googleapiclient.discovery import build
+
+    creds = google.oauth2.credentials.Credentials(
+        None,
+        refresh_token=refresh_token,
+        token_uri="https://oauth2.googleapis.com/token",
+        client_id=client_id,
+        client_secret=client_secret,
+        scopes=["https://www.googleapis.com/auth/youtube.readonly"]
+    )
+
+    youtube = build("youtube", "v3", credentials=creds)
+    resp = youtube.channels().list(
+        part="snippet,statistics",
+        mine=True
+    ).execute()
+
+    if not resp["items"]:
+        return {"title": "Unknown", "subs": 0, "views": 0}
+
+    item = resp["items"][0]
+    return {
+        "title": item["snippet"]["title"],
+        "subs": int(item["statistics"]["subscriberCount"]),
+        "views": int(item["statistics"]["viewCount"]),
+    }
+
 # ---- YouTube Analytics: daily views (last N days) ----
 @st.cache_data(ttl=300)
 def yt_analytics_daily_lastN(
