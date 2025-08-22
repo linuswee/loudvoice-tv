@@ -308,34 +308,31 @@ def country_to_iso3(name: str) -> str:
 
 def oauth_channel_identity(client_id, client_secret, refresh_token):
     """
-    Fetch channel title, subs, and total views for the authenticated account.
+    Identify which YouTube channel the OAuth refresh token belongs to.
+    Returns: {"id": <channelId>, "title": ..., "subs": int, "views": int}
     """
-    import google.oauth2.credentials
+    from google.oauth2.credentials import Credentials
     from googleapiclient.discovery import build
 
-    creds = google.oauth2.credentials.Credentials(
+    creds = Credentials(
         None,
         refresh_token=refresh_token,
         token_uri="https://oauth2.googleapis.com/token",
         client_id=client_id,
         client_secret=client_secret,
-        scopes=["https://www.googleapis.com/auth/youtube.readonly"]
+        scopes=["https://www.googleapis.com/auth/youtube.readonly"],
     )
+    youtube = build("youtube", "v3", credentials=creds, cache_discovery=False)
+    resp = youtube.channels().list(part="snippet,statistics", mine=True).execute()
+    if not resp.get("items"):
+        return {"id": None, "title": "Unknown", "subs": 0, "views": 0}
 
-    youtube = build("youtube", "v3", credentials=creds)
-    resp = youtube.channels().list(
-        part="snippet,statistics",
-        mine=True
-    ).execute()
-
-    if not resp["items"]:
-        return {"title": "Unknown", "subs": 0, "views": 0}
-
-    item = resp["items"][0]
+    it = resp["items"][0]
     return {
-        "title": item["snippet"]["title"],
-        "subs": int(item["statistics"]["subscriberCount"]),
-        "views": int(item["statistics"]["viewCount"]),
+        "id": it["id"],
+        "title": it["snippet"]["title"],
+        "subs": int(it["statistics"]["subscriberCount"]),
+        "views": int(it["statistics"]["viewCount"]),
     }
 
 # ---- YouTube Analytics: daily views (last N days) ----
@@ -621,9 +618,24 @@ if yt_api_key and yt_channel_id:
         pass
 
 # Analytics (28‑day map + real last‑7 with *local* dates)
-yt_client_id = st.secrets.get("YT_CLIENT_ID")
+yt_client_id     = st.secrets.get("YT_CLIENT_ID")
 yt_client_secret = st.secrets.get("YT_CLIENT_SECRET")
 yt_refresh_token = st.secrets.get("YT_REFRESH_TOKEN")
+yt_channel_id    = st.secrets.get("YT_PRIMARY_CHANNEL_ID") or st.secrets.get("YOUTUBE_CHANNEL_ID")
+
+who = None
+if yt_client_id and yt_client_secret and yt_refresh_token:
+    try:
+        who = oauth_channel_identity(yt_client_id, yt_client_secret, yt_refresh_token)
+        st.warning(f"OAuth channel: {who['title']} — subs: {fmt_num(who['subs'])}, total views: {fmt_num(who['views'])}")
+        if yt_channel_id and who["id"] and who["id"] != yt_channel_id:
+            st.error(
+                f"Your OAuth token is for **{who['title']}** (ID: {who['id']}). "
+                f"Your dashboard is set to **{yt_channel_id}**. "
+                "Analytics will not match until you create a refresh token for the correct channel."
+            )
+    except Exception as _e:
+        st.warning(f"Could not verify OAuth channel: {_e}")
 
 daily_df = pd.DataFrame()
 cdf = pd.DataFrame()
@@ -650,8 +662,6 @@ if yt_client_id and yt_client_secret and yt_refresh_token:
             yt_client_id, yt_client_secret, yt_refresh_token,
             days=7
         )
-        who = oauth_channel_identity(yt_client_id, yt_client_secret, yt_refresh_token)
-        st.warning(f"OAuth channel: {who['title']} — subs: {fmt_num(who['subs'])}, total views: {fmt_num(who['views'])}")
         # If you use timezone normalization elsewhere, uncomment:
         # last7_df = normalize_daily_to_local(last7_df, LOCAL_TZ)
     except Exception as e:
