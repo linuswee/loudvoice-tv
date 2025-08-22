@@ -1,3 +1,4 @@
+__LV_VERSION__ = "v3.1b-cards-alignedbars (sha:0523c1c9)"
 
 # app.py — LoudVoice Dashboard (cards + aligned bars layout)
 import os
@@ -7,6 +8,7 @@ import pandas as pd
 import requests
 import streamlit as st
 import plotly.graph_objects as go
+# === [ANCHOR] IMPORTS END ===
 
 # Optional Google libs (only needed for YouTube Analytics true 7-day + countries)
 GOOGLE_OK = True
@@ -78,6 +80,7 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+# === [ANCHOR] STYLES END ===
 
 # -------------------------------
 # Helpers & Data calls
@@ -246,6 +249,7 @@ try:
     map_df = yt_country_df.merge(cent, on="country", how="left").dropna()
 except Exception:
     map_df = MOCK["yt_countries"].merge(country_centroids(), on="country", how="left").dropna()
+# === [ANCHOR] DATA FETCHERS END ===
 
 # -------------------------------
 # Header
@@ -261,6 +265,7 @@ if not analytics_ok:
     st.info("Using mock for YT 7‑day & country (Analytics call failed or not configured).")
 
 MAP_HEIGHT = 340 if not COMPACT else 260
+# === [ANCHOR] LAYOUT: HEADER END ===
 
 # -------------------------------
 # Main layout
@@ -292,6 +297,7 @@ with left:
     )
     st.plotly_chart(fig, use_container_width=True, theme=None, config={"displayModeBar": False})
     st.markdown("</div>", unsafe_allow_html=True)
+# === [ANCHOR] LAYOUT: MAP CARD END ===
 
 with right:
     # Ministry tracker (3 columns)
@@ -307,6 +313,7 @@ with right:
         unsafe_allow_html=True,
     )
     st.markdown("</div>", unsafe_allow_html=True)
+# === [ANCHOR] LAYOUT: MINISTRY CARD END ===
 
     # Channel stats (YT/IG/TT)
     st.markdown("<div class='card'><div class='section'>Channel Stats</div>", unsafe_allow_html=True)
@@ -333,6 +340,7 @@ with right:
         unsafe_allow_html=True,
     )
     st.markdown("</div>", unsafe_allow_html=True)
+# === [ANCHOR] LAYOUT: CHANNEL STATS CARD END ===
 
     # Last 7 days aligned bars — newest first label order (YTD, Tue, Mon, Sun, Sat, Fri, Thu)
     st.markdown("<div class='card'><div class='section'>YouTube Views (Last 7 Days)</div>", unsafe_allow_html=True)
@@ -356,6 +364,7 @@ with right:
             unsafe_allow_html=True,
         )
     st.markdown("</div>", unsafe_allow_html=True)
+# === [ANCHOR] LAYOUT: 7DAY VIEWS CARD END ===
 
 # -------------------------------
 # Bottom: ClickUp tasks + Filming
@@ -373,6 +382,7 @@ with b1:
             unsafe_allow_html=True,
         )
     st.markdown("</div>", unsafe_allow_html=True)
+# === [ANCHOR] LAYOUT: CLICKUP TASKS CARD END ===
 
 with b2:
     st.markdown("<div class='card'><div class='section'>Next Filming Timeslots</div>", unsafe_allow_html=True)
@@ -382,5 +392,6 @@ with b2:
             unsafe_allow_html=True,
         )
     st.markdown("</div>", unsafe_allow_html=True)
+# === [ANCHOR] LAYOUT: FILMING CARD END ===
 
 st.caption("Tips → ?zoom=115 for TV; ?compact=1 for phones. Provide YOUTUBE_API_KEY & YT_PRIMARY_CHANNEL_ID for KPIs, and YT_CLIENT_ID/SECRET/REFRESH for true 7‑day & country map.")
