@@ -124,57 +124,59 @@ def yt_analytics_lastN_and_countries(
     channel_id: str | None = None,
 ):
     if not GOOGLE_OK:
-        raise RuntimeError("Google client libraries unavailable.")
+        return pd.DataFrame(), pd.DataFrame(), "Google client libraries unavailable."
 
-    creds = Credentials(
-        None,
-        refresh_token=refresh_token,
-        token_uri="https://oauth2.googleapis.com/token",
-        client_id=client_id,
-        client_secret=client_secret,
-        scopes=["https://www.googleapis.com/auth/yt-analytics.readonly"],
-    )
-    if not creds.valid:
-        creds.refresh(Request())
+    try:
+        creds = Credentials(
+            None,
+            refresh_token=refresh_token,
+            token_uri="https://oauth2.googleapis.com/token",
+            client_id=client_id,
+            client_secret=client_secret,
+            scopes=["https://www.googleapis.com/auth/yt-analytics.readonly"],
+        )
+        if not creds.valid:
+            creds.refresh(Request())
 
-    analytics = build("youtubeAnalytics", "v2", credentials=creds, cache_discovery=False)
+        analytics = build("youtubeAnalytics", "v2", credentials=creds, cache_discovery=False)
 
-    # Use yesterday to avoid data-latency gap; window is inclusive.
-    end_date = (datetime.utcnow().date() - timedelta(days=1))
-    start_date = end_date - timedelta(days=days - 1)
+        # end on *yesterday* to avoid partial/lagging data
+        end_date = (datetime.utcnow().date() - timedelta(days=1))
+        start_date = end_date - timedelta(days=days - 1)
+        ids_val = f"channel=={channel_id}" if channel_id else "channel==MINE"
 
-    ids_val = f"channel=={channel_id}" if channel_id else "channel==MINE"
+        # Daily views
+        daily = analytics.reports().query(
+            ids=ids_val,
+            startDate=start_date.isoformat(),
+            endDate=end_date.isoformat(),
+            metrics="views",
+            dimensions="day",
+            sort="day",
+        ).execute()
+        daily_rows = daily.get("rows", []) or []
+        daily_df = pd.DataFrame(daily_rows, columns=["date", "views"])
+        if not daily_df.empty:
+            daily_df["date"] = pd.to_datetime(daily_df["date"])
+            daily_df["views"] = daily_df["views"].astype(int)
 
-    # 1) Daily views
-    daily = analytics.reports().query(
-        ids=ids_val,
-        startDate=start_date.isoformat(),
-        endDate=end_date.isoformat(),
-        metrics="views",
-        dimensions="day",
-        sort="day",
-    ).execute()
-    rows = daily.get("rows", []) or []
-    daily_df = pd.DataFrame(rows, columns=["date", "views"])
-    if not daily_df.empty:
-        daily_df["date"] = pd.to_datetime(daily_df["date"])
-        daily_df["views"] = daily_df["views"].astype(int)
+        # Country views
+        country = analytics.reports().query(
+            ids=ids_val,
+            startDate=start_date.isoformat(),
+            endDate=end_date.isoformat(),
+            metrics="views",
+            dimensions="country",
+            sort="-views",
+            maxResults=200,
+        ).execute()
+        cdf = pd.DataFrame(country.get("rows", []) or [], columns=["country", "views"])
+        if not cdf.empty:
+            cdf["views"] = cdf["views"].astype(int)
 
-    # 2) Country views
-    country = analytics.reports().query(
-        ids=ids_val,
-        startDate=start_date.isoformat(),
-        endDate=end_date.isoformat(),
-        metrics="views",
-        dimensions="country",
-        sort="-views",
-        maxResults=200,
-    ).execute()
-    cdf = pd.DataFrame(country.get("rows", []) or [], columns=["country", "views"])
-    if not cdf.empty:
-        cdf["views"] = cdf["views"].astype(int)
-
-    return daily_df, cdf
+        return daily_df, cdf, ""
+    except Exception as e:
+        return pd.DataFrame(), pd.DataFrame(), str(e)
 
 @st.cache_data
 def country_centroids():
@@ -269,32 +271,42 @@ yt_client_secret = st.secrets.get("YT_CLIENT_SECRET")
 yt_refresh_token = st.secrets.get("YT_REFRESH_TOKEN")
 
 analytics_ok = False
+analytics_err = ""
 if yt_client_id and yt_client_secret and yt_refresh_token:
-    try:
-        daily_df, cdf = yt_analytics_lastN_and_countries(
-            yt_client_id,
-            yt_client_secret,
-            yt_refresh_token,
-            days=DAYS_FOR_MAP,
-            channel_id=yt_channel_id  # ← pin to the exact channel
+    daily_df, cdf, analytics_err = yt_analytics_lastN_and_countries(
+        yt_client_id,
+        yt_client_secret,
+        yt_refresh_token,
+        days=DAYS_FOR_MAP,
+        channel_id=yt_channel_id,
+    )
+
+if not daily_df.empty:
+    last7 = daily_df.sort_values("date").tail(7)
+    # ensure we have exactly 7 rows; if fewer, left‑pad with 0s so UI doesn’t break
+    if len(last7) < 7:
+        need = 7 - len(last7)
+        pad_dates = pd.date_range(
+            end=last7["date"].iloc[0] - pd.Timedelta(days=1),
+            periods=need
         )
+        pad_df = pd.DataFrame({"date": pad_dates, "views": [0]*need})
+        last7 = pd.concat([pad_df, last7], ignore_index=True)
 
-        # last 7 days (numbers + labels → daily dates)
-        if daily_df is not None and not daily_df.empty:
-            last7 = daily_df.sort_values("date").tail(7)
-            yt_last7_vals = last7["views"].astype(int).tolist()
-            yt_last7_labels = last7["date"].dt.strftime("%b %d").tolist()  # e.g., Aug 15
+    yt_last7_vals = last7["views"].astype(int).tolist()
+    yt_last7_labels = last7["date"].dt.strftime("%b %d").tolist()
 
-        # country map (with long names)
-        if cdf is not None and not cdf.empty:
-            yt_country_df = cdf.copy()
-            map_df = add_country_names(yt_country_df).merge(
-                country_centroids(), on="country", how="left"
-            ).dropna()
+if not cdf.empty:
+    yt_country_df = cdf.copy()
+    map_df = add_country_names(yt_country_df).merge(
+        country_centroids(), on="country", how="left"
+    ).dropna()
 
-        analytics_ok = True
-    except Exception:
-        analytics_ok = False
+analytics_ok = not (daily_df.empty and cdf.empty)
+
+st.caption(f"Analytics OK: {analytics_ok}")
+if not analytics_ok and analytics_err:
+    st.warning(f"YT Analytics error: {analytics_err}")
 
 # -------------------------------
 # Header
