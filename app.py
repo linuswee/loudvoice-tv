@@ -585,6 +585,54 @@ def build_choro_dataframe(views_by_name: dict) -> pd.DataFrame:
     df = pd.DataFrame(rows)
     return df
 
+# ---- ClickUp: upcoming tasks -------------------------------------------------
+@st.cache_data(ttl=120)
+def clickup_tasks_upcoming(token: str, list_id: str, limit: int = 12):
+    """
+    Returns a list of dicts [{name, status, due_str}] from a ClickUp List.
+    - Sorts by due date
+    - Hides archived and completed items
+    """
+    url = f"https://api.clickup.com/api/v2/list/{list_id}/task"
+    headers = {"Authorization": token}
+    params = {
+        "archived": "false",
+        "subtasks": "true",
+        "order_by": "due_date",
+        "reverse": "false",
+        "page": 0,
+        "include_closed": "false",  # exclude 'done/closed'
+    }
+    try:
+        r = requests.get(url, headers=headers, params=params, timeout=20)
+        r.raise_for_status()
+        items = (r.json() or {}).get("tasks", [])
+    except Exception as e:
+        # Bubble a friendly error to the UI
+        return [], f"ClickUp error: {e}"
+
+    out = []
+    for t in items:
+        status = (t.get("status") or {}).get("status", "")  # e.g. 'to do', 'in progress', 'review', 'complete'
+        status_type = (t.get("status") or {}).get("type", "")  # e.g. 'open', 'done'
+        if status_type == "done":
+            continue  # hide completed
+
+        name = t.get("name", "Untitled")
+        due_ms = t.get("due_date")  # millisecond timestamp string
+        due_str = ""
+        if due_ms:
+            try:
+                due_dt = datetime.utcfromtimestamp(int(due_ms) / 1000)
+                due_str = due_dt.strftime("%a, %b %d")
+            except Exception:
+                pass
+        out.append({"name": name, "status": status, "due_str": due_str})
+
+    # sort by due first, then name
+    out.sort(key=lambda x: (x["due_str"] == "", x["due_str"], x["name"].lower()))
+    return out[:limit], ""
+
 # =======================
 # Defaults / mocks (safe)
 # =======================
@@ -614,7 +662,24 @@ youtube = {"subs": MOCK["yt_subs"], "total": MOCK["yt_total"]}
 ig = {"followers": MOCK["ig_followers"], "views7": MOCK["ig_views7"]}
 tt = {"followers": MOCK["tt_followers"], "views7": MOCK["tt_views7"]}
 ministry = MOCK["ministry"]
-tasks = sorted(MOCK["tasks"], key=lambda t: 1 if "done" in t[1].lower() else 0)
+
+# ---- ClickUp live tasks (fallback to mock) ----
+tasks = []
+cu_token = st.secrets.get("CLICKUP_TOKEN")
+cu_list  = st.secrets.get("CLICKUP_LIST_ID")
+
+if cu_token and cu_list:
+    tasks_live, cu_err = clickup_tasks_upcoming(cu_token, cu_list, limit=12)
+    if cu_err:
+        st.warning(cu_err)
+    else:
+        # Convert to tuples for the UI loop: (name, status, due_str)
+        tasks = [(t["name"], t["status"], t["due_str"]) for t in tasks_live]
+
+if not tasks:
+    # fallback to your mock
+    tasks = [(n, s, "") for (n, s) in MOCK["tasks"]]
+    
 filming = MOCK["filming"]
 
 # KPI card via Data API
@@ -826,10 +891,11 @@ with right:
 b1, b2 = st.columns([1.2, 0.8])
 with b1:
     st.markdown("<div class='card'><div class='section'>ClickUp Tasks (Upcoming)</div>", unsafe_allow_html=True)
-    for name, status in tasks:
+    for name, status, due_str in tasks:
+        small_line = f"{status}" + (f" · due {due_str}" if due_str else "")
         st.markdown(
             f"<div class='grid-tasks-2'>"
-            f"<div>{name}<div class='small'>{status}</div></div>"
+            f"<div>{name}<div class='small'>{small_line}</div></div>"
             f"<div class='hbar'><span class='{task_cls(status)}' style='width:{task_pct(status)}%'></span></div>"
             f"</div>",
             unsafe_allow_html=True,
