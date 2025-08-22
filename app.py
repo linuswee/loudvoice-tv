@@ -8,6 +8,7 @@ import pandas as pd
 import requests
 import streamlit as st
 import plotly.graph_objects as go
+import pycountry
 # === [ANCHOR] IMPORTS END ===
 
 # Optional Google libs (only needed for YouTube Analytics true 7-day + countries)
@@ -114,10 +115,12 @@ def yt_channel_stats(api_key: str, channel_id: str):
     stats = items[0]["statistics"]
     return {"subs": int(stats.get("subscriberCount", 0)), "total": int(stats.get("viewCount", 0))}
 
+# --- YouTube Analytics: last N days (default 28) + countries ---
 @st.cache_data(ttl=300)
-def yt_analytics_lastN_and_countries(client_id, client_secret, refresh_token, days=28):
+def yt_analytics_lastN_and_countries(client_id, client_secret, refresh_token, days: int = 28):
     if not GOOGLE_OK:
         raise RuntimeError("Google client libraries unavailable.")
+
     creds = Credentials(
         None,
         refresh_token=refresh_token,
@@ -128,12 +131,14 @@ def yt_analytics_lastN_and_countries(client_id, client_secret, refresh_token, da
     )
     if not creds.valid:
         creds.refresh(Request())
+
     analytics = build("youtubeAnalytics", "v2", credentials=creds, cache_discovery=False)
 
     end_date = datetime.utcnow().date()
-    # inclusive range → for N days, subtract (N-1)
+    # inclusive window → for N days, subtract (N-1)
     start_date = end_date - timedelta(days=days - 1)
 
+    # 1) Views by day
     daily = analytics.reports().query(
         ids="channel==MINE",
         startDate=start_date.isoformat(),
@@ -143,6 +148,7 @@ def yt_analytics_lastN_and_countries(client_id, client_secret, refresh_token, da
         sort="day",
     ).execute()
 
+    # 2) Views by country (ISO2 codes)
     country = analytics.reports().query(
         ids="channel==MINE",
         startDate=start_date.isoformat(),
@@ -154,12 +160,14 @@ def yt_analytics_lastN_and_countries(client_id, client_secret, refresh_token, da
     ).execute()
 
     daily_vals = [int(row[1]) for row in daily.get("rows", [])]
-    country_rows = country.get("rows", []) or []
-    cdf = pd.DataFrame(country_rows, columns=["country", "views"])
+    cdf = pd.DataFrame(country.get("rows", []) or [], columns=["country", "views"])
     if not cdf.empty:
         cdf["views"] = cdf["views"].astype(int)
+
     return daily_vals, cdf
 
+
+# --- Minimal centroid table (ISO2 -> lat/lon) ---
 @st.cache_data
 def country_centroids():
     data = [
@@ -172,6 +180,21 @@ def country_centroids():
         ("MX", 23.63, -102.55), ("ES", 40.46, -3.75),
     ]
     return pd.DataFrame(data, columns=["country", "lat", "lon"])
+
+
+# --- Helper: add long country names using pycountry ---
+def add_country_names(df: pd.DataFrame) -> pd.DataFrame:
+    import pycountry
+    out = df.copy()
+    def to_name(code: str):
+        try:
+            rec = pycountry.countries.get(alpha_2=code)
+            return rec.name if rec else code
+        except Exception:
+            return code
+    if "country" in out.columns:
+        out["name"] = out["country"].apply(to_name)
+    return out
 
 # -------------------------------
 # Mock data (when live calls fail)
@@ -229,12 +252,20 @@ analytics_ok = False
 if yt_client_id and yt_client_secret and yt_refresh_token:
     try:
         DAYS_FOR_MAP = 28
-        lst7, cdf = yt_analytics_lastN_and_countries(
-            yt_client_id, yt_client_secret, yt_refresh_token, days=DAYS_FOR_MAP)
-        if lst7:
-            yt_last7_vals = lst7
+        lstN, cdf = yt_analytics_lastN_and_countries(
+            yt_client_id, yt_client_secret, yt_refresh_token, days=DAYS_FOR_MAP
+        )
+        if lstN:
+            yt_last7_vals = lstN   # still usable if you want a 7-day chart
         if cdf is not None and not cdf.empty:
             yt_country_df = cdf
+
+        # --- merge centroids + add long names ---
+        cent = country_centroids()
+        map_df = add_country_names(yt_country_df).merge(
+            cent, on="country", how="left"
+        ).dropna()
+
         analytics_ok = True
     except Exception:
         analytics_ok = False
