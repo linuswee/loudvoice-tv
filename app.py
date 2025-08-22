@@ -536,12 +536,12 @@ def build_choro_dataframe(views_by_name: dict) -> pd.DataFrame:
     return df
 
 def build_choropleth(choro_df: pd.DataFrame, height: int) -> go.Figure:
-    """
-    Log-scaled color so high-view countries pop. Countries with 0 are very dim.
-    """
-    # Log scale for contrast (add 1 to keep zeros)
+    import numpy as np
     z_raw = choro_df["views"].astype(int)
     z = np.log10(z_raw + 1)
+
+    # leave ~12–14% height at the bottom for the horizontal colorbar
+    bottom_pad = 0.14 if not COMPACT else 0.18
 
     fig = go.Figure(
         go.Choropleth(
@@ -550,29 +550,36 @@ def build_choropleth(choro_df: pd.DataFrame, height: int) -> go.Figure:
             customdata=np.stack([choro_df["name"], z_raw], axis=1),
             hovertemplate="<b>%{customdata[0]}</b><br>Views: %{customdata[1]:,}<extra></extra>",
             colorscale=[
-                [0.00, "#0b0f16"],   # background-ish for 0
+                [0.00, "#0b0f16"],
                 [0.05, "#2b2f3b"],
                 [0.20, "#ffeebe"],
                 [0.55, "#ffb347"],
-                [1.00, "#e53935"],   # hot
+                [1.00, "#e53935"],
             ],
+            marker_line_color="rgba(255,255,255,.08)",
+            marker_line_width=0.5,
             colorbar=dict(
                 title="Views (log scale)",
+                orientation="h",        # ← horizontal
+                x=0.5, xanchor="center",# center it
+                y=0.02, yanchor="bottom",  # place in the reserved strip
+                len=0.66,               # width of the bar (as fraction of plot width)
+                thickness=14,           # height of the bar
                 outlinewidth=0,
                 ticks=""
             ),
-            marker_line_color="rgba(255,255,255,.08)",
-            marker_line_width=0.5,
         )
     )
+
     fig.update_layout(
         geo=dict(
             projection_type="natural earth",
             bgcolor="rgba(0,0,0,0)",
             showocean=True, oceancolor="#070a0f",
-            showland=True, landcolor="#0b0f16",
+            showland=True,  landcolor="#0b0f16",
             showcountries=True, countrycolor="rgba(255,255,255,.10)",
             lataxis=dict(showgrid=False), lonaxis=dict(showgrid=False),
+            domain=dict(x=[0.00, 1.00], y=[bottom_pad, 1.00])  # ← reserve space for the bar
         ),
         margin=dict(l=0, r=0, t=0, b=0),
         height=height,
