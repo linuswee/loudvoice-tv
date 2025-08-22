@@ -326,6 +326,12 @@ with left:
 
 with right:
     # Ministry tracker
+    # Ministry tracker mock (replace with real data later)
+    ministry = {
+        "prayer": 15,
+        "studies": 8,
+        "baptisms": 1,
+    }
     st.markdown("<div class='card'><div class='section'>Ministry Tracker</div>", unsafe_allow_html=True)
     st.markdown(
         f"""
