@@ -223,14 +223,26 @@ def task_cls(status: str) -> str:
     s = status.lower()
     return "bar-green" if "done" in s else "bar-yellow" if "progress" in s else "bar-red"
 
+
 # -------------------------------
 # Fetch live data (with fallbacks)
 # -------------------------------
+
+# Defaults used everywhere (safe even if APIs fail)
+DAYS_FOR_MAP = 28
 youtube = {"subs": MOCK["yt_subs"], "total": MOCK["yt_total"]}
+ig = {"followers": MOCK["ig_followers"], "views7": MOCK["ig_views7"]}
+tt = {"followers": MOCK["tt_followers"], "views7": MOCK["tt_views7"]}
+ministry = MOCK["ministry"]
+tasks = sorted(MOCK["tasks"], key=lambda t: 1 if "done" in t[1].lower() else 0)
+filming = MOCK["filming"]
+
 yt_last7_vals = MOCK["yt_last7"]
-yt_last7_labels = ["Thu","Fri","Sat","Sun","Mon","Tue","YTD"]  # will be replaced by real dates
+yt_last7_labels = []  # real dates will be filled if Analytics works
 yt_country_df = MOCK["yt_countries"]
-map_df = yt_country_df.merge(country_centroids(), on="country", how="left").dropna()
+map_df = add_country_names(yt_country_df).merge(
+    country_centroids(), on="country", how="left"
+).dropna()
 
 # --- Channel KPIs via Data API ---
 yt_api_key = st.secrets.get("YOUTUBE_API_KEY")
@@ -250,21 +262,19 @@ yt_refresh_token = st.secrets.get("YT_REFRESH_TOKEN")
 analytics_ok = False
 if yt_client_id and yt_client_secret and yt_refresh_token:
     try:
-        DAYS_FOR_MAP = 28
         daily_df, cdf = yt_analytics_lastN_and_countries(
             yt_client_id, yt_client_secret, yt_refresh_token, days=DAYS_FOR_MAP
         )
 
-        # last 7 days (numbers + labels)
+        # last 7 days (numbers + labels → daily dates)
         if daily_df is not None and not daily_df.empty:
             last7 = daily_df.sort_values("date").tail(7)
             yt_last7_vals = last7["views"].astype(int).tolist()
             yt_last7_labels = last7["date"].dt.strftime("%b %d").tolist()  # e.g., Aug 15
 
-        # country map
+        # country map (with long names)
         if cdf is not None and not cdf.empty:
             yt_country_df = cdf.copy()
-            # merge centroids + add long names
             map_df = add_country_names(yt_country_df).merge(
                 country_centroids(), on="country", how="left"
             ).dropna()
