@@ -147,7 +147,8 @@ def yt_analytics_country_lastN(
 
     end_date = (datetime.utcnow().date() - timedelta(days=1))          # yesterday
     start_date = end_date - timedelta(days=days - 1)                   # inclusive window
-    ids_val = f"channel=={channel_id}" if channel_id else "channel==MINE"
+    #ids_val = f"channel=={channel_id}" if channel_id else "channel==MINE"
+    ids_val = "channel==MINE"  # ← force OAuth-authorized channel
 
     resp = analytics.reports().query(
         ids=ids_val,
@@ -336,7 +337,8 @@ def yt_analytics_daily_lastN(
 
     end_date = (datetime.utcnow().date() - timedelta(days=1))          # yesterday
     start_date = end_date - timedelta(days=days - 1)                   # inclusive window
-    ids_val = f"channel=={channel_id}" if channel_id else "channel==MINE"
+    # ids_val = f"channel=={channel_id}" if channel_id else "channel==MINE"
+    ids_val = "channel==MINE"  # ← force OAuth-authorized channel
 
     resp = analytics.reports().query(
         ids=ids_val,
@@ -614,7 +616,7 @@ if yt_client_id and yt_client_secret and yt_refresh_token:
     try:
         last7_df = yt_analytics_daily_lastN(
             yt_client_id, yt_client_secret, yt_refresh_token,
-            days=7, channel_id=yt_channel_id
+            days=7
         )
         # If you use timezone normalization elsewhere, uncomment:
         # last7_df = normalize_daily_to_local(last7_df, LOCAL_TZ)
@@ -688,7 +690,7 @@ with left:
         try:
             cdf = yt_analytics_country_lastN(
                 yt_client_id, yt_client_secret, yt_refresh_token,
-                days=DAYS_FOR_MAP, channel_id=yt_channel_id
+                days=DAYS_FOR_MAP
             )
         except Exception as e:
             analytics_err = str(e)
