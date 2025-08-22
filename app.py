@@ -1,18 +1,18 @@
-__LV_VERSION__ = "v3.1b-cards-alignedbars (sha:0523c1c9)"
+__LV_VERSION__ = "v3.1b-cards-alignedbars (sha:0523c1c9, refactor-01)"
 
 # app.py — LoudVoice Dashboard (cards + aligned bars layout)
-import os
-import json
+
 from datetime import datetime, timedelta
+import json
 import pandas as pd
+import plotly.graph_objects as go
 import requests
 import streamlit as st
-import plotly.graph_objects as go
-import pycountry
-from pycountry import countries
-# === [ANCHOR] IMPORTS END ===
 
-# Optional Google libs (only needed for YouTube Analytics true 7-day + countries)
+# Optional: long country names
+import pycountry
+
+# Optional Google libs (only needed for YouTube Analytics)
 GOOGLE_OK = True
 try:
     from google.oauth2.credentials import Credentials
@@ -25,7 +25,6 @@ except Exception:
 # Page config & compact helpers
 # -------------------------------
 st.set_page_config(page_title="LOUDVOICE", page_icon="📊", layout="wide")
-
 qp = st.query_params
 ZOOM = qp.get("zoom", ["100"])[0]
 COMPACT = qp.get("compact", ["0"])[0].lower() in ("1", "true", "yes")
@@ -82,7 +81,6 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
-# === [ANCHOR] STYLES END ===
 
 # -------------------------------
 # Helpers & Data calls
@@ -116,12 +114,11 @@ def yt_channel_stats(api_key: str, channel_id: str):
     stats = items[0]["statistics"]
     return {"subs": int(stats.get("subscriberCount", 0)), "total": int(stats.get("viewCount", 0))}
 
-# --- YouTube Analytics: last N days (default 28) + countries ---
+# YouTube Analytics: last N days (default 28) + countries
 @st.cache_data(ttl=300)
 def yt_analytics_lastN_and_countries(client_id, client_secret, refresh_token, days: int = 28):
     if not GOOGLE_OK:
         raise RuntimeError("Google client libraries unavailable.")
-
     creds = Credentials(
         None,
         refresh_token=refresh_token,
@@ -132,14 +129,11 @@ def yt_analytics_lastN_and_countries(client_id, client_secret, refresh_token, da
     )
     if not creds.valid:
         creds.refresh(Request())
-
     analytics = build("youtubeAnalytics", "v2", credentials=creds, cache_discovery=False)
 
     end_date = datetime.utcnow().date()
-    # inclusive window → for N days, subtract (N-1)
-    start_date = end_date - timedelta(days=days - 1)
+    start_date = end_date - timedelta(days=days - 1)  # inclusive window
 
-    # 1) Views by day
     daily = analytics.reports().query(
         ids="channel==MINE",
         startDate=start_date.isoformat(),
@@ -149,7 +143,6 @@ def yt_analytics_lastN_and_countries(client_id, client_secret, refresh_token, da
         sort="day",
     ).execute()
 
-    # 2) Views by country (ISO2 codes)
     country = analytics.reports().query(
         ids="channel==MINE",
         startDate=start_date.isoformat(),
@@ -164,11 +157,8 @@ def yt_analytics_lastN_and_countries(client_id, client_secret, refresh_token, da
     cdf = pd.DataFrame(country.get("rows", []) or [], columns=["country", "views"])
     if not cdf.empty:
         cdf["views"] = cdf["views"].astype(int)
-
     return daily_vals, cdf
 
-
-# --- Minimal centroid table (ISO2 -> lat/lon) ---
 @st.cache_data
 def country_centroids():
     data = [
@@ -182,10 +172,7 @@ def country_centroids():
     ]
     return pd.DataFrame(data, columns=["country", "lat", "lon"])
 
-
-# --- Helper: add long country names using pycountry ---
 def add_country_names(df: pd.DataFrame) -> pd.DataFrame:
-    import pycountry
     out = df.copy()
     def to_name(code: str):
         try:
@@ -196,12 +183,6 @@ def add_country_names(df: pd.DataFrame) -> pd.DataFrame:
     if "country" in out.columns:
         out["name"] = out["country"].apply(to_name)
     return out
-
-def code_to_name(code):
-    rec = countries.get(alpha_2=code)
-    return rec.name if rec else code
-
-map_df["name"] = map_df["country"].apply(code_to_name)
 
 # -------------------------------
 # Mock data (when live calls fail)
@@ -238,12 +219,11 @@ def task_cls(status: str) -> str:
 # Fetch live data (with fallbacks)
 # -------------------------------
 youtube = {"subs": MOCK["yt_subs"], "total": MOCK["yt_total"]}
-yt_last7_vals = MOCK["yt_last7"]
+yt_last_vals = MOCK["yt_last7"]               # we’ll slice to 7 for the bar
 yt_country_df = MOCK["yt_countries"]
 
 yt_api_key = st.secrets.get("YOUTUBE_API_KEY")
 yt_channel_id = st.secrets.get("YT_PRIMARY_CHANNEL_ID") or st.secrets.get("YOUTUBE_CHANNEL_ID")
-
 if yt_api_key and yt_channel_id:
     try:
         live = yt_channel_stats(yt_api_key, yt_channel_id)
@@ -263,35 +243,34 @@ if yt_client_id and yt_client_secret and yt_refresh_token:
             yt_client_id, yt_client_secret, yt_refresh_token, days=DAYS_FOR_MAP
         )
         if lstN:
-            yt_last7_vals = lstN   # still usable if you want a 7-day chart
+            yt_last_vals = lstN
         if cdf is not None and not cdf.empty:
             yt_country_df = cdf
-
-        # --- merge centroids + add long names ---
-        cent = country_centroids()
-        map_df = add_country_names(yt_country_df).merge(
-            cent, on="country", how="left"
-        ).dropna()
-
         analytics_ok = True
     except Exception:
         analytics_ok = False
+else:
+    DAYS_FOR_MAP = 28  # just keep label coherent
+
+# Build map_df once (with long names), fallback to mock if empty
+cent = country_centroids()
+map_df = add_country_names(yt_country_df).merge(cent, on="country", how="left").dropna()
+if map_df.empty:
+    map_df = add_country_names(MOCK["yt_countries"]).merge(cent, on="country", how="left").dropna()
 
 # IG / TT (still optional placeholders)
-ig = {"followers": st.secrets.get("IG_FOLLOWERS", MOCK["ig_followers"]), "views7": st.secrets.get("IG_VIEWS7", MOCK["ig_views7"])}
-tt = {"followers": st.secrets.get("TT_FOLLOWERS", MOCK["tt_followers"]), "views7": st.secrets.get("TT_VIEWS7", MOCK["tt_views7"])}
+ig = {
+    "followers": st.secrets.get("IG_FOLLOWERS", MOCK["ig_followers"]),
+    "views7":    st.secrets.get("IG_VIEWS7", MOCK["ig_views7"]),
+}
+tt = {
+    "followers": st.secrets.get("TT_FOLLOWERS", MOCK["tt_followers"]),
+    "views7":    st.secrets.get("TT_VIEWS7", MOCK["tt_views7"]),
+}
 
 ministry = MOCK["ministry"]
 tasks = sorted(MOCK["tasks"], key=lambda t: 1 if "done" in t[1].lower() else 0)
 filming = MOCK["filming"]
-
-# Map dataframe
-try:
-    cent = country_centroids()
-    map_df = yt_country_df.merge(cent, on="country", how="left").dropna()
-except Exception:
-    map_df = MOCK["yt_countries"].merge(country_centroids(), on="country", how="left").dropna()
-# === [ANCHOR] DATA FETCHERS END ===
 
 # -------------------------------
 # Header
@@ -307,58 +286,29 @@ if not analytics_ok:
     st.info("Using mock for YT 7‑day & country (Analytics call failed or not configured).")
 
 MAP_HEIGHT = 340 if not COMPACT else 260
-# === [ANCHOR] LAYOUT: HEADER END ===
 
 # -------------------------------
 # Main layout
 # -------------------------------
 left, right = st.columns([1.25, 0.75])
 
-# --- Build map_df for the world map (28 days, with long country names) ---
-# (Assumes yt_country_df already set from Analytics, else falls back to MOCK)
-try:
-    cent = country_centroids()
-    map_df = yt_country_df.merge(cent, on="country", how="left").dropna()
-except Exception:
-    # safe empty frame if merge fails
-    map_df = pd.DataFrame(columns=["country", "views", "lat", "lon"])
-
-# Add long country names (pycountry if available; else fall back to code)
-try:
-    import pycountry
-    def code_to_name(code: str):
-        rec = pycountry.countries.get(alpha_2=code)
-        return rec.name if rec else code
-except Exception:
-    def code_to_name(code: str):
-        return code
-
-if not map_df.empty:
-    map_df["name"] = map_df["country"].apply(code_to_name)
-else:
-    # ensure column exists to avoid NameError later
-    map_df["name"] = []
-
 with left:
-    st.markdown("<div class='card'><div class='section'>World Map — YouTube Viewers (True, last 28 days)</div>", unsafe_allow_html=True)
-    # assumes map_df already has columns: country (ISO2), name (long), views, lat, lon
+    st.markdown(
+        f"<div class='card'><div class='section'>World Map — YouTube Viewers (True, last {DAYS_FOR_MAP} days)</div>",
+        unsafe_allow_html=True,
+    )
+    # bubble size scaled to max, clamped to [6, 22] px
+    sizes = (map_df["views"] / max(map_df["views"].max(), 1) * 22).clip(lower=6, upper=22)
     fig = go.Figure(
         go.Scattergeo(
             lat=map_df["lat"],
             lon=map_df["lon"],
-            text=map_df["name"] + " — " + map_df["views"].astype(int).map(fmt_num),  # ← long names
+            text=map_df["name"] + " — " + map_df["views"].astype(int).map(fmt_num),
             mode="markers",
-            marker=dict(
-                # bubble size scaled to max, clamped to [6, 22] px
-                size=(map_df["views"] / max(map_df["views"].max(), 1) * 22).clip(lower=6, upper=22),
-                color="#ffd54a",
-                line=dict(color="#111", width=0.6),
-            ),
-            # prettier tooltip (optional)
+            marker=dict(color="#ffd54a", size=sizes, line=dict(color="#111", width=0.6)),
             hovertemplate="<b>%{text}</b><extra></extra>",
         )
     )
-
     fig.update_layout(
         geo=dict(
             showland=True, landcolor="#0b0f16",
@@ -371,10 +321,9 @@ with left:
     )
     st.plotly_chart(fig, use_container_width=True, theme=None, config={"displayModeBar": False})
     st.markdown("</div>", unsafe_allow_html=True)
-# === [ANCHOR] LAYOUT: MAP CARD END ===
 
 with right:
-    # Ministry tracker (3 columns)
+    # Ministry tracker
     st.markdown("<div class='card'><div class='section'>Ministry Tracker</div>", unsafe_allow_html=True)
     st.markdown(
         f"""
@@ -387,9 +336,8 @@ with right:
         unsafe_allow_html=True,
     )
     st.markdown("</div>", unsafe_allow_html=True)
-# === [ANCHOR] LAYOUT: MINISTRY CARD END ===
 
-    # Channel stats (YT/IG/TT)
+    # Channel stats
     st.markdown("<div class='card'><div class='section'>Channel Stats</div>", unsafe_allow_html=True)
     st.markdown(
         f"""
@@ -414,20 +362,13 @@ with right:
         unsafe_allow_html=True,
     )
     st.markdown("</div>", unsafe_allow_html=True)
-# === [ANCHOR] LAYOUT: CHANNEL STATS CARD END ===
 
-    # Last 7 days aligned bars — newest first label order (YTD, Tue, Mon, Sun, Sat, Fri, Thu)
+    # YouTube Views (Last 7 Days) — aligned bars
     st.markdown("<div class='card'><div class='section'>YouTube Views (Last 7 Days)</div>", unsafe_allow_html=True)
-    # Build labels order
-    labels = ["YTD", "Tue", "Mon", "Sun", "Sat", "Fri", "Thu"]  # as per agreed quirky order
-    # Use yt_last7_vals (list oldest->newest). We'll reverse to newest->oldest then map into labels end-to-start.
-    vals = yt_last7_vals[:]
-    if len(vals) >= 7:
-        vals = vals[-7:]  # ensure 7
+    labels = ["YTD", "Tue", "Mon", "Sun", "Sat", "Fri", "Thu"]  # agreed order
+    vals = yt_last_vals[-7:] if len(yt_last_vals) >= 7 else (yt_last_vals + [yt_last_vals[-1]] * (7 - len(yt_last_vals)))
     maxv = max(vals) if vals else 1
-    # For display, align biggest bar to 100%
-    display_pairs = list(zip(labels[::-1], (vals + [vals[-1]]*7)[:7]))[::-1]
-    for d, v in display_pairs:
+    for d, v in zip(labels, vals):
         pct = int((v / maxv) * 100) if maxv else 0
         st.markdown(
             f"<div class='grid-views'>"
@@ -438,7 +379,6 @@ with right:
             unsafe_allow_html=True,
         )
     st.markdown("</div>", unsafe_allow_html=True)
-# === [ANCHOR] LAYOUT: 7DAY VIEWS CARD END ===
 
 # -------------------------------
 # Bottom: ClickUp tasks + Filming
@@ -456,7 +396,6 @@ with b1:
             unsafe_allow_html=True,
         )
     st.markdown("</div>", unsafe_allow_html=True)
-# === [ANCHOR] LAYOUT: CLICKUP TASKS CARD END ===
 
 with b2:
     st.markdown("<div class='card'><div class='section'>Next Filming Timeslots</div>", unsafe_allow_html=True)
@@ -466,6 +405,5 @@ with b2:
             unsafe_allow_html=True,
         )
     st.markdown("</div>", unsafe_allow_html=True)
-# === [ANCHOR] LAYOUT: FILMING CARD END ===
 
 st.caption("Tips → ?zoom=115 for TV; ?compact=1 for phones. Provide YOUTUBE_API_KEY & YT_PRIMARY_CHANNEL_ID for KPIs, and YT_CLIENT_ID/SECRET/REFRESH for true 7‑day & country map.")
