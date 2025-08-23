@@ -301,9 +301,7 @@ def build_choropleth(choro_df: pd.DataFrame, height: int) -> go.Figure:
     bottom_band = 0.0 if HIDE_CB else 0.06
     colorbar_y  = (bottom_band/2.0) if not HIDE_CB else -0.2
 
-    # ←— NEW: slightly zoom the projection on mobile so it fills vertically
-    proj_scale = 1.18 if not COMPACT else 1.35   # safe values (no clipping)
-    proj_center = dict(lat=5, lon=0)             # nudge down a touch for portrait
+    proj_scale = 1.22 if not COMPACT else 1.55  # a bit tighter for phones
 
     fig = go.Figure(go.Choropleth(
         locations=choro_df["iso3"], z=z,
@@ -322,9 +320,12 @@ def build_choropleth(choro_df: pd.DataFrame, height: int) -> go.Figure:
 
     fig.update_layout(
         geo=dict(
-            projection=dict(type="natural earth", scale=proj_scale),  # ←— NEW
-            center=proj_center,                                       # ←— NEW
-            fitbounds="locations",                                    # ←— NEW (reduce oceans)
+            projection=dict(type="natural earth", scale=proj_scale),
+            center=dict(lat=5, lon=0),
+            # IMPORTANT: remove auto-fit so the scale sticks
+            # (fitbounds="locations"),  # ← delete this line
+            # Crop some ocean/poles for a fuller look on mobile:
+            lataxis=dict(range=[-55, 82]),
             bgcolor="rgba(0,0,0,0)",
             showocean=True, oceancolor="#070a0f",
             showland=True, landcolor="#0b0f16",
@@ -466,37 +467,6 @@ def normalize_daily_to_local(daily_df: pd.DataFrame, tz: str) -> pd.DataFrame:
     )
     out["date"] = pd.to_datetime(out["date"])
     return out
-
-def build_world_map(map_df: pd.DataFrame, height: int) -> go.Figure:
-    sizes = (map_df["views"] / max(map_df["views"].max(), 1) * 22).clip(lower=6, upper=22)
-    fig = go.Figure(
-        go.Scattergeo(
-            lat=map_df["lat"],
-            lon=map_df["lon"],
-            text=map_df["name"] + " — " + map_df["views"].astype(int).map(fmt_num),
-            mode="markers",
-            marker=dict(color="#ffd54a", size=sizes, line=dict(color="#111", width=0.6)),
-            hovertemplate="<b>%{text}</b><extra></extra>",
-        )
-    )
-    fig.update_layout(
-    geo=dict(
-        projection=dict(type="natural earth", scale=(1.18 if not COMPACT else 1.50)),
-        center=dict(lat=5, lon=0),
-        # REMOVE this: fitbounds="locations",
-        # Add a gentle crop to reduce ocean padding:
-        lataxis=dict(range=[-55, 82]),
-        bgcolor="rgba(0,0,0,0)",
-        showocean=True, oceancolor="#070a0f",
-        showland=True, landcolor="#0b0f16",
-        showcountries=True, countrycolor="rgba(255,255,255,.10)",
-        domain=dict(x=[0.00, 1.00], y=[bottom_band, 1.00]),
-    ),
-    margin=dict(l=0, r=0, t=0, b=0),
-    height=height,
-    paper_bgcolor="rgba(0,0,0,0)",
-)
-    return fig
 
 # --- Studio hard-map: country name -> views (you can extend this anytime) ---
 STUDIO_COUNTRY_VIEWS = {
