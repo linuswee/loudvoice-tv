@@ -302,9 +302,8 @@ def build_choropleth(choro_df: pd.DataFrame, height: int) -> go.Figure:
     # Reserve a *thin* bottom band just for the colorbar
     bottom_band = 0.06            # was 0.08
     colorbar_y  = bottom_band/2.0
-    # ... inside colorbar dict:
-thickness=12,                 # was 16
-len=0.94,                     # was 0.96
+    thickness = 12,                 # was 16
+    len = 0.94,                     # was 0.96
     fig = go.Figure(
         go.Choropleth(
             locations=choro_df["iso3"],
