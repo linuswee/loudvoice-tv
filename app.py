@@ -102,6 +102,21 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+st.markdown("""
+<style>
+/* Reduce vertical gaps */
+.block-container { padding-top:0px !important; padding-bottom:0px !important; }
+.card { margin-bottom:6px !important; }   /* was 14px */
+
+/* On mobile: tighten columns so no forced empty space */
+@media (max-width:1100px) {
+  section.main > div[data-testid="stHorizontalBlock"] {
+    align-items: flex-start !important;
+  }
+}
+</style>
+""", unsafe_allow_html=True)
+
 # =======================
 # Helpers & Data calls
 # =======================
