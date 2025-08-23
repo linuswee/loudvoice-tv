@@ -174,6 +174,22 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+st.markdown("""
+<style>
+/* Remove extra top padding / margin */
+section.main > div.block-container {
+    padding-top: 0rem !important;   /* remove Streamlit default top padding */
+    margin-top: 0rem !important;    /* ensure no margin above */
+}
+
+/* Also tighten the header container flex box */
+div[data-testid="stHorizontalBlock"] > div:first-child {
+    margin-top: 0px !important;
+    padding-top: 0px !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # =======================
 # Helpers & Data calls
 # =======================
