@@ -9,6 +9,9 @@ import plotly.graph_objects as go
 import requests
 import streamlit as st
 
+from streamlit.runtime.scriptrunner import add_script_run_ctx
+from streamlit_autorefresh import st_autorefresh  # pip install streamlit-autorefresh
+
 # Optional: long country names
 import pycountry
 import numpy as np
@@ -26,8 +29,6 @@ except Exception:
 # Page config & compact helpers
 # -------------------------------
 st.set_page_config(page_title="LOUDVOICE", page_icon="📊", layout="wide")
-from streamlit.runtime.scriptrunner import add_script_run_ctx
-from streamlit_autorefresh import st_autorefresh  # pip install streamlit-autorefresh
 st_autorefresh(interval=5 * 60 * 1000, key="auto_refresh")  # 5 minutes
 qp = st.query_params
 ZOOM = qp.get("zoom", ["100"])[0]
