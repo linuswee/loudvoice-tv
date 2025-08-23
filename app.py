@@ -85,6 +85,7 @@ st.markdown(
     .film-row{ display:grid; grid-template-columns: 1fr auto; gap:12px; align-items:center; padding:6px 0; }
     .film-right{ color:#ffd54a; white-space:nowrap }
     @media (max-width:1100px){
+      .section{ margin-bottom:6px }
       .block-container{ padding-left:8px; padding-right:8px; max-width:100% }
       .title{ font-size:28px; letter-spacing:.10em } .timestamp{ display:none }
       section.main > div:has(> div[data-testid="stHorizontalBlock"]) div[data-testid="column"]{
@@ -293,49 +294,37 @@ def _adaptive_ticks(z_raw_max: int):
 
 def build_choropleth(choro_df: pd.DataFrame, height: int) -> go.Figure:
     import numpy as np
-
     z_raw = choro_df["views"].astype(int).clip(lower=0)
     z = np.log10(z_raw + 1)
     tickvals, ticktext = _adaptive_ticks(int(z_raw.max()))
 
-    # If legend is hidden, let the map take 100% height
     bottom_band = 0.0 if HIDE_CB else 0.06
-    colorbar_y  = (bottom_band / 2.0) if not HIDE_CB else -0.2
+    colorbar_y  = (bottom_band/2.0) if not HIDE_CB else -0.2
 
-    fig = go.Figure(
-        go.Choropleth(
-            locations=choro_df["iso3"],
-            z=z,
-            customdata=np.stack([choro_df["name"], z_raw], axis=1),
-            hovertemplate="<b>%{customdata[0]}</b><br>Views: %{customdata[1]:,}<extra></extra>",
-            colorscale=[
-                [0.00, "#0b0f16"],
-                [0.20, "#ffe600"],
-                [0.40, "#ff3b3b"],
-                [0.70, "#4285f4"],
-                [1.00, "#34a853"],
-            ],
-            marker_line_color="rgba(255,255,255,.08)",
-            marker_line_width=0.5,
-            showscale=not HIDE_CB,
-            colorbar=dict(
-                title="Views (log scale)",
-                orientation="h",
-                x=0.5, xanchor="center",
-                y=colorbar_y, yanchor="middle",
-                lenmode="fraction", len=0.92,   # narrower & lower
-                thickness=12,                   # thinner
-                outlinewidth=0,
-                ticks="outside",
-                tickvals=tickvals,
-                ticktext=ticktext,
-            ),
-        )
-    )
+    # ←— NEW: slightly zoom the projection on mobile so it fills vertically
+    proj_scale = 1.18 if not COMPACT else 1.35   # safe values (no clipping)
+    proj_center = dict(lat=5, lon=0)             # nudge down a touch for portrait
+
+    fig = go.Figure(go.Choropleth(
+        locations=choro_df["iso3"], z=z,
+        customdata=np.stack([choro_df["name"], z_raw], axis=1),
+        hovertemplate="<b>%{customdata[0]}</b><br>Views: %{customdata[1]:,}<extra></extra>",
+        colorscale=[[0.00, "#0b0f16"], [0.20, "#ffe600"], [0.40, "#ff3b3b"], [0.70, "#4285f4"], [1.00, "#34a853"]],
+        marker_line_color="rgba(255,255,255,.08)", marker_line_width=0.5,
+        showscale=not HIDE_CB,
+        colorbar=dict(
+            title="Views (log scale)", orientation="h",
+            x=0.5, xanchor="center", y=colorbar_y, yanchor="middle",
+            lenmode="fraction", len=0.92, thickness=12, outlinewidth=0,
+            ticks="outside", tickvals=tickvals, ticktext=ticktext,
+        ),
+    ))
 
     fig.update_layout(
         geo=dict(
-            projection_type="natural earth",
+            projection=dict(type="natural earth", scale=proj_scale),  # ←— NEW
+            center=proj_center,                                       # ←— NEW
+            fitbounds="locations",                                    # ←— NEW (reduce oceans)
             bgcolor="rgba(0,0,0,0)",
             showocean=True, oceancolor="#070a0f",
             showland=True, landcolor="#0b0f16",
