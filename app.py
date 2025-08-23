@@ -190,6 +190,21 @@ div[data-testid="stHorizontalBlock"] > div:first-child {
 </style>
 """, unsafe_allow_html=True)
 
+st.markdown("""
+<style>
+/* Remove Streamlit header completely so no empty space remains */
+header[data-testid="stHeader"] { 
+  display: none !important;   /* instead of visibility:hidden */
+}
+
+/* (keep things tight) */
+section.main > div.block-container { 
+  padding-top: 0 !important; 
+  margin-top: 0 !important; 
+}
+</style>
+""", unsafe_allow_html=True)
+
 # =======================
 # Helpers & Data calls
 # =======================
