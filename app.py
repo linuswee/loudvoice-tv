@@ -32,7 +32,7 @@ st.set_page_config(page_title="LOUDVOICE", page_icon="📊", layout="wide")
 st_autorefresh(interval=5 * 60 * 1000, key="auto_refresh")  # 5 minutes
 qp = st.query_params
 
-# Height override for the map via URL, e.g. ?map_h=320
+HIDE_CB = qp.get("legend", ["1"])[0].lower() in ("0","false","no")  # legend=0 hides colorbar
 MAP_H_QP = qp.get("map_h", [""])[0]
 MAP_H_QP = int(MAP_H_QP) if MAP_H_QP.isdigit() else None
 
@@ -296,14 +296,12 @@ def build_choropleth(choro_df: pd.DataFrame, height: int) -> go.Figure:
 
     z_raw = choro_df["views"].astype(int).clip(lower=0)
     z = np.log10(z_raw + 1)
-    
     tickvals, ticktext = _adaptive_ticks(int(z_raw.max()))
 
-    # Reserve a *thin* bottom band just for the colorbar
-    bottom_band = 0.06            # was 0.08
-    colorbar_y  = bottom_band/2.0
-    thickness = 12,                 # was 16
-    len = 0.94,                     # was 0.96
+    # If legend is hidden, let the map take 100% height
+    bottom_band = 0.0 if HIDE_CB else 0.06
+    colorbar_y  = (bottom_band / 2.0) if not HIDE_CB else -0.2
+
     fig = go.Figure(
         go.Choropleth(
             locations=choro_df["iso3"],
@@ -311,21 +309,22 @@ def build_choropleth(choro_df: pd.DataFrame, height: int) -> go.Figure:
             customdata=np.stack([choro_df["name"], z_raw], axis=1),
             hovertemplate="<b>%{customdata[0]}</b><br>Views: %{customdata[1]:,}<extra></extra>",
             colorscale=[
-                [0.00, "#0b0f16"],  # black
-                [0.20, "#ffe600"],  # yellow
-                [0.40, "#ff3b3b"],  # red
-                [0.70, "#4285f4"],  # blue
-                [1.00, "#34a853"],  # green
+                [0.00, "#0b0f16"],
+                [0.20, "#ffe600"],
+                [0.40, "#ff3b3b"],
+                [0.70, "#4285f4"],
+                [1.00, "#34a853"],
             ],
             marker_line_color="rgba(255,255,255,.08)",
             marker_line_width=0.5,
+            showscale=not HIDE_CB,
             colorbar=dict(
                 title="Views (log scale)",
                 orientation="h",
                 x=0.5, xanchor="center",
-                y=colorbar_y, yanchor="middle",   # drop it further down
-                lenmode="fraction", len=0.96,     # make it almost full width
-                thickness=16,
+                y=colorbar_y, yanchor="middle",
+                lenmode="fraction", len=0.92,   # narrower & lower
+                thickness=12,                   # thinner
                 outlinewidth=0,
                 ticks="outside",
                 tickvals=tickvals,
@@ -335,17 +334,17 @@ def build_choropleth(choro_df: pd.DataFrame, height: int) -> go.Figure:
     )
 
     fig.update_layout(
-    geo=dict(
-        projection_type="natural earth",
-        bgcolor="rgba(0,0,0,0)",
-        showocean=True, oceancolor="#070a0f",
-        showland=True, landcolor="#0b0f16",
-        showcountries=True, countrycolor="rgba(255,255,255,.10)",
-        domain=dict(x=[0.00, 1.00], y=[bottom_band, 1.00]),  # map uses everything above the legend
-    ),
-    margin=dict(l=0, r=0, t=0, b=0),  # no extra bottom margin
-    height=height,
-    paper_bgcolor="rgba(0,0,0,0)",
+        geo=dict(
+            projection_type="natural earth",
+            bgcolor="rgba(0,0,0,0)",
+            showocean=True, oceancolor="#070a0f",
+            showland=True, landcolor="#0b0f16",
+            showcountries=True, countrycolor="rgba(255,255,255,.10)",
+            domain=dict(x=[0.00, 1.00], y=[bottom_band, 1.00]),
+        ),
+        margin=dict(l=0, r=0, t=0, b=0),
+        height=height,
+        paper_bgcolor="rgba(0,0,0,0)",
     )
     return fig
 
