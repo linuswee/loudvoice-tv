@@ -31,6 +31,11 @@ except Exception:
 st.set_page_config(page_title="LOUDVOICE", page_icon="📊", layout="wide")
 st_autorefresh(interval=5 * 60 * 1000, key="auto_refresh")  # 5 minutes
 qp = st.query_params
+
+# Height override for the map via URL, e.g. ?map_h=320
+MAP_H_QP = qp.get("map_h", [""])[0]
+MAP_H_QP = int(MAP_H_QP) if MAP_H_QP.isdigit() else None
+
 ZOOM = qp.get("zoom", ["100"])[0]
 COMPACT = qp.get("compact", ["0"])[0].lower() in ("1", "true", "yes")
 # QoL: force clear all Streamlit caches via ?clear_cache=1
@@ -102,7 +107,8 @@ st.markdown(
 
 LOCAL_TZ = "Asia/Kuala_Lumpur"   # change if your Studio timezone differs
 DAYS_FOR_MAP = 28                # 28‑day country map window
-MAP_HEIGHT = 600 if not COMPACT else 420  # taller map so it fills space
+# Default 600 desktop, tighter on phones; allow ?map_h=### to override
+MAP_HEIGHT = MAP_H_QP or (340 if COMPACT else 600)
 
 def fmt_num(n: int) -> str:
     if n >= 1_000_000_000: v = n / 1_000_000_000; return (f"{v:.1f}".rstrip("0").rstrip(".")) + "B"
@@ -294,8 +300,11 @@ def build_choropleth(choro_df: pd.DataFrame, height: int) -> go.Figure:
     tickvals, ticktext = _adaptive_ticks(int(z_raw.max()))
 
     # Reserve a *thin* bottom band just for the colorbar
-    bottom_band = 0.08                 # was ~0.16; smaller = more room for the map
-    colorbar_y  = bottom_band / 2.0    # centers the bar in that band
+    bottom_band = 0.06            # was 0.08
+    colorbar_y  = bottom_band/2.0
+    # ... inside colorbar dict:
+thickness=12,                 # was 16
+len=0.94,                     # was 0.96
     fig = go.Figure(
         go.Choropleth(
             locations=choro_df["iso3"],
