@@ -24,6 +24,8 @@ try:
     from googleapiclient.discovery import build
 except Exception:
     GOOGLE_OK = False
+import base64
+from pathlib import Path
 
 # -------------------------------
 # Page config & compact helpers
@@ -54,6 +56,13 @@ st.markdown(f"<style>body{{zoom:{ZOOM}%}}</style>", unsafe_allow_html=True)
 # -------------------------------
 # Styles
 # -------------------------------
+st.markdown("""
+<style>
+.lv-logo { width:40px; height:auto }
+@media (max-width:1100px){ .lv-logo { width:28px } }
+</style>
+""", unsafe_allow_html=True)
+
 st.markdown(
     """
     <style>
@@ -129,6 +138,9 @@ LOCAL_TZ = "Asia/Kuala_Lumpur"   # change if your Studio timezone differs
 DAYS_FOR_MAP = 28                # 28‑day country map window
 # Default 600 desktop, tighter on phones; allow ?map_h=### to override
 MAP_HEIGHT = MAP_H_QP or (340 if COMPACT else 600)
+
+def embed_img_b64(path: str) -> str:
+    return base64.b64encode(Path(path).read_bytes()).decode("utf-8")
 
 def fmt_num(n: int) -> str:
     if n >= 1_000_000_000: v = n / 1_000_000_000; return (f"{v:.1f}".rstrip("0").rstrip(".")) + "B"
@@ -818,12 +830,14 @@ if not analytics_ok and analytics_err:
 # =======================
 # Header
 # =======================
+LOGO_B64 = embed_img_b64("assets/loudvoice_logo.png")
+
 t1, t2 = st.columns([0.75, 0.25])
 with t1:
     st.markdown(
         f"""
         <div style="display:flex;align-items:center;gap:10px;">
-            <img src="assets/loudvoice_logo.png" width="40">
+            <img class="lv-logo" src="data:image/png;base64,{LOGO_B64}" alt="LoudVoice logo" />
             <div class='title'>LOUDVOICE</div>
         </div>
         """,
@@ -832,7 +846,6 @@ with t1:
 with t2:
     now = datetime.now().strftime('%B %d, %Y %I:%M %p')
     st.markdown(f"<div class='timestamp'>{now}</div>", unsafe_allow_html=True)
-
 if not analytics_ok:
     st.info("Using mock for YT 7‑day & country (Analytics call failed or not configured).")
 
