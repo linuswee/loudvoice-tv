@@ -26,9 +26,19 @@ except Exception:
 # Page config & compact helpers
 # -------------------------------
 st.set_page_config(page_title="LOUDVOICE", page_icon="📊", layout="wide")
+from streamlit.runtime.scriptrunner import add_script_run_ctx
+from streamlit_autorefresh import st_autorefresh  # pip install streamlit-autorefresh
+st_autorefresh(interval=5 * 60 * 1000, key="auto_refresh")  # 5 minutes
 qp = st.query_params
 ZOOM = qp.get("zoom", ["100"])[0]
 COMPACT = qp.get("compact", ["0"])[0].lower() in ("1", "true", "yes")
+# QoL: force clear all Streamlit caches via ?clear_cache=1
+if qp.get("clear_cache", ["0"])[0] in ("1","true","yes"):
+    st.cache_data.clear()
+    st.toast("Cache cleared", icon="♻️")
+
+# Optional debug panel via ?debug=1
+DEBUG = qp.get("debug", ["0"])[0].lower() in ("1","true","yes")
 st.markdown(f"<style>body{{zoom:{ZOOM}%}}</style>", unsafe_allow_html=True)
 
 # -------------------------------
@@ -655,6 +665,13 @@ def task_pct(status: str) -> int:
 def task_cls(status: str) -> str:
     s = status.lower(); return "bar-green" if "done" in s else "bar-yellow" if "progress" in s else "bar-red"
 
+def _secret_missing(name: str) -> bool:
+    v = st.secrets.get(name)
+    if not v:
+        st.info(f"Missing secret: `{name}` — using mock data for that section.")
+        return True
+    return False
+
 # =======================
 # Fetch live data
 # =======================
@@ -665,11 +682,15 @@ ministry = MOCK["ministry"]
 
 # ---- ClickUp live tasks (fallback to mock) ----
 tasks = []
-cu_token = st.secrets.get("CLICKUP_TOKEN")
-cu_list  = st.secrets.get("CLICKUP_LIST_ID")
+if _secret_missing("CLICKUP_TOKEN") or _secret_missing("CLICKUP_LIST_ID"):
+    tasks = [(n, s, "") for (n, s) in MOCK["tasks"]]
+else:
+    cu_token = st.secrets.get("CLICKUP_TOKEN")
+    cu_list  = st.secrets.get("CLICKUP_LIST_ID")
 
 if cu_token and cu_list:
-    tasks_live, cu_err = clickup_tasks_upcoming(cu_token, cu_list, limit=12)
+    with st.spinner("Loading ClickUp tasks…"):
+        tasks_live, cu_err = clickup_tasks_upcoming(cu_token, cu_list, limit=12)
     if cu_err:
         st.warning(cu_err)
     else:
@@ -713,9 +734,10 @@ daily_df = pd.DataFrame()
 cdf = pd.DataFrame()
 analytics_err = ""
 if yt_client_id and yt_client_secret and yt_refresh_token:
-    daily_df, cdf, analytics_err = yt_analytics_lastN_and_countries(
-        yt_client_id, yt_client_secret, yt_refresh_token, days=DAYS_FOR_MAP
-    )
+    with st.spinner("Fetching YouTube Analytics…"):
+        daily_df, cdf, analytics_err = yt_analytics_lastN_and_countries(
+            yt_client_id, yt_client_secret, yt_refresh_token, days=DAYS_FOR_MAP
+        )
     if not daily_df.empty:
         daily_df = normalize_daily_to_local(daily_df, LOCAL_TZ)
 
