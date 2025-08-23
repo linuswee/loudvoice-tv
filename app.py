@@ -480,16 +480,22 @@ def build_world_map(map_df: pd.DataFrame, height: int) -> go.Figure:
         )
     )
     fig.update_layout(
-        geo=dict(
-            showland=True, landcolor="#0b0f16",
-            showcountries=True, countrycolor="rgba(255,255,255,.15)",
-            showocean=True, oceancolor="#070a0f",
-            fitbounds="locations",  # <— zoom to your bubbles so it fills the card
-        ),
-        margin=dict(l=0, r=0, t=0, b=0),
-        height=height,
-        paper_bgcolor="rgba(0,0,0,0)",
-    )
+    geo=dict(
+        projection=dict(type="natural earth", scale=(1.18 if not COMPACT else 1.50)),
+        center=dict(lat=5, lon=0),
+        # REMOVE this: fitbounds="locations",
+        # Add a gentle crop to reduce ocean padding:
+        lataxis=dict(range=[-55, 82]),
+        bgcolor="rgba(0,0,0,0)",
+        showocean=True, oceancolor="#070a0f",
+        showland=True, landcolor="#0b0f16",
+        showcountries=True, countrycolor="rgba(255,255,255,.10)",
+        domain=dict(x=[0.00, 1.00], y=[bottom_band, 1.00]),
+    ),
+    margin=dict(l=0, r=0, t=0, b=0),
+    height=height,
+    paper_bgcolor="rgba(0,0,0,0)",
+)
     return fig
 
 # --- Studio hard-map: country name -> views (you can extend this anytime) ---
