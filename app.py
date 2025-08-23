@@ -88,6 +88,8 @@ st.markdown(
       .card{ padding:8px 10px; border-radius:10px } .kpi-grid{ gap:10px }
       .kpi-card{ padding:8px 10px } .kpi-card .kpi-value{ font-size:16px } .kpi-card .icon{ font-size:13px }
       .grid-views{ grid-template-columns:48px 1fr 64px }
+      .grid-tasks-2 { row-gap: 6px; }
+      .grid-tasks-2 a:hover { text-decoration: underline; }
     }
     </style>
     """,
@@ -605,11 +607,6 @@ def _get_clickup_creds():
 # ---- ClickUp: upcoming tasks -------------------------------------------------
 @st.cache_data(ttl=120)
 def clickup_tasks_upcoming(token: str, list_id: str, limit: int = 12):
-    """
-    Returns a list of dicts [{name, status, due_str}] from a ClickUp List.
-    - Sorts by due date
-    - Hides archived and completed items
-    """
     url = f"https://api.clickup.com/api/v2/list/{list_id}/task"
     headers = {"Authorization": token}
     params = {
@@ -618,38 +615,54 @@ def clickup_tasks_upcoming(token: str, list_id: str, limit: int = 12):
         "order_by": "due_date",
         "reverse": "false",
         "page": 0,
-        "include_closed": "false",  # exclude 'done/closed'
+        "include_closed": "false",
     }
     try:
         r = requests.get(url, headers=headers, params=params, timeout=20)
         r.raise_for_status()
         items = (r.json() or {}).get("tasks", [])
     except Exception as e:
-        # Bubble a friendly error to the UI
         return [], f"ClickUp error: {e}"
 
     out = []
     for t in items:
-        status = (t.get("status") or {}).get("status", "")  # e.g. 'to do', 'in progress', 'review', 'complete'
-        status_type = (t.get("status") or {}).get("type", "")  # e.g. 'open', 'done'
+        status      = (t.get("status") or {}).get("status", "")
+        status_type = (t.get("status") or {}).get("type", "")
+        status_hex  = (t.get("status") or {}).get("color")  # "#ff5a5f" etc
         if status_type == "done":
-            continue  # hide completed
+            continue
 
         name = t.get("name", "Untitled")
-        due_ms = t.get("due_date")  # millisecond timestamp string
-        due_str = ""
+        url  = t.get("url")  # deep link to ClickUp
+
+        # due string + overdue flag
+        due_ms = t.get("due_date")
+        due_str, overdue = "", False
         if due_ms:
             try:
-                due_dt = datetime.utcfromtimestamp(int(due_ms) / 1000)
+                due_dt  = datetime.utcfromtimestamp(int(due_ms) / 1000)
+                overdue = due_dt.date() < datetime.utcnow().date()
                 due_str = due_dt.strftime("%a, %b %d")
             except Exception:
                 pass
-        out.append({"name": name, "status": status, "due_str": due_str})
 
-    # sort by due first, then name
+        # first assignee
+        assignees = t.get("assignees") or []
+        who = ""
+        if assignees:
+            nm = assignees[0].get("username") or assignees[0].get("email","")
+            who = nm.split("@")[0].title()
+
+        prio = (t.get("priority") or {}).get("priority","")
+
+        out.append({
+            "name": name, "status": status, "status_hex": status_hex,
+            "due_str": due_str, "overdue": overdue,
+            "who": who, "url": url, "prio": prio
+        })
+
     out.sort(key=lambda x: (x["due_str"] == "", x["due_str"], x["name"].lower()))
     return out[:limit], ""
-
 # =======================
 # Defaults / mocks (safe)
 # =======================
@@ -697,7 +710,14 @@ if not cu_token or not cu_list:
 else:
     try:
         with st.spinner("Loading ClickUp tasks…"):
-            tasks_live, cu_err = clickup_tasks_upcoming(cu_token, cu_list, limit=12)
+            if cu_token and cu_list:
+                tasks_live, cu_err = clickup_tasks_upcoming(cu_token, cu_list, limit=12)
+                if cu_err:
+                    st.warning(cu_err)
+                    tasks = [(n, s, "") for (n, s) in MOCK["tasks"]]
+                else:
+                    tasks = tasks_live  # keep dicts; we’ll use keys in UI
+                    
         if cu_err:
             st.warning(cu_err)
             tasks = [(n, s, "") for (n, s) in MOCK["tasks"]]
@@ -923,16 +943,38 @@ with right:
 b1, b2 = st.columns([1.2, 0.8])
 with b1:
     st.markdown("<div class='card'><div class='section'>ClickUp Tasks (Upcoming)</div>", unsafe_allow_html=True)
-    for name, status, due_str in tasks:
-        small_line = f"{status}" + (f" · due {due_str}" if due_str else "")
+
+    for t in tasks:
+        # Support dicts (live) and tuples (mock)
+        if isinstance(t, dict):
+            name, status, due_str = t["name"], t["status"], t["due_str"]
+            status_hex = t.get("status_hex") or "#ff5a5f"
+            who        = t.get("who") or ""
+            url        = t.get("url") or "#"
+            overdue    = t.get("overdue", False)
+        else:
+            name, status, due_str = t
+            status_hex, who, url, overdue = "#ff5a5f", "", "#", False
+
+        small_bits = ["<span class='small'>", status]
+        if due_str: small_bits += [" · due ", due_str]
+        if overdue: small_bits += [" <b style='color:#ff6b6b'>(overdue)</b>"]
+        small_bits += ["</span>"]
+        small_line = "".join(small_bits)
+
+        who_chip = f"<span style='font-size:11px;background:rgba(255,255,255,.08);padding:2px 6px;border-radius:8px;margin-left:6px'>{who}</span>" if who else ""
+
         st.markdown(
             f"<div class='grid-tasks-2'>"
-            f"<div>{name}<div class='small'>{small_line}</div></div>"
-            f"<div class='hbar'><span class='{task_cls(status)}' style='width:{task_pct(status)}%'></span></div>"
+            f"<div><a href='{url}' target='_blank' style='color:#eef3ff;text-decoration:none'><b>{name}</b></a>{who_chip}"
+            f"<div>{small_line}</div>"
+            f"</div>"
+            f"<div class='hbar'><span style='width:{task_pct(status)}%; background:{status_hex}'></span></div>"
             f"</div>",
             unsafe_allow_html=True,
         )
     st.markdown("</div>", unsafe_allow_html=True)
+    
 with b2:
     st.markdown("<div class='card'><div class='section'>Next Filming Timeslots</div>", unsafe_allow_html=True)
     for daydate, time_str, label in filming:
