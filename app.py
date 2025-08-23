@@ -35,6 +35,41 @@ st.set_page_config(
     page_icon="assets/loudvoice_favicon.ico",  # favicon
     layout="wide"
 )
+
+# Inject favicon + iOS Home Screen icon into <head>
+st.markdown(
+    """
+    <script>
+    (function () {
+      const head = document.getElementsByTagName('head')[0];
+
+      function upsert(rel, href, sizes) {
+        let sel = `link[rel='${rel}']` + (sizes ? `[sizes='${sizes}']` : '');
+        let el = document.querySelector(sel);
+        if (!el) {
+          el = document.createElement('link');
+          el.rel = rel;
+          if (sizes) el.sizes = sizes;
+          head.appendChild(el);
+        }
+        // cache-bust so iOS/ Safari stop using the old one
+        el.href = href + `?v=${Date.now()}`;
+      }
+
+      // Standard favicon for browsers
+      upsert('icon', 'assets/loudvoice_favicon.ico');
+
+      // iOS Home Screen icon (rounded automatically by iOS)
+      upsert('apple-touch-icon', 'assets/loudvoice_logo.png', '180x180');
+
+      // (Optional) pinned tab mask for Safari macOS if you have an SVG:
+      // upsert('mask-icon', 'assets/loudvoice_mask.svg');
+      // document.querySelector("link[rel='mask-icon']").setAttribute('color', '#ffd54a');
+    })();
+    </script>
+    """,
+    unsafe_allow_html=True,
+)
 st_autorefresh(interval=5 * 60 * 1000, key="auto_refresh")  # 5 minutes
 qp = st.query_params
 
