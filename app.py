@@ -686,8 +686,8 @@ tasks = []
 if _secret_missing("CLICKUP_TOKEN") or _secret_missing("CLICKUP_LIST_ID"):
     tasks = [(n, s, "") for (n, s) in MOCK["tasks"]]
 else:
-    cu_token = st.secrets.get("CLICKUP_TOKEN")
-    cu_list  = st.secrets.get("CLICKUP_LIST_ID")
+    cu_token = st.secrets["clickup"]["token"]
+    cu_list  = st.secrets["clickup"]["list_id"]
 
 if cu_token and cu_list:
     with st.spinner("Loading ClickUp tasks…"):
