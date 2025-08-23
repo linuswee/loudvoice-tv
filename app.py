@@ -595,7 +595,13 @@ def build_choro_dataframe(views_by_name: dict) -> pd.DataFrame:
 
     df = pd.DataFrame(rows)
     return df
-
+def _get_clickup_creds():
+    # Try sectioned form first, then flat keys
+    sect = st.secrets.get("clickup", {})
+    tok = sect.get("token") or st.secrets.get("CLICKUP_TOKEN")
+    lst = sect.get("list_id") or st.secrets.get("CLICKUP_LIST_ID")
+    return tok, lst
+    
 # ---- ClickUp: upcoming tasks -------------------------------------------------
 @st.cache_data(ttl=120)
 def clickup_tasks_upcoming(token: str, list_id: str, limit: int = 12):
@@ -683,19 +689,23 @@ ministry = MOCK["ministry"]
 
 # ---- ClickUp live tasks (fallback to mock) ----
 tasks = []
-if _secret_missing("CLICKUP_TOKEN") or _secret_missing("CLICKUP_LIST_ID"):
+cu_token, cu_list = _get_clickup_creds()  # <- always defined
+
+if not cu_token or not cu_list:
+    st.info("Missing secret(s): CLICKUP_TOKEN / CLICKUP_LIST_ID — using mock data for that section.")
     tasks = [(n, s, "") for (n, s) in MOCK["tasks"]]
 else:
-    cu_token = st.secrets.get("CLICKUP_TOKEN")
-    cu_list  = st.secrets.get("CLICKUP_LIST_ID")
-if cu_token and cu_list:
-    with st.spinner("Loading ClickUp tasks…"):
-        tasks_live, cu_err = clickup_tasks_upcoming(cu_token, cu_list, limit=12)
-    if cu_err:
-        st.warning(cu_err)
-    else:
-        # Convert to tuples for the UI loop: (name, status, due_str)
-        tasks = [(t["name"], t["status"], t["due_str"]) for t in tasks_live]
+    try:
+        with st.spinner("Loading ClickUp tasks…"):
+            tasks_live, cu_err = clickup_tasks_upcoming(cu_token, cu_list, limit=12)
+        if cu_err:
+            st.warning(cu_err)
+            tasks = [(n, s, "") for (n, s) in MOCK["tasks"]]
+        else:
+            tasks = [(t["name"], t["status"], t["due_str"]) for t in tasks_live]
+    except Exception as e:
+        st.warning(f"ClickUp error: {e}")
+        tasks = [(n, s, "") for (n, s) in MOCK["tasks"]]
 
 if not tasks:
     # fallback to your mock
