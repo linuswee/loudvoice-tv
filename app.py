@@ -701,36 +701,43 @@ tt = {"followers": MOCK["tt_followers"], "views7": MOCK["tt_views7"]}
 ministry = MOCK["ministry"]
 
 # ---- ClickUp live tasks (fallback to mock) ----
-tasks = []
-cu_token, cu_list = _get_clickup_creds()  # <- always defined
+def _get_clickup_creds():
+    sect = st.secrets.get("clickup", {})
+    tok = sect.get("token") or st.secrets.get("CLICKUP_TOKEN")
+    lst = sect.get("list_id") or st.secrets.get("CLICKUP_LIST_ID")
+    return tok, lst
+
+tasks: list = []
+cu_token, cu_list = _get_clickup_creds()
 
 if not cu_token or not cu_list:
     st.info("Missing secret(s): CLICKUP_TOKEN / CLICKUP_LIST_ID — using mock data for that section.")
-    tasks = [(n, s, "") for (n, s) in MOCK["tasks"]]
+    # mock as dicts so the UI code (chips/links/overdue) still works
+    tasks = [
+        {"name": n, "status": s, "due_str": "", "status_hex": "#ff5a5f",
+         "who": "", "url": "#", "overdue": False}
+        for (n, s) in MOCK["tasks"]
+    ]
 else:
     try:
         with st.spinner("Loading ClickUp tasks…"):
-            if cu_token and cu_list:
-                tasks_live, cu_err = clickup_tasks_upcoming(cu_token, cu_list, limit=12)
-                if cu_err:
-                    st.warning(cu_err)
-                    tasks = [(n, s, "") for (n, s) in MOCK["tasks"]]
-                else:
-                    tasks = tasks_live  # keep dicts; we’ll use keys in UI
-                    
+            tasks_live, cu_err = clickup_tasks_upcoming(cu_token, cu_list, limit=12)
         if cu_err:
             st.warning(cu_err)
-            tasks = [(n, s, "") for (n, s) in MOCK["tasks"]]
+            tasks = [
+                {"name": n, "status": s, "due_str": "", "status_hex": "#ff5a5f",
+                 "who": "", "url": "#", "overdue": False}
+                for (n, s) in MOCK["tasks"]
+            ]
         else:
-            tasks = [(t["name"], t["status"], t["due_str"]) for t in tasks_live]
+            tasks = tasks_live  # <-- keep dicts (do NOT convert to tuples)
     except Exception as e:
         st.warning(f"ClickUp error: {e}")
-        tasks = [(n, s, "") for (n, s) in MOCK["tasks"]]
-
-if not tasks:
-    # fallback to your mock
-    tasks = [(n, s, "") for (n, s) in MOCK["tasks"]]
-    
+        tasks = [
+            {"name": n, "status": s, "due_str": "", "status_hex": "#ff5a5f",
+             "who": "", "url": "#", "overdue": False}
+            for (n, s) in MOCK["tasks"]
+        ]
 filming = MOCK["filming"]
 
 # KPI card via Data API
@@ -849,6 +856,7 @@ with left:
     yt_client_secret = st.secrets.get("YT_CLIENT_SECRET")
     yt_refresh_token = st.secrets.get("YT_REFRESH_TOKEN")
     yt_channel_id    = st.secrets.get("YT_PRIMARY_CHANNEL_ID") or st.secrets.get("YOUTUBE_CHANNEL_ID")
+
     
     cdf = pd.DataFrame()
     analytics_err = ""
