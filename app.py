@@ -30,7 +30,7 @@ except Exception:
 # -------------------------------
 st.set_page_config(
     page_title="LOUDVOICE",
-    page_icon="loudvoice_logo.png",  # Path to your PNG or ICO
+    page_icon="assets/loudvoice_favicon.ico",  # favicon
     layout="wide"
 )
 st_autorefresh(interval=5 * 60 * 1000, key="auto_refresh")  # 5 minutes
@@ -821,13 +821,13 @@ if not analytics_ok and analytics_err:
 t1, t2 = st.columns([0.75, 0.25])
 with t1:
     st.markdown(
-    f"""
-    <div style="display:flex; align-items:center; gap:10px;">
-        <img src="app/assets/loudvoice_logo.png" width="38">
-        <span class="title">LOUDVOICE</span>
-    </div>
-    """,
-    unsafe_allow_html=True
+        f"""
+        <div style="display:flex;align-items:center;gap:10px;">
+            <img src="assets/loudvoice_logo.png" width="40">
+            <div class='title'>LOUDVOICE</div>
+        </div>
+        """,
+        unsafe_allow_html=True
     )
 with t2:
     now = datetime.now().strftime('%B %d, %Y %I:%M %p')
