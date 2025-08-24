@@ -778,6 +778,33 @@ def _secret_missing(name: str) -> bool:
         return True
     return False
 
+import requests
+import icalendar
+from datetime import datetime
+
+@st.cache_data(ttl=120)
+def fetch_calendar_events(ical_url: str, limit: int = 6):
+    """Parse ClickUp public calendar (ICS) and return upcoming events as list."""
+    try:
+        r = requests.get(ical_url, timeout=15)
+        r.raise_for_status()
+        cal = icalendar.Calendar.from_ical(r.text)
+
+        events = []
+        now = datetime.now()
+        for comp in cal.walk("VEVENT"):
+            start = comp.get("DTSTART").dt
+            summary = str(comp.get("SUMMARY"))
+            if start >= now:
+                events.append((start, summary))
+
+        # Sort and limit
+        events.sort(key=lambda e: e[0])
+        return events[:limit]
+    except Exception as e:
+        st.warning(f"Calendar error: {e}")
+        return []
+
 # ---- Google Sheets: Ministry & Filming (READ ONLY) ----------------------------
 import re
 import pandas as pd
@@ -1356,25 +1383,21 @@ with c2:
         )
     st.markdown("</div>", unsafe_allow_html=True)
 
-with c3:
+with c3:  # 3rd column
     st.markdown("<div class='card'><div class='section'>ClickUp Calendar</div>", unsafe_allow_html=True)
 
-    # Option A (best): embed a PUBLIC calendar view URL from ClickUp “Share”
-    # Put the URL in Streamlit secrets as CLICKUP_CAL_PUBLIC_URL
-    from streamlit.components.v1 import iframe
-    cal_url = st.secrets.get("CLICKUP_CAL_PUBLIC_URL")
+    ical_url = st.secrets.get("CLICKUP_CAL_ICAL_URL")  # put your ICS link in secrets.toml
+    events = fetch_calendar_events(ical_url, limit=6)
 
-    if cal_url:
-        # Adjust height if you want more/less rows visible
-        iframe(cal_url, height=420, scrolling=True)
+    if not events:
+        st.markdown("<div class='small'>No upcoming events found.</div>", unsafe_allow_html=True)
     else:
-        # Fallback instructions + a button to open ClickUp
-        st.markdown(
-            "<div class='small'>Add a public share link for your Calendar view to "
-            "<code>CLICKUP_CAL_PUBLIC_URL</code> in <b>st.secrets</b> to embed it here."
-            "<br/>In ClickUp: Calendar view → <b>Share</b> → Enable public link → copy URL.</div>",
-            unsafe_allow_html=True
-        )
-        st.link_button("Open ClickUp Calendar", "https://app.clickup.com/", use_container_width=True)
+        for start, label in events:
+            daydate = start.strftime("%a, %b %d")
+            time_str = start.strftime("%H:%M")
+            st.markdown(
+                f"<div class='film-row'><div><b>{daydate}</b> — {time_str}</div><div class='film-right'>{label}</div></div>",
+                unsafe_allow_html=True
+            )
 
     st.markdown("</div>", unsafe_allow_html=True)
