@@ -947,7 +947,7 @@ analytics_ok = (not daily_df.empty) or (not cdf.empty)
 if not analytics_ok and analytics_err:
     st.warning(f"YT Analytics error: {analytics_err}")
 
-MIN_DOC = st.secrets["gs_ministry_id"]
+MIN_DOC = st.secrets["ministry_id"]
 MIN_TAB = "Ministry Integration"
 
 # READ ministry totals for today
@@ -979,7 +979,7 @@ with c3:
         append_row(MIN_DOC, MIN_TAB, [pd.Timestamp.now(tz=LOCAL_TZ).isoformat(), "baptisms", "", 1])
         st.cache_data.clear(); st.rerun()
 
-FILM_DOC = st.secrets["gs_filming_id"]
+FILM_DOC = st.secrets["filming_id"]
 FILM_TAB = "Filming Integration"
 
 f_df = read_sheet(FILM_DOC, FILM_TAB)
