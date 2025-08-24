@@ -8,13 +8,14 @@ requests
 pycountry
 
 # Google / YouTube integrations
-google-auth
+google-auth==2.33.0
 google-auth-oauthlib
 google-api-python-client
 
 # Google Sheets (easy Sheets access via gspread)
 gspread==6.1.2
-google-auth==2.33.0
+gspread-dataframe
+oauth2client
 
 # Handy date utilities (ISO parsing, ranges)
 python-dateutil
