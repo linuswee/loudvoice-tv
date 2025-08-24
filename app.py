@@ -189,9 +189,22 @@ div[data-testid="stHorizontalBlock"]{
 .kpi-value{ font-size:18px; font-weight:800; margin:0; }
 
 /* ---- Bars (7‑day views + task progress) ---- */
-.grid-views{ display:grid; grid-template-columns:56px 1fr 76px; gap:10px; align-items:center; margin:4px 0; }
-.views-bar{ height:10px; border-radius:6px; background:#1f2736; overflow:hidden; }
-.views-bar>span{ display:block; height:100%; background:#4aa3ff; }
+.grid-views{ 
+  display:grid; 
+  grid-template-columns:64px 1fr 64px; 
+  gap:8px; 
+  align-items:center; 
+  margin:2px 0;       /* less vertical padding */
+}
+.views-bar{ 
+  height:6px;         /* thinner bars */
+  border-radius:4px; 
+  background:#1f2736; 
+  overflow:hidden; 
+}
+.grid-views div{ 
+  font-size:11px;     /* slightly smaller labels */
+}
 
 .grid-tasks-2{ display:grid; grid-template-columns:1fr 1.1fr; gap:12px; align-items:center; margin:6px 0; }
 .hbar{ height:10px; border-radius:6px; background:#1f2736; overflow:hidden; }
