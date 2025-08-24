@@ -984,7 +984,7 @@ FILM_TAB = "Filming Integration"
 
 f_df = read_sheet(FILM_DOC, FILM_TAB)
 if not f_df.empty:
-    filming = list(f_df[["Date","Time","Title:"]].itertuples(index=False, name=None))
+    filming = list(f_df[["Date:","Time:","Title:"]].itertuples(index=False, name=None))
 # =======================
 # Header
 # =======================
