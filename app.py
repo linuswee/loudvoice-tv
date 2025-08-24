@@ -793,23 +793,51 @@ def _open_ws(doc_id: str, worksheet: str):
 
 @st.cache_data(ttl=60)
 def read_sheet(doc_id: str, worksheet: str) -> pd.DataFrame:
-    """Return a cleaned dataframe from Google Sheets (read-only)."""
+    """
+    Read a worksheet and auto-detect which row contains headers.
+    Normalizes headers to lowercase snake_case (e.g. 'Title:' -> 'title').
+    """
+    import re
+
     ws = _open_ws(doc_id, worksheet)
-    df = get_as_dataframe(ws, evaluate_formulas=True, dtype=str).fillna("")
-    if df.empty:
-        return df
+    rows = ws.get_all_values()  # list[list[str]]
+    if not rows:
+        return pd.DataFrame()
 
-    # drop unnamed / blank columns
-    df = df.loc[:, ~df.columns.str.contains("^Unnamed", na=False)]
+    # Find the first row that looks like a header
+    def looks_like_header(vals: list[str]) -> bool:
+        probe = [re.sub(r"[^\w]+", "", (v or "").strip().lower()) for v in vals]
+        return any(p in ("date", "time", "title") for p in probe)
 
-    # normalize headers: trim, lowercase, replace non-alnum with underscore
+    hdr_idx = 0
+    for i, r in enumerate(rows[:5]):         # scan the first few rows
+        if looks_like_header(r):
+            hdr_idx = i
+            break
+
+    header = rows[hdr_idx]
+    data   = rows[hdr_idx + 1:]
+
+    # Build DataFrame
+    df = pd.DataFrame(data, columns=header).fillna("")
+
+    # Drop totally empty columns
+    df = df.loc[:, ~(df.columns.astype(str).str.strip() == "")]
+
+    # Normalize headers: trim, lowercase, non-alnum -> underscore
     def _norm(s):
         s = str(s or "").strip().lower()
-        s = re.sub(r"[^\w]+", "_", s)          # "Title:" -> "title"
+        s = re.sub(r"[^\w]+", "_", s)      # "Title:" -> "title"
         s = re.sub(r"^_+|_+$", "", s)
         return s
     df.columns = [_norm(c) for c in df.columns]
-    return df
+
+    # Remove duplicate blank rows at the top (if any)
+    if not df.empty:
+        # drop rows where every cell is empty string
+        df = df[~(df.apply(lambda r: all(str(x).strip()=="" for x in r), axis=1))]
+
+    return df.reset_index(drop=True)
 
 # ---------- Ministry helpers (READ ONLY) ---------------------------------------
 def load_ministry_totals(doc_id: str, worksheet: str = "Ministry") -> dict:
@@ -864,10 +892,12 @@ def _first_nonempty(series: pd.Series, candidates: list[str]) -> str | None:
 
 def load_upcoming_filming(doc_id: str, worksheet: str = "Filming Integration", limit: int = 6) -> list[tuple[str, str, str]]:
     """
-    Reads 'Filming Integration' and returns up to `limit` upcoming rows as:
-       [(Mon, Aug 22, '09:20', 'Through It All, Jesus Never Fails'), ...]
-    Accepts Date like '22/8' or '22/08' (infers current year).
-    Works with headers 'Date', 'Time', 'Title' or the same with colons.
+    Returns up to `limit` rows from the filming sheet as:
+        [(Mon, Aug 22, '09:20', 'Title'), ...]
+    Prefers today/future; if there are fewer than `limit`, it backfills with the
+    most recent past dates (closest first).
+    Accepts Date like '22/8' or '22/08' (year is inferred).
+    Works with headers 'Date', 'Time', 'Title' (colons ok).
     """
     import re
 
@@ -875,56 +905,46 @@ def load_upcoming_filming(doc_id: str, worksheet: str = "Filming Integration", l
     if df.empty:
         return []
 
-    # Column candidates after your header-normalization
-    # ('title:' -> 'title', 'date:' -> 'date', etc.)
+    # Column names after normalization
     date_col  = next((c for c in ("date", "day", "when") if c in df.columns), None)
     time_col  = next((c for c in ("time", "timeslot", "start") if c in df.columns), None)
     title_col = next((c for c in ("title", "title_", "what", "event") if c in df.columns), None)
-
-    if date_col is None or title_col is None:
+    if not date_col or not title_col:
         return []
 
     today = pd.Timestamp.now(tz=LOCAL_TZ).normalize().tz_localize(None)
     this_year = today.year
 
-    # --- Date parser that infers year if missing ---
     def parse_date(val: str) -> pd.Timestamp | pd.NaT:
         s = str(val).strip()
         if not s:
             return pd.NaT
-        # match d/m or d/m/y
         m = re.match(r"^\s*(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?\s*$", s)
         if m:
             d, mth, yr = int(m.group(1)), int(m.group(2)), m.group(3)
             yr = int(yr) if yr else this_year
-            if yr < 100:  # handle '24'
+            if yr < 100:
                 yr += 2000
             try:
                 return pd.Timestamp(year=yr, month=mth, day=d)
             except Exception:
                 return pd.NaT
-        # fallback: let pandas try with dayfirst
         return pd.to_datetime(s, dayfirst=True, errors="coerce")
 
     dates = df[date_col].apply(parse_date)
-
-    # Time (keep as string for display; optional sortable parse)
     times = df[time_col].astype(str).str.strip() if time_col else pd.Series([""] * len(df))
     times_sort = pd.to_datetime(times, format="%H:%M", errors="coerce") if time_col else pd.Series([pd.NaT] * len(df))
-
     titles = df[title_col].astype(str).str.strip()
 
-    tmp = pd.DataFrame({"date": dates, "time_str": times, "time_sort": times_sort, "title": titles}).dropna(subset=["date"])
+    tmp = (pd.DataFrame({"date": dates, "time_str": times, "time_sort": times_sort, "title": titles})
+             .dropna(subset=["date"]))
 
-    # Prefer upcoming (today or later)
-    future = tmp[tmp["date"] >= today].sort_values(["date", "time_sort"], kind="stable")
+    # Split future / past
+    fut = tmp[tmp["date"] >= today].sort_values(["date", "time_sort"], kind="stable")
+    past = tmp[tmp["date"] <  today].sort_values(["date", "time_sort"], ascending=[False, False], kind="stable")
 
-    if future.empty:
-        # If nothing upcoming, show nearest by date regardless of past/future
-        nearest = tmp.sort_values(["date", "time_sort"], kind="stable").head(limit)
-        take = nearest
-    else:
-        take = future.head(limit)
+    # Take as many future as we can; backfill with closest past
+    take = pd.concat([fut.head(limit), past.head(max(0, limit - len(fut)))], axis=0)
 
     def fmt_date(d: pd.Timestamp) -> str:
         return pd.to_datetime(d).strftime("%a, %b %d")
