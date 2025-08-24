@@ -8,7 +8,7 @@ import json
 import pandas as pd
 import plotly.graph_objects as go
 import requests
-import streamlit as st
+import streamlit as sta
 
 from streamlit.runtime.scriptrunner import add_script_run_ctx
 from streamlit_autorefresh import st_autorefresh  # pip install streamlit-autorefresh
@@ -1118,31 +1118,36 @@ yt_client_secret = st.secrets.get("YT_CLIENT_SECRET")
 yt_refresh_token = st.secrets.get("YT_REFRESH_TOKEN")
 yt_channel_id    = st.secrets.get("YT_PRIMARY_CHANNEL_ID") or st.secrets.get("YOUTUBE_CHANNEL_ID")
 
+# ---- Last-7 bars (YouTube Analytics, last 7 complete days) ----
 last7_df = pd.DataFrame()
 bars_err = ""
 
 if yt_client_id and yt_client_secret and yt_refresh_token:
     try:
-        last7_df = yt_analytics_daily_lastN(
+        raw = yt_analytics_daily_lastN(
             yt_client_id, yt_client_secret, yt_refresh_token,
-            days=7
+            days=14   # pull a 2-week window to be safe
         )
-        # If you use timezone normalization elsewhere, uncomment:
-        # last7_df = normalize_daily_to_local(last7_df, LOCAL_TZ)
+        if not raw.empty:
+            LOCAL_TZ = pytz.timezone("Asia/Kuala_Lumpur")
+            raw = raw.copy()
+            raw["date"] = pd.to_datetime(raw["date"], utc=True)\
+                              .dt.tz_convert(LOCAL_TZ).dt.normalize()
+            raw["views"] = raw["views"].astype(int)
+            # Take the last 7 rows (so always 7 bars, but only where YT gave data)
+            last7_df = raw.tail(7)
     except Exception as e:
         bars_err = str(e)
 
-if not last7_df.empty:
-    # Already ordered by 'day'; keep as-is for labels like "Aug 15"
-    yt_last7_vals   = last7_df["views"].astype(int).tolist()
-    yt_last7_labels = last7_df["date"].dt.strftime("%b %d").tolist()
+if last7_df.empty:
+    # fallback to mock data
+    yt_last7_vals   = MOCK["yt_last7"]
+    yt_last7_labels = [(datetime.now(LOCAL_TZ).date() - timedelta(days=i)).strftime("%b %d")
+                       for i in range(len(yt_last7_vals)-1, -1, -1)]
 else:
-    # Fallback to your existing mock numbers & generated labels
-    yt_last7_vals = MOCK["yt_last7"]
-    LOCAL_TZ = pytz.timezone("Asia/Kuala_Lumpur")
-
-    base = (datetime.now(LOCAL_TZ).date() - timedelta(days=1))
-    yt_last7_labels = [(base - timedelta(days=i)).strftime("%b %d") for i in range(6, -1, -1)]
+    yt_last7_vals   = last7_df["views"].tolist()
+    yt_last7_labels = last7_df["date"].dt.strftime("%b %d").tolist()
+    
 if bars_err:
     st.warning(f"YT Analytics (daily) error: {bars_err}")
 
@@ -1284,7 +1289,10 @@ with right:
         """, unsafe_allow_html=True)
 
     # YouTube Views (Last 7 Days) — with real daily dates
-    st.markdown("<div class='card'><div class='section'>YouTube Views (Last 7 Days)</div>", unsafe_allow_html=True)
+    st.markdown("<div class='card'><div class='section'>YouTube Views (Last 7 Days, complete data only)</div>", unsafe_allow_html=True)
+
+    # optional little tooltip/note
+    st.markdown("<div class='small'>ℹ️ YouTube Analytics can lag up to 48h. Latest day may be missing until processed.</div>", unsafe_allow_html=True)
     vals = yt_last7_vals[:]
     maxv = max(vals) if vals else 1
     for d, v in zip(yt_last7_labels, vals):
