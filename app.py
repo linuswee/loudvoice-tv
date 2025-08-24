@@ -216,6 +216,35 @@ section.main > div.block-container {
 </style>
 """, unsafe_allow_html=True)
 
+st.markdown("""
+<style>
+/* 1) Remove Streamlit’s top bar & any decoration */
+header[data-testid="stHeader"] { display:none !important; }
+div[data-testid="stToolbar"] { display:none !important; }  /* local dev */
+div[data-testid="stDecoration"] { display:none !important; }
+
+/* 2) Kill all top padding/margins on the app container */
+div[data-testid="stAppViewContainer"] > .main,
+section.main,
+section.main > div.block-container,
+div[data-testid="stHorizontalBlock"] {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}
+
+/* 3) Ensure the very first child has no top margin */
+section.main > div.block-container > :first-child {
+  margin-top: 0 !important;
+}
+
+/* 4) Tighten the title */
+.title { 
+  color:#ffd54a; font-weight:900; font-size:34px; letter-spacing:.12em;
+  margin: 0 0 6px 0 !important;   /* <-- fixed */
+}
+</style>
+""", unsafe_allow_html=True)
+
 # =======================
 # Helpers & Data calls
 # =======================
