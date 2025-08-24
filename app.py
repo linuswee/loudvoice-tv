@@ -939,12 +939,22 @@ def load_upcoming_filming(doc_id: str, worksheet: str = "Filming Integration", l
     tmp = (pd.DataFrame({"date": dates, "time_str": times, "time_sort": times_sort, "title": titles})
              .dropna(subset=["date"]))
 
-    # Split future / past
-    fut = tmp[tmp["date"] >= today].sort_values(["date", "time_sort"], kind="stable")
-    past = tmp[tmp["date"] <  today].sort_values(["date", "time_sort"], ascending=[False, False], kind="stable")
-
-    # Take as many future as we can; backfill with closest past
-    take = pd.concat([fut.head(limit), past.head(max(0, limit - len(fut)))], axis=0)
+       # Split future / past
+    fut  = tmp[tmp["date"] >= today].sort_values(["date", "time_sort"], kind="stable")
+    past = tmp[tmp["date"] <  today].sort_values(["date", "time_sort"],
+                                                 ascending=[False, False], kind="stable")
+    
+    PAST_SLOTS = 1  # always keep the nearest past item visible
+    take_parts = [past.head(PAST_SLOTS), fut.head(max(0, limit - PAST_SLOTS))]
+    
+    # If there still aren’t enough, backfill with more past
+    taken = pd.concat(take_parts, axis=0)
+    if len(taken) < limit:
+        remain = limit - len(taken)
+        more_past = past.iloc[PAST_SLOTS:].head(remain)
+        taken = pd.concat([taken, more_past], axis=0)
+    
+    take = taken
 
     def fmt_date(d: pd.Timestamp) -> str:
         return pd.to_datetime(d).strftime("%a, %b %d")
@@ -1107,7 +1117,7 @@ FILM_DOC = st.secrets["gs_filming_id"]
 ministry = load_ministry_totals(MIN_DOC, "Ministry")
 
 # Filming list (next 5 upcoming including today)
-filming = load_upcoming_filming(FILM_DOC, "Filming Integration", limit=5)
+filming = load_upcoming_filming(FILM_DOC, "Filming Integration", limit=6)
 
 # =======================
 # Header
