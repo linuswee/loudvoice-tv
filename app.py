@@ -3,6 +3,7 @@ __LV_VERSION__ = "v3.1b-cards-alignedbars (sha:0523c1c9, refactor-01)"
 # app.py — LoudVoice Dashboard (cards + aligned bars layout)
 
 from datetime import datetime, timedelta
+import re
 import pytz
 import json
 import pandas as pd
@@ -1036,6 +1037,81 @@ def load_upcoming_filming(doc_id: str, worksheet: str = "Filming Integration", l
     if DEBUG: st.info(f"[filming] out={len(out)} (fut={len(fut)} past={len(past)})")
     return out
 
+# ------------ Simple ICS fetch (no icalendar dependency) -------------
+@st.cache_data(ttl=120)
+def _unfold_ics(text: str) -> list[str]:
+    """RFC5545 line folding: continuation lines start with a single space."""
+    out = []
+    for line in text.splitlines():
+        if line.startswith(" ") and out:
+            out[-1] += line[1:]
+        else:
+            out.append(line)
+    return out
+
+def _parse_ics_dt(s: str) -> datetime | None:
+    # Supports: YYYYMMDD (all‑day), YYYYMMDDTHHMMSSZ, YYYYMMDDTHHMMSS
+    try:
+        if len(s) == 8:  # date only
+            dt = datetime.strptime(s, "%Y%m%d")
+            return pytz.UTC.localize(dt)  # treat all‑day as UTC midnight
+        if s.endswith("Z"):
+            dt = datetime.strptime(s[:-1], "%Y%m%dT%H%M%S")
+            return pytz.UTC.localize(dt)
+        # naive → assume UTC
+        dt = datetime.strptime(s, "%Y%m%dT%H%M%S")
+        return pytz.UTC.localize(dt)
+    except Exception:
+        return None
+
+@st.cache_data(ttl=120)
+def fetch_clickup_calendar_events(ics_url: str, limit: int = 8) -> list[dict]:
+    """
+    Returns upcoming events as:
+    [{start: datetime, end: datetime|None, summary: str, location: str|"" , url: str|""}, ...]
+    """
+    try:
+        r = requests.get(ics_url, timeout=20)
+        r.raise_for_status()
+        lines = _unfold_ics(r.text)
+
+        events = []
+        cur = {}
+        for line in lines:
+            if line == "BEGIN:VEVENT":
+                cur = {}
+            elif line.startswith("SUMMARY:"):
+                cur["summary"] = line.split(":", 1)[1].strip()
+            elif line.startswith("LOCATION:"):
+                cur["location"] = line.split(":", 1)[1].strip()
+            elif line.startswith("URL:"):
+                cur["url"] = line.split(":", 1)[1].strip()
+            elif line.startswith("DTSTART"):
+                cur["start"] = _parse_ics_dt(line.split(":", 1)[1].strip())
+            elif line.startswith("DTEND"):
+                cur["end"] = _parse_ics_dt(line.split(":", 1)[1].strip())
+            elif line == "END:VEVENT":
+                if cur.get("start") and cur.get("summary"):
+                    events.append(cur)
+
+        # future/upcoming only, sort by start
+        now_utc = datetime.utcnow().replace(tzinfo=pytz.UTC)
+        events = [e for e in events if e["start"] >= now_utc]
+        events.sort(key=lambda e: e["start"])
+        return events[:limit]
+    except Exception as e:
+        st.warning(f"Calendar fetch error: {e}")
+        return []
+
+def _fmt_event_row(ev: dict, tz_str: str = "Asia/Kuala_Lumpur") -> tuple[str, str, str]:
+    tz = pytz.timezone(tz_str)
+    start_local = ev["start"].astimezone(tz)
+    # prefer "Wed, Sep 04 — 10:45"
+    date_txt = start_local.strftime("%a, %b %d")
+    time_txt = start_local.strftime("%H:%M")
+    title = ev.get("summary", "")
+    return date_txt, time_txt, title
+
 # =======================
 # Defaults / mocks (safe)
 # =======================
@@ -1335,14 +1411,13 @@ with right:
     st.markdown("</div>", unsafe_allow_html=True)
 
 # =======================
-# Bottom row: Tasks • Filming • Calendar (3 columns)
+# Bottom row: 3 columns
 # =======================
-c1, c2, c3 = st.columns([1.2, 0.9, 1.1])
+c1, c2, c3 = st.columns([1.05, 0.95, 1.0])
 
 with c1:
     st.markdown("<div class='card'><div class='section'>ClickUp Tasks (Upcoming)</div>", unsafe_allow_html=True)
     for t in tasks:
-        # Support dicts (live) and tuples (mock)
         if isinstance(t, dict):
             name, status, due_str = t["name"], t["status"], t["due_str"]
             status_hex = t.get("status_hex") or "#ff5a5f"
@@ -1358,7 +1433,6 @@ with c1:
         if overdue: small_bits += [" <b style='color:#ff6b6b'>(overdue)</b>"]
         small_bits += ["</span>"]
         small_line = "".join(small_bits)
-
         who_chip = f"<span style='font-size:11px;background:rgba(255,255,255,.08);padding:2px 6px;border-radius:8px;margin-left:6px'>{who}</span>" if who else ""
 
         st.markdown(
@@ -1375,7 +1449,7 @@ with c1:
 with c2:
     st.markdown("<div class='card'><div class='section'>Next Filming Timeslots</div>", unsafe_allow_html=True)
     if not filming:
-        st.markdown("<div class='small'>No upcoming timeslots found. Add rows in the sheet or open with <code>?debug=1</code> for details.</div>", unsafe_allow_html=True)
+        st.markdown("<div class='small'>No upcoming timeslots found.</div>", unsafe_allow_html=True)
     for daydate, time_str, label in filming:
         st.markdown(
             f"<div class='film-row'><div><b>{daydate}</b> — {time_str}</div><div class='film-right'>{label}</div></div>",
@@ -1383,21 +1457,27 @@ with c2:
         )
     st.markdown("</div>", unsafe_allow_html=True)
 
-with c3:  # 3rd column
+with c3:
     st.markdown("<div class='card'><div class='section'>ClickUp Calendar</div>", unsafe_allow_html=True)
-
-    ical_url = st.secrets.get("CLICKUP_CAL_ICAL_URL")  # put your ICS link in secrets.toml
-    events = fetch_calendar_events(ical_url, limit=6)
-
-    if not events:
-        st.markdown("<div class='small'>No upcoming events found.</div>", unsafe_allow_html=True)
+    ics_url = st.secrets.get("CLICKUP_CAL_ICS_URL")
+    if not ics_url:
+        st.markdown(
+            "<div class='small'>Add a public iCal link to <code>CLICKUP_CAL_ICS_URL</code> in <code>st.secrets</code> to show items here.</div>",
+            unsafe_allow_html=True,
+        )
+        # Fallback: offer the normal public URL if present
+        pub = st.secrets.get("CLICKUP_CAL_PUBLIC_URL")
+        if pub:
+            st.link_button("Open ClickUp Calendar", pub, use_container_width=True)
     else:
-        for start, label in events:
-            daydate = start.strftime("%a, %b %d")
-            time_str = start.strftime("%H:%M")
+        evs = fetch_clickup_calendar_events(ics_url, limit=8)
+        if not evs:
+            st.markdown("<div class='small'>No upcoming items.</div>", unsafe_allow_html=True)
+        for ev in evs:
+            d, t, title = _fmt_event_row(ev, tz_str=LOCAL_TZ)
+            right = ev.get("location") or ""
             st.markdown(
-                f"<div class='film-row'><div><b>{daydate}</b> — {time_str}</div><div class='film-right'>{label}</div></div>",
-                unsafe_allow_html=True
+                f"<div class='film-row'><div><b>{d}</b> — {t}</div><div class='film-right'>{title}</div></div>",
+                unsafe_allow_html=True,
             )
-
     st.markdown("</div>", unsafe_allow_html=True)
