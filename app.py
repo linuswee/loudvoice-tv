@@ -47,6 +47,32 @@ st.set_page_config(
     layout="wide"
 )
 
+st.markdown("""
+<style>
+/* Kill Streamlit's built‑in top spacing */
+div[data-testid="stAppViewContainer"] > .main{ padding-top:0!important; }
+div[data-testid="stAppViewContainer"] .main .block-container{ padding-top:0!important; margin-top:0!important; }
+
+/* Remove header/toolbar/decor entirely */
+header[data-testid="stHeader"],
+div[data-testid="stToolbar"],
+div[data-testid="stDecoration"],
+#MainMenu, footer{ display:none!important; }
+
+/* Stop margin-collapsing from the first child creating phantom gap */
+div[data-testid="stAppViewContainer"] .main .block-container > :first-child{
+  margin-top:0!important;
+}
+div[data-testid="stAppViewContainer"] .main{
+  /* any 0-height top padding can still collapse; this prevents it without showing */
+  border-top:0.1px solid transparent;
+}
+
+/* (optional) ensure body has no default margins */
+html,body{ margin:0!important; }
+</style>
+""", unsafe_allow_html=True)
+
 st.markdown(
     """
     <link rel="apple-touch-icon" sizes="180x180" href="assets/loudvoice_logo.png?v=2">
