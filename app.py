@@ -901,25 +901,50 @@ def _first_nonempty(series: pd.Series, candidates: list[str]) -> str | None:
 def load_upcoming_filming(doc_id: str, worksheet: str = "Filming Integration", limit: int = 6) -> list[tuple[str, str, str]]:
     """
     Returns up to `limit` rows as [(Mon, Aug 22, '09:20', 'Title'), ...].
-    Prefers today/future; then backfills with closest past.
-    Accepts '22/8', '22-08', 'Aug 22', etc. Year is inferred if missing.
+    More tolerant header matching + good debug.
     """
     import re
 
     df = read_sheet(doc_id, worksheet)
     if df.empty:
-        st.warning("Filming sheet is empty or unreadable.")
+        if DEBUG: st.info("[filming] read_sheet returned EMPTY")
         return []
 
-    # Column names after normalization
-    date_col  = next((c for c in ("date", "date_", "day", "when") if c in df.columns), None)
-    time_col  = next((c for c in ("time", "time_", "timeslot", "start") if c in df.columns), None)
-    title_col = next((c for c in ("title", "title_", "what", "event") if c in df.columns), None)
+    # Normalize again (belt & suspenders) and strip stray underscores/spaces
+    def clean(s: str) -> str:
+        s = str(s or "").strip().lower()
+        s = re.sub(r"[^\w]+", "_", s)
+        s = re.sub(r"^_+|_+$", "", s)
+        # collapse things like 'title_' or 'date__' back to 'title'/'date'
+        s = s.rstrip("_")
+        return s
+
+    df.columns = [clean(c) for c in df.columns]
+
+    # Be generous about what we accept for each field
+    title_candidates = ("title", "what", "event", "piece", "song")
+    date_candidates  = ("date", "day", "when", "shoot_date")
+    time_candidates  = ("time", "timeslot", "start", "start_time")
+
+    def pick(cols, opts):
+        for o in opts:
+            if o in cols: return o
+        # last resort: partial contains (e.g., "date_something")
+        for c in cols:
+            for o in opts:
+                if o in c: return c
+        return None
+
+    cols = set(df.columns)
+    title_col = pick(cols, title_candidates)
+    date_col  = pick(cols, date_candidates)
+    time_col  = pick(cols, time_candidates)
+
+    if DEBUG:
+        st.info(f"[filming] columns={list(df.columns)}")
+        st.info(f"[filming] picked → title={title_col}, date={date_col}, time={time_col}")
 
     if not date_col or not title_col:
-        if DEBUG:
-            st.info(f"[filming] Columns found: {list(df.columns)}")
-        st.warning("Couldn’t find 'date' and 'title' columns in filming sheet.")
         return []
 
     today = pd.Timestamp.now(tz=LOCAL_TZ).normalize().tz_localize(None)
@@ -927,19 +952,16 @@ def load_upcoming_filming(doc_id: str, worksheet: str = "Filming Integration", l
 
     def parse_date(val: str) -> pd.Timestamp | pd.NaT:
         s = str(val or "").strip()
-        if not s:
-            return pd.NaT
-        # d/m[/y] or d-m[-y]
+        if not s: return pd.NaT
+        # d/m[/yy] or d-m[-yy]
         m = re.match(r"^\s*(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?\s*$", s)
         if m:
             d, mth, yr = int(m.group(1)), int(m.group(2)), m.group(3)
             yr = int(yr) if yr else this_year
             if yr < 100: yr += 2000
-            try:
-                return pd.Timestamp(year=yr, month=mth, day=d)
-            except Exception:
-                return pd.NaT
-        # Allow natural-language month formats too (e.g., "Aug 22", "22 Aug")
+            try: return pd.Timestamp(year=yr, month=mth, day=d)
+            except Exception: return pd.NaT
+        # allow "Aug 27", "27 Aug", etc.
         return pd.to_datetime(s, dayfirst=True, errors="coerce")
 
     dates = df[date_col].apply(parse_date)
@@ -950,26 +972,23 @@ def load_upcoming_filming(doc_id: str, worksheet: str = "Filming Integration", l
     tmp = (pd.DataFrame({"date": dates, "time_str": times, "time_sort": times_sort, "title": titles})
              .dropna(subset=["date"]))
 
+    if DEBUG:
+        st.write("[filming] sample parsed rows:", tmp.head(12))
+
     if tmp.empty:
-        st.warning("No parsable dates in filming sheet.")
-        if DEBUG:
-            st.dataframe(df.head(12))
         return []
 
-    # Split future / past
+    # Future first; if not enough, backfill nearest past
     fut  = tmp[tmp["date"] >= today].sort_values(["date", "time_sort"], kind="stable")
     past = tmp[tmp["date"] <  today].sort_values(["date", "time_sort"], ascending=[False, False], kind="stable")
 
-    # Compose: future first, then nearest past, up to limit
     take = pd.concat([fut.head(limit), past.head(max(0, limit - len(fut)))], axis=0)
 
     def fmt_date(d: pd.Timestamp) -> str:
         return pd.to_datetime(d).strftime("%a, %b %d")
 
     out = [(fmt_date(r.date), (r.time_str or ""), r.title or "") for _, r in take.iterrows()]
-
-    if DEBUG:
-        st.info(f"[filming] rows shown: {len(out)} / fut={len(fut)} past={len(past)}")
+    if DEBUG: st.info(f"[filming] out={len(out)} (fut={len(fut)} past={len(past)})")
     return out
 
 # =======================
