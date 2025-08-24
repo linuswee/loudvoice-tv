@@ -768,6 +768,17 @@ def _secret_missing(name: str) -> bool:
     return False
 
 # ---- Google Sheets: Filmings & Ministry Stats -------------------------------------------------
+# ---- Google Sheets: Filmings & Ministry Stats (READ ONLY) ----------------------------
+import gspread
+import pandas as pd
+from google.oauth2.service_account import Credentials as SACredentials
+from gspread_dataframe import get_as_dataframe
+
+SCOPE = [
+    "https://www.googleapis.com/auth/spreadsheets.readonly",
+    "https://www.googleapis.com/auth/drive.readonly",
+]
+
 @st.cache_resource
 def gs_client():
     creds = SACredentials.from_service_account_info(
@@ -783,20 +794,13 @@ def _open_ws(doc_id: str, worksheet: str):
 
 @st.cache_data(ttl=60)
 def read_sheet(doc_id: str, worksheet: str) -> pd.DataFrame:
+    """Return a dataframe from Google Sheets (read-only)."""
     ws = _open_ws(doc_id, worksheet)
     df = get_as_dataframe(ws, evaluate_formulas=True, dtype=str).fillna("")
     if not df.empty:
         df = df.loc[:, ~df.columns.str.contains("^Unnamed")]
     return df
 
-def write_table(doc_id: str, worksheet: str, df: pd.DataFrame):
-    ws = _open_ws(doc_id, worksheet)
-    ws.clear()
-    set_with_dataframe(ws, df, include_index=False, include_column_header=True)
-
-def append_row(doc_id: str, worksheet: str, values: list):
-    ws = _open_ws(doc_id, worksheet)
-    ws.append_row(values, value_input_option="USER_ENTERED")
 
 # =======================
 # Defaults / mocks (safe)
@@ -948,7 +952,10 @@ if not analytics_ok and analytics_err:
     st.warning(f"YT Analytics error: {analytics_err}")
 
 MIN_DOC = st.secrets["gs_ministry_id"]
-MIN_TAB = "Ministry Integration"
+FILM_DOC = st.secrets["gs_filming_id"]
+
+ministry = load_ministry_totals(MIN_DOC, "Ministry Integration")
+filming  = load_upcoming_filming(FILM_DOC, "Filming Integration")
 
 # READ ministry totals for today
 m_df = read_sheet(MIN_DOC, MIN_TAB)
