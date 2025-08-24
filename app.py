@@ -1078,41 +1078,6 @@ ministry = load_ministry_totals(MIN_DOC, "Ministry")
 # Filming list (next 5 upcoming including today)
 filming = load_upcoming_filming(FILM_DOC, "Filming", limit=5)
 
-# READ ministry totals for today
-m_df = read_sheet(MIN_DOC, MIN_TAB)
-if not m_df.empty:
-    m_df["timestamp"] = pd.to_datetime(m_df["timestamp"], errors="coerce")
-    today = pd.Timestamp.now(tz=LOCAL_TZ).date()
-    today_df = m_df[m_df["timestamp"].dt.date == today]
-    ministry = {
-        "prayer":   int(pd.to_numeric(today_df.loc[today_df["type"]=="Prayer","count"], errors="coerce").fillna(0).sum()),
-        "studies":  int(pd.to_numeric(today_df.loc[today_df["type"]=="Studies","count"], errors="coerce").fillna(0).sum()),
-        "baptisms": int(pd.to_numeric(today_df.loc[today_df["type"]=="Baptisms","count"], errors="coerce").fillna(0).sum()),
-    }
-else:
-    ministry = {"prayer":0,"studies":0,"baptisms":0}
-
-# (optional) quick‑log buttons
-c1, c2, c3 = st.columns(3)
-with c1:
-    if st.button("➕ Prayer"):
-        append_row(MIN_DOC, MIN_TAB, [pd.Timestamp.now(tz=LOCAL_TZ).isoformat(), "prayer", "", 1])
-        st.cache_data.clear(); st.rerun()
-with c2:
-    if st.button("➕ Study"):
-        append_row(MIN_DOC, MIN_TAB, [pd.Timestamp.now(tz=LOCAL_TZ).isoformat(), "studies", "", 1])
-        st.cache_data.clear(); st.rerun()
-with c3:
-    if st.button("➕ Baptism"):
-        append_row(MIN_DOC, MIN_TAB, [pd.Timestamp.now(tz=LOCAL_TZ).isoformat(), "baptisms", "", 1])
-        st.cache_data.clear(); st.rerun()
-
-FILM_DOC = st.secrets["gs_filming_id"]
-FILM_TAB = "Filming Integration"
-
-f_df = read_sheet(FILM_DOC, FILM_TAB)
-if not f_df.empty:
-    filming = list(f_df[["Date:","Time:","Title:"]].itertuples(index=False, name=None))
 # =======================
 # Header
 # =======================
