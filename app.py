@@ -796,45 +796,53 @@ def read_sheet(doc_id: str, worksheet: str) -> pd.DataFrame:
     """
     Read a worksheet and auto-detect which row contains headers.
     Normalizes headers to lowercase snake_case (e.g. 'Title:' -> 'title').
+    Much more forgiving of preface rows and merged-header styles.
     """
     import re
-
     ws = _open_ws(doc_id, worksheet)
-    rows = ws.get_all_values()  # list[list[str]]
+    rows = ws.get_all_values()
     if not rows:
         return pd.DataFrame()
 
-    # Find the first row that looks like a header
-    def looks_like_header(vals: list[str]) -> bool:
-        probe = [re.sub(r"[^\w]+", "", (v or "").strip().lower()) for v in vals]
-        return any(p in ("date", "time", "title") for p in probe)
+    # Helper: normalize a header cell to test intent
+    def norm_hdr(v: str) -> str:
+        s = re.sub(r"[^\w]+", "_", (v or "").strip().lower())
+        return re.sub(r"^_+|_+$", "", s)
 
-    hdr_idx = 0
-    for i, r in enumerate(rows[:5]):         # scan the first few rows
-        if looks_like_header(r):
-            hdr_idx = i
-            break
+    # Scan the first 20 rows to find the best header row
+    header_row_idx = None
+    best_score = -1
+    for i, r in enumerate(rows[:20]):
+        # Score by presence of any likely header keywords
+        probes = [norm_hdr(x) for x in r]
+        score = sum(p in ("date", "time", "title", "event", "timeslot", "when") for p in probes)
+        # Prefer rows that aren't mostly empty
+        nonempty = sum(bool((x or "").strip()) for x in r)
+        score += 0.1 * nonempty
+        if score > best_score:
+            best_score = score
+            header_row_idx = i
 
-    header = rows[hdr_idx]
-    data   = rows[hdr_idx + 1:]
+    if header_row_idx is None:
+        header_row_idx = 0  # ultimate fallback
 
-    # Build DataFrame
+    header = rows[header_row_idx]
+    data   = rows[header_row_idx + 1:]
+
+    # Build DataFrame and drop fully blank columns
     df = pd.DataFrame(data, columns=header).fillna("")
-
-    # Drop totally empty columns
     df = df.loc[:, ~(df.columns.astype(str).str.strip() == "")]
 
-    # Normalize headers: trim, lowercase, non-alnum -> underscore
+    # Normalize headers
     def _norm(s):
         s = str(s or "").strip().lower()
-        s = re.sub(r"[^\w]+", "_", s)      # "Title:" -> "title"
+        s = re.sub(r"[^\w]+", "_", s)
         s = re.sub(r"^_+|_+$", "", s)
         return s
     df.columns = [_norm(c) for c in df.columns]
 
-    # Remove duplicate blank rows at the top (if any)
+    # Drop fully blank rows
     if not df.empty:
-        # drop rows where every cell is empty string
         df = df[~(df.apply(lambda r: all(str(x).strip()=="" for x in r), axis=1))]
 
     return df.reset_index(drop=True)
@@ -892,43 +900,50 @@ def _first_nonempty(series: pd.Series, candidates: list[str]) -> str | None:
 
 def load_upcoming_filming(doc_id: str, worksheet: str = "Filming Integration", limit: int = 6) -> list[tuple[str, str, str]]:
     """
-    Returns up to `limit` rows from the filming sheet as:
-        [(Mon, Aug 22, '09:20', 'Title'), ...]
-    Prefers today/future; if there are fewer than `limit`, it backfills with the
-    most recent past dates (closest first).
-    Accepts Date like '22/8' or '22/08' (year is inferred).
-    Works with headers 'Date', 'Time', 'Title' (colons ok).
+    Returns up to `limit` rows as [(Mon, Aug 22, '09:20', 'Title'), ...].
+    Prefers today/future; then backfills with closest past.
+    Accepts '22/8', '22-08', 'Aug 22', etc. Year is inferred if missing.
     """
     import re
 
     df = read_sheet(doc_id, worksheet)
     if df.empty:
+        st.warning("Filming sheet is empty or unreadable.")
         return []
 
     # Column names after normalization
-    date_col  = next((c for c in ("date", "day", "when") if c in df.columns), None)
-    time_col  = next((c for c in ("time", "timeslot", "start") if c in df.columns), None)
-    title_col = next((c for c in ("title", "title_", "what", "event") if c in df.columns), None)
+    cand_date  = ("date", "day", "when")
+    cand_time  = ("time", "timeslot", "start")
+    cand_title = ("title", "event", "what", "title_")
+
+    date_col  = next((c for c in cand_date  if c in df.columns), None)
+    time_col  = next((c for c in cand_time  if c in df.columns), None)
+    title_col = next((c for c in cand_title if c in df.columns), None)
+
     if not date_col or not title_col:
+        if DEBUG:
+            st.info(f"[filming] Columns found: {list(df.columns)}")
+        st.warning("Couldn’t find 'date' and 'title' columns in filming sheet.")
         return []
 
     today = pd.Timestamp.now(tz=LOCAL_TZ).normalize().tz_localize(None)
     this_year = today.year
 
     def parse_date(val: str) -> pd.Timestamp | pd.NaT:
-        s = str(val).strip()
+        s = str(val or "").strip()
         if not s:
             return pd.NaT
+        # d/m[/y] or d-m[-y]
         m = re.match(r"^\s*(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?\s*$", s)
         if m:
             d, mth, yr = int(m.group(1)), int(m.group(2)), m.group(3)
             yr = int(yr) if yr else this_year
-            if yr < 100:
-                yr += 2000
+            if yr < 100: yr += 2000
             try:
                 return pd.Timestamp(year=yr, month=mth, day=d)
             except Exception:
                 return pd.NaT
+        # Allow natural-language month formats too (e.g., "Aug 22", "22 Aug")
         return pd.to_datetime(s, dayfirst=True, errors="coerce")
 
     dates = df[date_col].apply(parse_date)
@@ -939,27 +954,27 @@ def load_upcoming_filming(doc_id: str, worksheet: str = "Filming Integration", l
     tmp = (pd.DataFrame({"date": dates, "time_str": times, "time_sort": times_sort, "title": titles})
              .dropna(subset=["date"]))
 
-       # Split future / past
+    if tmp.empty:
+        st.warning("No parsable dates in filming sheet.")
+        if DEBUG:
+            st.dataframe(df.head(12))
+        return []
+
+    # Split future / past
     fut  = tmp[tmp["date"] >= today].sort_values(["date", "time_sort"], kind="stable")
-    past = tmp[tmp["date"] <  today].sort_values(["date", "time_sort"],
-                                                 ascending=[False, False], kind="stable")
-    
-    PAST_SLOTS = 1  # always keep the nearest past item visible
-    take_parts = [past.head(PAST_SLOTS), fut.head(max(0, limit - PAST_SLOTS))]
-    
-    # If there still aren’t enough, backfill with more past
-    taken = pd.concat(take_parts, axis=0)
-    if len(taken) < limit:
-        remain = limit - len(taken)
-        more_past = past.iloc[PAST_SLOTS:].head(remain)
-        taken = pd.concat([taken, more_past], axis=0)
-    
-    take = taken
+    past = tmp[tmp["date"] <  today].sort_values(["date", "time_sort"], ascending=[False, False], kind="stable")
+
+    # Compose: future first, then nearest past, up to limit
+    take = pd.concat([fut.head(limit), past.head(max(0, limit - len(fut)))], axis=0)
 
     def fmt_date(d: pd.Timestamp) -> str:
         return pd.to_datetime(d).strftime("%a, %b %d")
 
-    return [(fmt_date(r.date), (r.time_str or ""), r.title or "") for _, r in take.iterrows()]
+    out = [(fmt_date(r.date), (r.time_str or ""), r.title or "") for _, r in take.iterrows()]
+
+    if DEBUG:
+        st.info(f"[filming] rows shown: {len(out)} / fut={len(fut)} past={len(past)}")
+    return out
 
 # =======================
 # Defaults / mocks (safe)
@@ -1289,11 +1304,13 @@ with b1:
     
 with b2:
     st.markdown("<div class='card'><div class='section'>Next Filming Timeslots</div>", unsafe_allow_html=True)
+    if not filming:
+        st.markdown("<div class='small'>No upcoming timeslots found. Add rows in the sheet or open with <code>?debug=1</code> for details.</div>", unsafe_allow_html=True)
     for daydate, time_str, label in filming:
         st.markdown(
             f"<div class='film-row'><div><b>{daydate}</b> — {time_str}</div><div class='film-right'>{label}</div></div>",
             unsafe_allow_html=True,
         )
     st.markdown("</div>", unsafe_allow_html=True)
-
+    
 st.caption("Tips → ?zoom=115 for TV; ?compact=1 for phones. Provide YOUTUBE_API_KEY & YT_PRIMARY_CHANNEL_ID for KPIs, and YT_CLIENT_ID/SECRET/REFRESH for true 7‑day & country map.")
