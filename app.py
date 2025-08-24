@@ -196,11 +196,12 @@ div[data-testid="stHorizontalBlock"]{
   align-items:center; 
   margin:2px 0;       /* less vertical padding */
 }
-.views-bar{ 
-  height:6px;         /* thinner bars */
-  border-radius:4px; 
-  background:#1f2736; 
-  overflow:hidden; 
+.views-bar {
+  height:10px;
+  border-radius:6px;
+  background:#1f2736;
+  overflow:hidden;
+  max-width:180px;   /* 👈 keep bars shorter */
 }
 .grid-views div{ 
   font-size:11px;     /* slightly smaller labels */
