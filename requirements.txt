@@ -6,6 +6,7 @@ plotly>=5.22.0
 pandas>=2.2.0
 requests
 pycountry
+icalendar
 
 # Google / YouTube integrations
 google-auth==2.33.0
