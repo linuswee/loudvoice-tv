@@ -3,6 +3,7 @@ __LV_VERSION__ = "v3.1b-cards-alignedbars (sha:0523c1c9, refactor-01)"
 # app.py — LoudVoice Dashboard (cards + aligned bars layout)
 
 from datetime import datetime, timedelta
+import pytz
 import json
 import pandas as pd
 import plotly.graph_objects as go
@@ -1169,7 +1170,7 @@ with t1:
         unsafe_allow_html=True
     )
 with t2:
-    now = datetime.now().strftime('%B %d, %Y %I:%M %p')
+    now = datetime.now(LOCAL_TZ).strftime('%B %d, %Y %I:%M %p')
     st.markdown(f"<div class='timestamp'>{now}</div>", unsafe_allow_html=True)
 if not analytics_ok:
     st.info("Using mock for YT 7‑day & country (Analytics call failed or not configured).")
@@ -1243,6 +1244,12 @@ with right:
 
     # Channel stats
     connected = f"<span class='small'>Connected: <b>{oauth_title}</b></span>" if oauth_title else ""
+    st.markdown("""
+        <link rel="stylesheet"
+              href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+              integrity="sha512-bx8wN/so2HnIY7+q3sU5o7bQ/ud9l1z4PCtRj2CFf7RYI0ehCyBN8DQ3lmgwPcj3doGht+jOZQf1BPZpbnRgfQ=="
+              crossorigin="anonymous" referrerpolicy="no-referrer" />
+        """, unsafe_allow_html=True)
     st.markdown(f"<div class='card'><div class='section'>Channel Stats {connected}</div>", unsafe_allow_html=True)
     st.markdown(
         f"""
