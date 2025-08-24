@@ -1142,11 +1142,13 @@ if yt_client_id and yt_client_secret and yt_refresh_token:
 if last7_df.empty:
     # fallback to mock data
     yt_last7_vals   = MOCK["yt_last7"]
-    yt_last7_labels = [(datetime.now(LOCAL_TZ).date() - timedelta(days=i)).strftime("%b %d")
-                       for i in range(len(yt_last7_vals)-1, -1, -1)]
+    yt_last7_labels = [
+        (datetime.now(LOCAL_TZ).date() - timedelta(days=i)).strftime("%a, %b %d")
+        for i in range(len(yt_last7_vals)-1, -1, -1)
+]
 else:
     yt_last7_vals   = last7_df["views"].tolist()
-    yt_last7_labels = last7_df["date"].dt.strftime("%b %d").tolist()
+    yt_last7_labels = last7_df["date"].dt.strftime("%a, %b %d").tolist()
     
 if bars_err:
     st.warning(f"YT Analytics (daily) error: {bars_err}")
