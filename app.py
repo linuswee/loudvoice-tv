@@ -862,7 +862,7 @@ def _first_nonempty(series: pd.Series, candidates: list[str]) -> str | None:
             return str(series[c]).strip()
     return None
 
-def load_upcoming_filming(doc_id: str, worksheet: str = "Filming", limit: int = 5) -> list[tuple[str,str,str]]:
+def load_upcoming_filming(doc_id: str, worksheet: str = "Filming Integration", limit: int = 5) -> list[tuple[str,str,str]]:
     """
     Expects columns like: Date, Time, Title (flexible: 'title:' ok).
     Returns up to `limit` upcoming items from today (local), formatted:
