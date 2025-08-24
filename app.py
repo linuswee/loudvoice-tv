@@ -48,14 +48,17 @@ st.set_page_config(
     layout="wide"
 )
 
-st.markdown(
-    """
-    <link rel="apple-touch-icon" sizes="180x180" href="assets/loudvoice_logo.png?v=2">
-    <link rel="icon" type="image/png" sizes="32x32" href="assets/loudvoice_logo.png?v=2">
-    <link rel="icon" type="image/png" sizes="16x16" href="assets/loudvoice_logo.png?v=2">
-    """,
-    unsafe_allow_html=True
-)
+st.markdown("""
+<style>
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css');
+
+/* ========== LOUDVOICE — minimal, unified CSS ========== */
+/* ... your same CSS ... */
+.kpi-head{ display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+.icon{ font-size:14px; }   /* add this so the FA glyph has a size */
+</style>
+""", unsafe_allow_html=True)
+
 st.markdown("""
 <link rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
