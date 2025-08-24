@@ -8,7 +8,7 @@ import json
 import pandas as pd
 import plotly.graph_objects as go
 import requests
-import streamlit as sta
+import streamlit as st
 
 from streamlit.runtime.scriptrunner import add_script_run_ctx
 from streamlit_autorefresh import st_autorefresh  # pip install streamlit-autorefresh
