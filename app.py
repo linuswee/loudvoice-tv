@@ -862,63 +862,50 @@ def _first_nonempty(series: pd.Series, candidates: list[str]) -> str | None:
             return str(series[c]).strip()
     return None
 
-def load_upcoming_filming(doc_id: str, worksheet: str = "Filming Integration", limit: int = 5) -> list[tuple[str,str,str]]:
-    """
-    Expects columns like: Date, Time, Title (flexible: 'title:' ok).
-    Returns up to `limit` upcoming items from today (local), formatted:
-       [(DateStr, TimeStr, Title), ...]
-    """
+def load_upcoming_filming(doc_id: str, worksheet: str = "Filming", limit: int = 5) -> list[tuple[str,str,str]]:
     df = read_sheet(doc_id, worksheet)
     if df.empty:
         return []
 
-    # Flexible column guesses
+    # Accept variants: date/day/when, time/timeslot/start, title/title_/what/event
     date_cols  = [c for c in df.columns if c in ("date", "day", "when")]
     time_cols  = [c for c in df.columns if c in ("time", "timeslot", "start")]
     title_cols = [c for c in df.columns if c in ("title", "title_", "what", "event")]
 
-    # Ensure we have at least a date + title
     if not date_cols:
         return []
     if not title_cols:
         title_cols = ["title"] if "title" in df.columns else []
 
-    # Parse date/time
     dser = pd.to_datetime(df[date_cols[0]], errors="coerce")
-    tser = None
-    if time_cols:
-        # keep original string for display; also try to sort by a parsed time
-        tser = df[time_cols[0]].astype(str).str.strip()
-        # try to derive sortable time; fallback noon if not parseable
-        tsort = pd.to_datetime(tser, format="%H:%M", errors="coerce")
-    else:
-        tser = pd.Series([""] * len(df))
-        tsort = pd.Series([pd.NaT] * len(df))
-
-    # Title text (first viable)
+    tser = df[time_cols[0]].astype(str).str.strip() if time_cols else pd.Series([""] * len(df))
+    tsort = pd.to_datetime(tser, format="%H:%M", errors="coerce") if time_cols else pd.Series([pd.NaT] * len(df))
     titles = df.apply(lambda r: _first_nonempty(r, title_cols) or "", axis=1)
 
-    tmp = pd.DataFrame({"date": dser, "time_str": tser, "time_sort": tsort, "title": titles})
-    tmp = tmp.dropna(subset=["date"])
-    # today in your LOCAL_TZ
+    tmp = pd.DataFrame({"date": dser, "time_str": tser, "time_sort": tsort, "title": titles}).dropna(subset=["date"])
+
+    # (Optional) show a quick peek when ?debug=1
+    if DEBUG:
+        st.write("Filming columns:", list(df.columns))
+        st.write(tmp.head(10))
+
     today = pd.Timestamp.now(tz=LOCAL_TZ).normalize().tz_localize(None)
-    tmp = tmp[tmp["date"] >= today]
 
-    # sort by date then time (NaT at end)
-    tmp = tmp.sort_values(["date", "time_sort"], kind="stable")
+    future = tmp[tmp["date"] >= today].sort_values(["date", "time_sort"], kind="stable")
+    if future.empty:
+        # Fallback: show the closest 5 by date (even if in the past), most recent first
+        fallback = tmp.sort_values(["date", "time_sort"], kind="stable")
+        take = fallback.head(limit)
+    else:
+        take = future.head(limit)
 
-    # format
     def fmt_date(d: pd.Timestamp) -> str:
         try:
             return pd.to_datetime(d).strftime("%a, %b %d")
         except Exception:
             return str(d)
 
-    rows = []
-    for _, r in tmp.head(limit).iterrows():
-        rows.append((fmt_date(r["date"]), str(r["time_str"] or "").strip(), r["title"] or ""))
-
-    return rows
+    return [(fmt_date(r.date), (r.time_str or "").strip(), r.title or "") for _, r in take.iterrows()]
 
 # =======================
 # Defaults / mocks (safe)
