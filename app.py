@@ -767,10 +767,10 @@ def _secret_missing(name: str) -> bool:
         return True
     return False
 
-# ---- Google Sheets: Filmings & Ministry Stats -------------------------------------------------
-# ---- Google Sheets: Filmings & Ministry Stats (READ ONLY) ----------------------------
-import gspread
+# ---- Google Sheets: Ministry & Filming (READ ONLY) ----------------------------
+import re
 import pandas as pd
+import gspread
 from google.oauth2.service_account import Credentials as SACredentials
 from gspread_dataframe import get_as_dataframe
 
@@ -782,8 +782,7 @@ SCOPE = [
 @st.cache_resource
 def gs_client():
     creds = SACredentials.from_service_account_info(
-        st.secrets["gcp_service_account"],
-        scopes=SCOPE
+        st.secrets["gcp_service_account"], scopes=SCOPE
     )
     return gspread.authorize(creds)
 
@@ -794,13 +793,132 @@ def _open_ws(doc_id: str, worksheet: str):
 
 @st.cache_data(ttl=60)
 def read_sheet(doc_id: str, worksheet: str) -> pd.DataFrame:
-    """Return a dataframe from Google Sheets (read-only)."""
+    """Return a cleaned dataframe from Google Sheets (read-only)."""
     ws = _open_ws(doc_id, worksheet)
     df = get_as_dataframe(ws, evaluate_formulas=True, dtype=str).fillna("")
-    if not df.empty:
-        df = df.loc[:, ~df.columns.str.contains("^Unnamed")]
+    if df.empty:
+        return df
+
+    # drop unnamed / blank columns
+    df = df.loc[:, ~df.columns.str.contains("^Unnamed", na=False)]
+
+    # normalize headers: trim, lowercase, replace non-alnum with underscore
+    def _norm(s):
+        s = str(s or "").strip().lower()
+        s = re.sub(r"[^\w]+", "_", s)          # "Title:" -> "title"
+        s = re.sub(r"^_+|_+$", "", s)
+        return s
+    df.columns = [_norm(c) for c in df.columns]
     return df
 
+# ---------- Ministry helpers (READ ONLY) ---------------------------------------
+def load_ministry_totals(doc_id: str, worksheet: str = "Ministry") -> dict:
+    """
+    Supports either:
+      A) row format with columns: [type, count]  -> sums by type
+      B) wide format with columns: [prayer, studies, baptisms] on first row
+      (timestamp/details are ignored if present)
+    """
+    out = {"prayer": 0, "studies": 0, "baptisms": 0}
+    df = read_sheet(doc_id, worksheet)
+    if df.empty:
+        return out
+
+    cols = set(df.columns)
+
+    # A) Tidy rows: type + count
+    if {"type", "count"} <= cols:
+        # coerce numeric
+        tmp = pd.to_numeric(df["count"], errors="coerce").fillna(0).astype(int)
+        # standardize type labels
+        kind = df["type"].str.strip().str.lower().replace({
+            "prayer": "prayer",
+            "prayers": "prayer",
+            "study": "studies",
+            "studies": "studies",
+            "baptism": "baptisms",
+            "baptisms": "baptisms",
+        })
+        agg = pd.DataFrame({"type": kind, "count": tmp}).groupby("type")["count"].sum()
+        for k in out.keys():
+            if k in agg.index:
+                out[k] = int(agg[k])
+        return out
+
+    # B) Wide totals on first row
+    for k in out.keys():
+        if k in cols:
+            try:
+                out[k] = int(pd.to_numeric(df.iloc[0][k], errors="coerce") or 0)
+            except Exception:
+                out[k] = 0
+
+    return out
+
+# ---------- Filming helpers (READ ONLY) ----------------------------------------
+def _first_nonempty(series: pd.Series, candidates: list[str]) -> str | None:
+    for c in candidates:
+        if c in series.index and str(series[c]).strip():
+            return str(series[c]).strip()
+    return None
+
+def load_upcoming_filming(doc_id: str, worksheet: str = "Filming", limit: int = 5) -> list[tuple[str,str,str]]:
+    """
+    Expects columns like: Date, Time, Title (flexible: 'title:' ok).
+    Returns up to `limit` upcoming items from today (local), formatted:
+       [(DateStr, TimeStr, Title), ...]
+    """
+    df = read_sheet(doc_id, worksheet)
+    if df.empty:
+        return []
+
+    # Flexible column guesses
+    date_cols  = [c for c in df.columns if c in ("date", "day", "when")]
+    time_cols  = [c for c in df.columns if c in ("time", "timeslot", "start")]
+    title_cols = [c for c in df.columns if c in ("title", "title_", "what", "event")]
+
+    # Ensure we have at least a date + title
+    if not date_cols:
+        return []
+    if not title_cols:
+        title_cols = ["title"] if "title" in df.columns else []
+
+    # Parse date/time
+    dser = pd.to_datetime(df[date_cols[0]], errors="coerce")
+    tser = None
+    if time_cols:
+        # keep original string for display; also try to sort by a parsed time
+        tser = df[time_cols[0]].astype(str).str.strip()
+        # try to derive sortable time; fallback noon if not parseable
+        tsort = pd.to_datetime(tser, format="%H:%M", errors="coerce")
+    else:
+        tser = pd.Series([""] * len(df))
+        tsort = pd.Series([pd.NaT] * len(df))
+
+    # Title text (first viable)
+    titles = df.apply(lambda r: _first_nonempty(r, title_cols) or "", axis=1)
+
+    tmp = pd.DataFrame({"date": dser, "time_str": tser, "time_sort": tsort, "title": titles})
+    tmp = tmp.dropna(subset=["date"])
+    # today in your LOCAL_TZ
+    today = pd.Timestamp.now(tz=LOCAL_TZ).normalize().tz_localize(None)
+    tmp = tmp[tmp["date"] >= today]
+
+    # sort by date then time (NaT at end)
+    tmp = tmp.sort_values(["date", "time_sort"], kind="stable")
+
+    # format
+    def fmt_date(d: pd.Timestamp) -> str:
+        try:
+            return pd.to_datetime(d).strftime("%a, %b %d")
+        except Exception:
+            return str(d)
+
+    rows = []
+    for _, r in tmp.head(limit).iterrows():
+        rows.append((fmt_date(r["date"]), str(r["time_str"] or "").strip(), r["title"] or ""))
+
+    return rows
 
 # =======================
 # Defaults / mocks (safe)
@@ -951,11 +1069,14 @@ analytics_ok = (not daily_df.empty) or (not cdf.empty)
 if not analytics_ok and analytics_err:
     st.warning(f"YT Analytics error: {analytics_err}")
 
-MIN_DOC = st.secrets["gs_ministry_id"]
+MIN_DOC  = st.secrets["gs_ministry_id"]
 FILM_DOC = st.secrets["gs_filming_id"]
 
-ministry = load_ministry_totals(MIN_DOC, "Ministry Integration")
-filming  = load_upcoming_filming(FILM_DOC, "Filming Integration")
+# Ministry totals (read-only)
+ministry = load_ministry_totals(MIN_DOC, "Ministry")
+
+# Filming list (next 5 upcoming including today)
+filming = load_upcoming_filming(FILM_DOC, "Filming", limit=5)
 
 # READ ministry totals for today
 m_df = read_sheet(MIN_DOC, MIN_TAB)
