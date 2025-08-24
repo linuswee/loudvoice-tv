@@ -912,13 +912,9 @@ def load_upcoming_filming(doc_id: str, worksheet: str = "Filming Integration", l
         return []
 
     # Column names after normalization
-    cand_date  = ("date", "day", "when")
-    cand_time  = ("time", "timeslot", "start")
-    cand_title = ("title", "event", "what", "title_")
-
-    date_col  = next((c for c in cand_date  if c in df.columns), None)
-    time_col  = next((c for c in cand_time  if c in df.columns), None)
-    title_col = next((c for c in cand_title if c in df.columns), None)
+    date_col  = next((c for c in ("date", "date_", "day", "when") if c in df.columns), None)
+    time_col  = next((c for c in ("time", "time_", "timeslot", "start") if c in df.columns), None)
+    title_col = next((c for c in ("title", "title_", "what", "event") if c in df.columns), None)
 
     if not date_col or not title_col:
         if DEBUG:
