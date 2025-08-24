@@ -38,10 +38,6 @@ SCOPE = [
     "https://www.googleapis.com/auth/drive.readonly",
 ]
 
-st.write("Has service account:", "gcp_service_account" in st.secrets)
-st.write("Keys present:", sorted(list(st.secrets.keys())))
-st.write("gs_ministry_id visible:", "gs_ministry_id" in st.secrets)
-
 # -------------------------------
 # Page config & compact helpers
 # -------------------------------
