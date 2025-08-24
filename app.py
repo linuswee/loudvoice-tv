@@ -1170,6 +1170,7 @@ with t1:
         unsafe_allow_html=True
     )
 with t2:
+    LOCAL_TZ = pytz.timezone("Asia/Kuala_Lumpur")
     now = datetime.now(LOCAL_TZ).strftime('%B %d, %Y %I:%M %p')
     st.markdown(f"<div class='timestamp'>{now}</div>", unsafe_allow_html=True)
 if not analytics_ok:
