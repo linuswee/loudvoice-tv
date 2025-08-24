@@ -19,7 +19,8 @@ import numpy as np
 # Optional Google libs (only needed for YouTube Analytics)
 GOOGLE_OK = True
 try:
-    from google.oauth2.credentials import Credentials
+    # OAuth for YouTube
+    from google.oauth2.credentials import Credentials as UserCredentials
     from google.auth.transport.requests import Request
     from googleapiclient.discovery import build
 except Exception:
@@ -28,7 +29,8 @@ import base64
 from pathlib import Path
 
 import gspread
-from google.oauth2.service_account import Credentials
+# Service Account for Google Sheets
+from google.oauth2.service_account import Credentials as SACredentials
 from gspread_dataframe import get_as_dataframe, set_with_dataframe
 
 SCOPE = [
@@ -267,12 +269,13 @@ def yt_analytics_country_lastN(
     if not GOOGLE_OK:
         raise RuntimeError("Google client libraries unavailable.")
 
-    creds = Credentials(
+    # YouTube OAuth places (all three helpers where you create creds):
+    creds = UserCredentials(
         None,
-        refresh_token=refresh_token,
+        refresh_token=yt_refresh_token,
         token_uri="https://oauth2.googleapis.com/token",
-        client_id=client_id,
-        client_secret=client_secret,
+        client_id=yt_client_id,
+        client_secret=yt_client_secret,
         scopes=["https://www.googleapis.com/auth/yt-analytics.readonly"],
     )
     if not creds.valid:
@@ -766,7 +769,10 @@ def _secret_missing(name: str) -> bool:
 # ---- Google Sheets: Filmings & Ministry Stats -------------------------------------------------
 @st.cache_resource
 def gs_client():
-    creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=SCOPE)
+    creds = SACredentials.from_service_account_info(
+        st.secrets["gcp_service_account"],
+        scopes=SCOPE
+    )
     return gspread.authorize(creds)
 
 def _open_ws(doc_id: str, worksheet: str):
