@@ -1087,7 +1087,7 @@ FILM_DOC = st.secrets["gs_filming_id"]
 ministry = load_ministry_totals(MIN_DOC, "Ministry")
 
 # Filming list (next 5 upcoming including today)
-filming = load_upcoming_filming(FILM_DOC, "Filming", limit=5)
+filming = load_upcoming_filming(FILM_DOC, "Filming Integration", limit=5)
 
 # =======================
 # Header
