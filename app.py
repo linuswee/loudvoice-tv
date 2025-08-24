@@ -8,7 +8,7 @@ import json
 import pandas as pd
 import plotly.graph_objects as go
 import requests
-import streamlit as st
+import streamlit as sta
 
 from streamlit.runtime.scriptrunner import add_script_run_ctx
 from streamlit_autorefresh import st_autorefresh  # pip install streamlit-autorefresh
@@ -189,23 +189,9 @@ div[data-testid="stHorizontalBlock"]{
 .kpi-value{ font-size:18px; font-weight:800; margin:0; }
 
 /* ---- Bars (7‑day views + task progress) ---- */
-.grid-views{ 
-  display:grid; 
-  grid-template-columns:64px 1fr 64px; 
-  gap:8px; 
-  align-items:center; 
-  margin:2px 0;       /* less vertical padding */
-}
-.views-bar {
-  height:10px;
-  border-radius:6px;
-  background:#1f2736;
-  overflow:hidden;
-  max-width:180px;   /* 👈 keep bars shorter */
-}
-.grid-views div{ 
-  font-size:11px;     /* slightly smaller labels */
-}
+.grid-views{ display:grid; grid-template-columns:56px 1fr 76px; gap:10px; align-items:center; margin:4px 0; }
+.views-bar{ height:10px; border-radius:6px; background:#1f2736; overflow:hidden; }
+.views-bar>span{ display:block; height:100%; background:#4aa3ff; }
 
 .grid-tasks-2{ display:grid; grid-template-columns:1fr 1.1fr; gap:12px; align-items:center; margin:6px 0; }
 .hbar{ height:10px; border-radius:6px; background:#1f2736; overflow:hidden; }
@@ -1027,12 +1013,12 @@ def load_upcoming_filming(doc_id: str, worksheet: str = "Filming Integration", l
 # Defaults / mocks (safe)
 # =======================
 MOCK = {
-    "yt_subs": 0, "yt_total": 0,
-    "yt_last7": [0, 0, 0, 0, 0, 0, 0],
-    "yt_countries": pd.DataFrame({"country":["US","MY","PH","IN","KE","AU"], "views":[0,0,0,0,0,0]}),
-    "ig_followers": 0, "ig_views7": 0,
-    "tt_followers": 0, "tt_views7": 0,
-    "ministry": {"prayer": 0, "studies": 0, "baptisms": 0},
+    "yt_subs": 30_800, "yt_total": 5_991_195,
+    "yt_last7": [23500, 27100, 24800, 30100, 28900, 33000, 35120],
+    "yt_countries": pd.DataFrame({"country":["US","MY","PH","IN","KE","AU"], "views":[52000,22000,15000,30000,12000,9000]}),
+    "ig_followers": 6_000, "ig_views7": 42_300,
+    "tt_followers": 11_000, "tt_views7": 57_900,
+    "ministry": {"prayer": 15, "studies": 8, "baptisms": 1},
     "tasks": [("Shoot testimony interview","In Progress"),("Schedule weekend posts","In Progress"),
               ("Outline next video","Not Done"),("Edit podcast episode","Done")],
     "filming": [("Tue, Aug 26, 2025","1:00–3:00 PM","Worship Set"),
@@ -1156,13 +1142,11 @@ if yt_client_id and yt_client_secret and yt_refresh_token:
 if last7_df.empty:
     # fallback to mock data
     yt_last7_vals   = MOCK["yt_last7"]
-    yt_last7_labels = [
-        (datetime.now(LOCAL_TZ).date() - timedelta(days=i)).strftime("%a, %b %d")
-        for i in range(len(yt_last7_vals)-1, -1, -1)
-]
+    yt_last7_labels = [(datetime.now(LOCAL_TZ).date() - timedelta(days=i)).strftime("%b %d")
+                       for i in range(len(yt_last7_vals)-1, -1, -1)]
 else:
     yt_last7_vals   = last7_df["views"].tolist()
-    yt_last7_labels = last7_df["date"].dt.strftime("%a, %b %d").tolist()
+    yt_last7_labels = last7_df["date"].dt.strftime("%b %d").tolist()
     
 if bars_err:
     st.warning(f"YT Analytics (daily) error: {bars_err}")
