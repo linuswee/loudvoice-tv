@@ -271,12 +271,13 @@ def yt_analytics_country_lastN(
 
     # YouTube OAuth places (all three helpers where you create creds):
     creds = UserCredentials(
-        None,
-        refresh_token=yt_refresh_token,
-        token_uri="https://oauth2.googleapis.com/token",
-        client_id=yt_client_id,
-        client_secret=yt_client_secret,
-        scopes=["https://www.googleapis.com/auth/yt-analytics.readonly"],
+    None,
+    refresh_token=refresh_token,
+    token_uri="https://oauth2.googleapis.com/token",
+    client_id=client_id,
+    client_secret=client_secret,
+    scopes=["https://www.googleapis.com/auth/yt-analytics.readonly",
+            "https://www.googleapis.com/auth/youtube.readonly"],
     )
     if not creds.valid:
         creds.refresh(Request())
@@ -315,13 +316,14 @@ def yt_analytics_lastN_and_countries(client_id, client_secret, refresh_token, da
         return pd.DataFrame(), pd.DataFrame(), "Google client libraries unavailable."
 
     try:
-        creds = Credentials(
+        creds = UserCredentials(
             None,
             refresh_token=refresh_token,
             token_uri="https://oauth2.googleapis.com/token",
             client_id=client_id,
             client_secret=client_secret,
-            scopes=["https://www.googleapis.com/auth/yt-analytics.readonly"],
+            scopes=["https://www.googleapis.com/auth/yt-analytics.readonly",
+                    "https://www.googleapis.com/auth/youtube.readonly"],
         )
         if not creds.valid:
             creds.refresh(Request())
@@ -492,16 +494,14 @@ def oauth_channel_identity(client_id: str, client_secret: str, refresh_token: st
     if not GOOGLE_OK:
         raise RuntimeError("Google client libraries unavailable.")
 
-    creds = Credentials(
+    creds = UserCredentials(
         None,
         refresh_token=refresh_token,
         token_uri="https://oauth2.googleapis.com/token",
         client_id=client_id,
         client_secret=client_secret,
-        scopes=[
-            "https://www.googleapis.com/auth/youtube.readonly",
-            "https://www.googleapis.com/auth/yt-analytics.readonly",
-        ],
+        scopes=["https://www.googleapis.com/auth/yt-analytics.readonly",
+                "https://www.googleapis.com/auth/youtube.readonly"],
     )
     if not creds.valid:
         creds.refresh(Request())
@@ -533,13 +533,14 @@ def yt_analytics_daily_lastN(
     if not GOOGLE_OK:
         raise RuntimeError("Google client libraries unavailable.")
 
-    creds = Credentials(
+    creds = UserCredentials(
         None,
         refresh_token=refresh_token,
         token_uri="https://oauth2.googleapis.com/token",
         client_id=client_id,
         client_secret=client_secret,
-        scopes=["https://www.googleapis.com/auth/yt-analytics.readonly"],
+        scopes=["https://www.googleapis.com/auth/yt-analytics.readonly",
+                "https://www.googleapis.com/auth/youtube.readonly"],
     )
     if not creds.valid:
         creds.refresh(Request())
