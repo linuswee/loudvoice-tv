@@ -281,7 +281,9 @@ def yt_analytics_country_lastN(
 
     analytics = build("youtubeAnalytics", "v2", credentials=creds, cache_discovery=False)
 
-    end_date = (datetime.utcnow().date() - timedelta(days=1))          # yesterday
+    LOCAL_TZ = pytz.timezone("Asia/Kuala_Lumpur")
+
+    end_date = (datetime.now(LOCAL_TZ).date() - timedelta(days=1))          # yesterday
     start_date = end_date - timedelta(days=days - 1)                   # inclusive window
     #ids_val = f"channel=={channel_id}" if channel_id else "channel==MINE"
     ids_val = "channel==MINE"  # ← force OAuth-authorized channel
@@ -327,7 +329,9 @@ def yt_analytics_lastN_and_countries(client_id, client_secret, refresh_token, da
 
         analytics = build("youtubeAnalytics", "v2", credentials=creds, cache_discovery=False)
 
-        end_date = (datetime.utcnow().date() - timedelta(days=1))  # yesterday
+        LOCAL_TZ = pytz.timezone("Asia/Kuala_Lumpur")
+
+        end_date = (datetime.now(LOCAL_TZ).date() - timedelta(days=1))  # yesterday
         start_date = end_date - timedelta(days=days - 1)
 
         # Daily views (channel timezone is not directly controllable; we normalize below)
@@ -543,8 +547,9 @@ def yt_analytics_daily_lastN(
         creds.refresh(Request())
 
     analytics = build("youtubeAnalytics", "v2", credentials=creds, cache_discovery=False)
+    LOCAL_TZ = pytz.timezone("Asia/Kuala_Lumpur")
 
-    end_date = (datetime.utcnow().date() - timedelta(days=1))          # yesterday
+    end_date = (datetime.now(LOCAL_TZ).date() - timedelta(days=1))          # yesterday
     start_date = end_date - timedelta(days=days - 1)                   # inclusive window
     # ids_val = f"channel=={channel_id}" if channel_id else "channel==MINE"
     ids_val = "channel==MINE"  # ← force OAuth-authorized channel
@@ -1125,7 +1130,9 @@ if not last7_df.empty:
 else:
     # Fallback to your existing mock numbers & generated labels
     yt_last7_vals = MOCK["yt_last7"]
-    base = (datetime.utcnow().date() - timedelta(days=1))
+    LOCAL_TZ = pytz.timezone("Asia/Kuala_Lumpur")
+
+    base = (datetime.now(LOCAL_TZ).date() - timedelta(days=1))
     yt_last7_labels = [(base - timedelta(days=i)).strftime("%b %d") for i in range(6, -1, -1)]
 if bars_err:
     st.warning(f"YT Analytics (daily) error: {bars_err}")
