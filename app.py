@@ -27,6 +27,15 @@ except Exception:
 import base64
 from pathlib import Path
 
+import gspread
+from google.oauth2.service_account import Credentials
+from gspread_dataframe import get_as_dataframe, set_with_dataframe
+
+SCOPE = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive.readonly",
+]
+
 # -------------------------------
 # Page config & compact helpers
 # -------------------------------
@@ -741,6 +750,47 @@ def clickup_tasks_upcoming(token: str, list_id: str, limit: int = 12):
 
     out.sort(key=lambda x: (x["due_str"] == "", x["due_str"], x["name"].lower()))
     return out[:limit], ""
+
+def task_pct(status: str) -> int:
+    s = status.lower(); return 100 if "done" in s else 50 if "progress" in s else 10
+def task_cls(status: str) -> str:
+    s = status.lower(); return "bar-green" if "done" in s else "bar-yellow" if "progress" in s else "bar-red"
+
+def _secret_missing(name: str) -> bool:
+    v = st.secrets.get(name)
+    if not v:
+        st.info(f"Missing secret: `{name}` — using mock data for that section.")
+        return True
+    return False
+
+# ---- Google Sheets: Filmings & Ministry Stats -------------------------------------------------
+@st.cache_resource
+def gs_client():
+    creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=SCOPE)
+    return gspread.authorize(creds)
+
+def _open_ws(doc_id: str, worksheet: str):
+    gc = gs_client()
+    sh = gc.open_by_key(doc_id)
+    return sh.worksheet(worksheet)
+
+@st.cache_data(ttl=60)
+def read_sheet(doc_id: str, worksheet: str) -> pd.DataFrame:
+    ws = _open_ws(doc_id, worksheet)
+    df = get_as_dataframe(ws, evaluate_formulas=True, dtype=str).fillna("")
+    if not df.empty:
+        df = df.loc[:, ~df.columns.str.contains("^Unnamed")]
+    return df
+
+def write_table(doc_id: str, worksheet: str, df: pd.DataFrame):
+    ws = _open_ws(doc_id, worksheet)
+    ws.clear()
+    set_with_dataframe(ws, df, include_index=False, include_column_header=True)
+
+def append_row(doc_id: str, worksheet: str, values: list):
+    ws = _open_ws(doc_id, worksheet)
+    ws.append_row(values, value_input_option="USER_ENTERED")
+
 # =======================
 # Defaults / mocks (safe)
 # =======================
@@ -757,18 +807,6 @@ MOCK = {
                 ("Wed, Aug 27, 2025","10:30–12:00","Testimony Recording"),
                 ("Fri, Aug 29, 2025","9:00–10:30 AM","Youth Reels")],
 }
-
-def task_pct(status: str) -> int:
-    s = status.lower(); return 100 if "done" in s else 50 if "progress" in s else 10
-def task_cls(status: str) -> str:
-    s = status.lower(); return "bar-green" if "done" in s else "bar-yellow" if "progress" in s else "bar-red"
-
-def _secret_missing(name: str) -> bool:
-    v = st.secrets.get(name)
-    if not v:
-        st.info(f"Missing secret: `{name}` — using mock data for that section.")
-        return True
-    return False
 
 # =======================
 # Fetch live data
@@ -902,6 +940,44 @@ analytics_ok = (not daily_df.empty) or (not cdf.empty)
 if not analytics_ok and analytics_err:
     st.warning(f"YT Analytics error: {analytics_err}")
 
+MIN_DOC = st.secrets["ministry_id"]
+MIN_TAB = "Ministry Integration"
+
+# READ ministry totals for today
+m_df = read_sheet(MIN_DOC, MIN_TAB)
+if not m_df.empty:
+    m_df["timestamp"] = pd.to_datetime(m_df["timestamp"], errors="coerce")
+    today = pd.Timestamp.now(tz=LOCAL_TZ).date()
+    today_df = m_df[m_df["timestamp"].dt.date == today]
+    ministry = {
+        "prayer":   int(pd.to_numeric(today_df.loc[today_df["type"]=="Prayer","count"], errors="coerce").fillna(0).sum()),
+        "studies":  int(pd.to_numeric(today_df.loc[today_df["type"]=="Studies","count"], errors="coerce").fillna(0).sum()),
+        "baptisms": int(pd.to_numeric(today_df.loc[today_df["type"]=="Baptisms","count"], errors="coerce").fillna(0).sum()),
+    }
+else:
+    ministry = {"prayer":0,"studies":0,"baptisms":0}
+
+# (optional) quick‑log buttons
+c1, c2, c3 = st.columns(3)
+with c1:
+    if st.button("➕ Prayer"):
+        append_row(MIN_DOC, MIN_TAB, [pd.Timestamp.now(tz=LOCAL_TZ).isoformat(), "prayer", "", 1])
+        st.cache_data.clear(); st.rerun()
+with c2:
+    if st.button("➕ Study"):
+        append_row(MIN_DOC, MIN_TAB, [pd.Timestamp.now(tz=LOCAL_TZ).isoformat(), "studies", "", 1])
+        st.cache_data.clear(); st.rerun()
+with c3:
+    if st.button("➕ Baptism"):
+        append_row(MIN_DOC, MIN_TAB, [pd.Timestamp.now(tz=LOCAL_TZ).isoformat(), "baptisms", "", 1])
+        st.cache_data.clear(); st.rerun()
+
+FILM_DOC = st.secrets["filming_id"]
+FILM_TAB = "Filming Integration"
+
+f_df = read_sheet(FILM_DOC, FILM_TAB)
+if not f_df.empty:
+    filming = list(f_df[["Date","Time","Title:"]].itertuples(index=False, name=None))
 # =======================
 # Header
 # =======================
