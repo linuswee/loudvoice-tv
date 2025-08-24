@@ -113,134 +113,101 @@ st.markdown(f"<style>body{{zoom:{ZOOM}%}}</style>", unsafe_allow_html=True)
 # -------------------------------
 st.markdown("""
 <style>
-.lv-logo { width:40px; height:auto }
-@media (max-width:1100px){ .lv-logo { width:28px } }
-</style>
-""", unsafe_allow_html=True)
+/* ========== LOUDVOICE — minimal, unified CSS ========== */
 
-st.markdown(
-    """
-    <style>
-    @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css');
-    html, body, [class^="css"] { background:#0b0f16 !important; color:#eef3ff }
-    header[data-testid="stHeader"], #MainMenu, footer { visibility:hidden; }
-    .block-container { max-width:1820px; padding-top:8px; padding-bottom:10px }
-    .title { color:#ffd54a; font-weight:900; font-size:34px; letter-spacing:.12em; margin:0 0 6px 0 margin-bottom: 0px !important; }
-    .timestamp { color:#ffd54a; font-size:12px; font-weight:700; text-align:right }
-    .card { background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.10);
-            border-radius:12px; padding:10px 14px; margin-bottom:14px; box-shadow:0 4px 12px rgba(0,0,0,.22); }
-    .section { color:#ffd54a; font-weight:800; font-size:15px; margin:0 0 8px 0 }
-    .mini-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px }
-    .mini-card{ background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.10);
-                border-radius:10px; padding:8px 10px; text-align:center }
-    .mini-label{ font-size:11px; color:#aab3cc; margin:0 }
-    .mini-value{ font-size:22px; font-weight:800; margin:2px 0 0 }
-    .kpi-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px }
-    .kpi-card { background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.10); border-radius:10px; padding:10px 12px; }
-    .kpi-card .kpi-head{ display:flex; align-items:center; gap:8px; margin-bottom:4px }
-    .kpi-card .icon{ font-size:14px; margin-right:6px }
-    .kpi-card .kpi-name{ font-size:14px; font-weight:800 }
-    .kpi-card .kpi-label{ font-size:10px; color:#aab3cc; margin:0 }
-    .kpi-card .kpi-value{ font-size:18px; font-weight:800; margin:0 }
-    .grid-views{ display:grid; grid-template-columns:56px 1fr 76px; gap:10px; align-items:center; margin:4px 0 }
-    .views-bar{ height:10px; border-radius:6px; background:#1f2736; overflow:hidden }
-    .views-bar>span{ display:block; height:100%; background:#4aa3ff }
-    .grid-tasks-2{ display:grid; grid-template-columns:1fr 1.1fr; gap:12px; align-items:center; margin:6px 0 }
-    .hbar{ height:10px; border-radius:6px; background:#1f2736; overflow:hidden }
-    .hbar>span{ display:block; height:100% }
-    .bar-green{ background:#2ecc71 } .bar-yellow{ background:#ffd166 } .bar-red{ background:#ff5a5f }
-    .small { font-size:12px; color:#9aa3bd }
-    .film-row{ display:grid; grid-template-columns: 1fr auto; gap:12px; align-items:center; padding:6px 0; }
-    .film-right{ color:#ffd54a; white-space:nowrap }
-    @media (max-width:1100px){
-      .section{ margin-bottom:6px }
-      .block-container{ padding-left:8px; padding-right:8px; max-width:100% }
-      .title{ font-size:28px; letter-spacing:.10em } .timestamp{ display:none }
-      section.main > div:has(> div[data-testid="stHorizontalBlock"]) div[data-testid="column"]{
-        width:100% !important; flex:0 0 100% !important;
-      }
-      .card{ padding:8px 10px; border-radius:10px } .kpi-grid{ gap:10px }
-      .kpi-card{ padding:8px 10px } .kpi-card .kpi-value{ font-size:16px } .kpi-card .icon{ font-size:13px }
-      .grid-views{ grid-template-columns:48px 1fr 64px }
-      .grid-tasks-2 { row-gap: 6px; }
-      .grid-tasks-2 a:hover { text-decoration: underline; }
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-st.markdown("""
-<style>
-/* Reduce vertical gaps */
-.block-container { padding-top:0px !important; padding-bottom:0px !important; }
-.card { margin-bottom:6px !important; }   /* was 14px */
-
-/* On mobile: tighten columns so no forced empty space */
-@media (max-width:1100px) {
-  section.main > div[data-testid="stHorizontalBlock"] {
-    align-items: flex-start !important;
-  }
-}
-</style>
-""", unsafe_allow_html=True)
-
-st.markdown("""
-<style>
-/* Remove extra top padding / margin */
-section.main > div.block-container {
-    padding-top: 0rem !important;   /* remove Streamlit default top padding */
-    margin-top: 0rem !important;    /* ensure no margin above */
+/* ---- Theme tokens (easy to tweak) ---- */
+:root{
+  --bg:#0b0f16;
+  --ink:#eef3ff;
+  --ink-dim:#aab3cc;
+  --brand:#ffd54a;
+  --card-bg:rgba(255,255,255,.03);
+  --card-bd:rgba(255,255,255,.10);
+  --shadow:0 4px 12px rgba(0,0,0,.22);
+  --pad:12px;
+  --radius:12px;
 }
 
-/* Also tighten the header container flex box */
-div[data-testid="stHorizontalBlock"] > div:first-child {
-    margin-top: 0px !important;
-    padding-top: 0px !important;
-}
-</style>
-""", unsafe_allow_html=True)
+/* ---- App chrome + base ---- */
+html, body, [class^="css"]{ background:var(--bg)!important; color:var(--ink); }
+header[data-testid="stHeader"],
+div[data-testid="stToolbar"],
+div[data-testid="stDecoration"],
+#MainMenu, footer{ display:none!important; }
 
-st.markdown("""
-<style>
-/* Remove Streamlit header completely so no empty space remains */
-header[data-testid="stHeader"] { 
-  display: none !important;   /* instead of visibility:hidden */
-}
-
-/* (keep things tight) */
-section.main > div.block-container { 
-  padding-top: 0 !important; 
-  margin-top: 0 !important; 
-}
-</style>
-""", unsafe_allow_html=True)
-
-st.markdown("""
-<style>
-/* 1) Remove Streamlit’s top bar & any decoration */
-header[data-testid="stHeader"] { display:none !important; }
-div[data-testid="stToolbar"] { display:none !important; }  /* local dev */
-div[data-testid="stDecoration"] { display:none !important; }
-
-/* 2) Kill all top padding/margins on the app container */
 div[data-testid="stAppViewContainer"] > .main,
 section.main,
 section.main > div.block-container,
-div[data-testid="stHorizontalBlock"] {
-  padding-top: 0 !important;
-  margin-top: 0 !important;
+div[data-testid="stHorizontalBlock"]{
+  padding-top:0!important; margin-top:0!important;
 }
 
-/* 3) Ensure the very first child has no top margin */
-section.main > div.block-container > :first-child {
-  margin-top: 0 !important;
+.block-container{ max-width:1820px; padding:8px var(--pad) 10px; }
+
+/* ---- Logo size (desktop → mobile) ---- */
+.lv-logo{ width:40px; height:auto; }
+
+/* ---- Typography ---- */
+.title{
+  color:var(--brand);
+  font-weight:900; font-size:34px; letter-spacing:.12em;
+  margin:0 0 6px 0!important;         /* (fixed typo: keep the semicolon) */
+}
+.timestamp{ color:var(--brand); font-size:12px; font-weight:700; text-align:right; }
+.section{ color:var(--brand); font-weight:800; font-size:15px; margin:0 0 8px 0; }
+.small{ font-size:12px; color:#9aa3bd; }
+
+/* ---- Card primitives ---- */
+.card{
+  background:var(--card-bg); border:1px solid var(--card-bd);
+  border-radius:var(--radius); padding:10px 14px; margin-bottom:10px;
+  box-shadow:var(--shadow);
 }
 
-/* 4) Tighten the title */
-.title { 
-  color:#ffd54a; font-weight:900; font-size:34px; letter-spacing:.12em;
-  margin: 0 0 6px 0 !important;   /* <-- fixed */
+/* ---- Mini stats (Prayer/Studies/Baptisms) ---- */
+.mini-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+.mini-card{ background:var(--card-bg); border:1px solid var(--card-bd); border-radius:10px; padding:8px 10px; text-align:center; }
+.mini-label{ font-size:11px; color:var(--ink-dim); margin:0; }
+.mini-value{ font-size:22px; font-weight:800; margin:2px 0 0; }
+
+/* ---- KPI cards ---- */
+.kpi-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+.kpi-card{ background:var(--card-bg); border:1px solid var(--card-bd); border-radius:10px; padding:10px 12px; }
+.kpi-head{ display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+.kpi-name{ font-size:14px; font-weight:800; }
+.kpi-label{ font-size:10px; color:var(--ink-dim); margin:0; }
+.kpi-value{ font-size:18px; font-weight:800; margin:0; }
+
+/* ---- Bars (7‑day views + task progress) ---- */
+.grid-views{ display:grid; grid-template-columns:56px 1fr 76px; gap:10px; align-items:center; margin:4px 0; }
+.views-bar{ height:10px; border-radius:6px; background:#1f2736; overflow:hidden; }
+.views-bar>span{ display:block; height:100%; background:#4aa3ff; }
+
+.grid-tasks-2{ display:grid; grid-template-columns:1fr 1.1fr; gap:12px; align-items:center; margin:6px 0; }
+.hbar{ height:10px; border-radius:6px; background:#1f2736; overflow:hidden; }
+.hbar>span{ display:block; height:100%; }   /* color set inline from status */
+
+/* ---- Filming list ---- */
+.film-row{ display:grid; grid-template-columns:1fr auto; gap:12px; align-items:center; padding:6px 0; }
+.film-right{ color:var(--brand); white-space:nowrap; }
+
+/* ---- First child guard: avoid stray top margins ---- */
+section.main > div.block-container > :first-child{ margin-top:0!important; }
+
+/* ---- Responsive (≤1100px) ---- */
+@media (max-width:1100px){
+  .block-container{ max-width:100%; padding-left:8px; padding-right:8px; }
+  .lv-logo{ width:28px; }
+  .title{ font-size:28px; letter-spacing:.10em; }
+  .timestamp{ display:none; }
+  .card{ padding:8px 10px; border-radius:10px; }
+  .kpi-grid{ gap:10px; }
+  .kpi-value{ font-size:16px; }
+  .grid-views{ grid-template-columns:48px 1fr 64px; }
+  .grid-tasks-2{ row-gap:6px; }
+  section.main > div:has(> div[data-testid="stHorizontalBlock"]) div[data-testid="column"]{
+    width:100%!important; flex:0 0 100%!important;
+  }
 }
 </style>
 """, unsafe_allow_html=True)
