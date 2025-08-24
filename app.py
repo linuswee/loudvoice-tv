@@ -1307,11 +1307,13 @@ with right:
         )
     st.markdown("</div>", unsafe_allow_html=True)
 
-# Bottom: ClickUp tasks + Filming (unchanged)
-b1, b2 = st.columns([1.2, 0.8])
-with b1:
-    st.markdown("<div class='card'><div class='section'>ClickUp Tasks (Upcoming)</div>", unsafe_allow_html=True)
+# =======================
+# Bottom row: Tasks • Filming • Calendar (3 columns)
+# =======================
+c1, c2, c3 = st.columns([1.2, 0.9, 1.1])
 
+with c1:
+    st.markdown("<div class='card'><div class='section'>ClickUp Tasks (Upcoming)</div>", unsafe_allow_html=True)
     for t in tasks:
         # Support dicts (live) and tuples (mock)
         if isinstance(t, dict):
@@ -1342,8 +1344,8 @@ with b1:
             unsafe_allow_html=True,
         )
     st.markdown("</div>", unsafe_allow_html=True)
-    
-with b2:
+
+with c2:
     st.markdown("<div class='card'><div class='section'>Next Filming Timeslots</div>", unsafe_allow_html=True)
     if not filming:
         st.markdown("<div class='small'>No upcoming timeslots found. Add rows in the sheet or open with <code>?debug=1</code> for details.</div>", unsafe_allow_html=True)
@@ -1352,4 +1354,27 @@ with b2:
             f"<div class='film-row'><div><b>{daydate}</b> — {time_str}</div><div class='film-right'>{label}</div></div>",
             unsafe_allow_html=True,
         )
+    st.markdown("</div>", unsafe_allow_html=True)
+
+with c3:
+    st.markdown("<div class='card'><div class='section'>ClickUp Calendar</div>", unsafe_allow_html=True)
+
+    # Option A (best): embed a PUBLIC calendar view URL from ClickUp “Share”
+    # Put the URL in Streamlit secrets as CLICKUP_CAL_PUBLIC_URL
+    from streamlit.components.v1 import iframe
+    cal_url = st.secrets.get("CLICKUP_CAL_PUBLIC_URL")
+
+    if cal_url:
+        # Adjust height if you want more/less rows visible
+        iframe(cal_url, height=420, scrolling=True)
+    else:
+        # Fallback instructions + a button to open ClickUp
+        st.markdown(
+            "<div class='small'>Add a public share link for your Calendar view to "
+            "<code>CLICKUP_CAL_PUBLIC_URL</code> in <b>st.secrets</b> to embed it here."
+            "<br/>In ClickUp: Calendar view → <b>Share</b> → Enable public link → copy URL.</div>",
+            unsafe_allow_html=True
+        )
+        st.link_button("Open ClickUp Calendar", "https://app.clickup.com/", use_container_width=True)
+
     st.markdown("</div>", unsafe_allow_html=True)
