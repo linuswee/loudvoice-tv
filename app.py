@@ -1013,12 +1013,12 @@ def load_upcoming_filming(doc_id: str, worksheet: str = "Filming Integration", l
 # Defaults / mocks (safe)
 # =======================
 MOCK = {
-    "yt_subs": 30_800, "yt_total": 5_991_195,
-    "yt_last7": [23500, 27100, 24800, 30100, 28900, 33000, 35120],
-    "yt_countries": pd.DataFrame({"country":["US","MY","PH","IN","KE","AU"], "views":[52000,22000,15000,30000,12000,9000]}),
-    "ig_followers": "Coming Soon", "ig_views7": "Coming Soon",
-    "tt_followers": "Coming Soon", "tt_views7": "Coming Soon",
-    "ministry": {"prayer": 15, "studies": 8, "baptisms": 1},
+    "yt_subs": 0, "yt_total": 0,
+    "yt_last7": [0, 0, 0, 0, 0, 0, 0],
+    "yt_countries": pd.DataFrame({"country":["US","MY","PH","IN","KE","AU"], "views":[0,0,0,0,0,0]}),
+    "ig_followers": 0, "ig_views7": 0,
+    "tt_followers": 0, "tt_views7": 0,
+    "ministry": {"prayer": 0, "studies": 0, "baptisms": 0},
     "tasks": [("Shoot testimony interview","In Progress"),("Schedule weekend posts","In Progress"),
               ("Outline next video","Not Done"),("Edit podcast episode","Done")],
     "filming": [("Tue, Aug 26, 2025","1:00–3:00 PM","Worship Set"),
