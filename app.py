@@ -125,7 +125,7 @@ st.markdown(
     html, body, [class^="css"] { background:#0b0f16 !important; color:#eef3ff }
     header[data-testid="stHeader"], #MainMenu, footer { visibility:hidden; }
     .block-container { max-width:1820px; padding-top:8px; padding-bottom:10px }
-    .title { color:#ffd54a; font-weight:900; font-size:34px; letter-spacing:.12em; margin:0 0 6px 0 }
+    .title { color:#ffd54a; font-weight:900; font-size:34px; letter-spacing:.12em; margin:0 0 6px 0 margin-bottom: 0px !important; }
     .timestamp { color:#ffd54a; font-size:12px; font-weight:700; text-align:right }
     .card { background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.10);
             border-radius:12px; padding:10px 14px; margin-bottom:14px; box-shadow:0 4px 12px rgba(0,0,0,.22); }
