@@ -862,50 +862,74 @@ def _first_nonempty(series: pd.Series, candidates: list[str]) -> str | None:
             return str(series[c]).strip()
     return None
 
-def load_upcoming_filming(doc_id: str, worksheet: str = "Filming", limit: int = 5) -> list[tuple[str,str,str]]:
+def load_upcoming_filming(doc_id: str, worksheet: str = "Filming Integration", limit: int = 6) -> list[tuple[str, str, str]]:
+    """
+    Reads 'Filming Integration' and returns up to `limit` upcoming rows as:
+       [(Mon, Aug 22, '09:20', 'Through It All, Jesus Never Fails'), ...]
+    Accepts Date like '22/8' or '22/08' (infers current year).
+    Works with headers 'Date', 'Time', 'Title' or the same with colons.
+    """
+    import re
+
     df = read_sheet(doc_id, worksheet)
     if df.empty:
         return []
 
-    # Accept variants: date/day/when, time/timeslot/start, title/title_/what/event
-    date_cols  = [c for c in df.columns if c in ("date", "day", "when")]
-    time_cols  = [c for c in df.columns if c in ("time", "timeslot", "start")]
-    title_cols = [c for c in df.columns if c in ("title", "title_", "what", "event")]
+    # Column candidates after your header-normalization
+    # ('title:' -> 'title', 'date:' -> 'date', etc.)
+    date_col  = next((c for c in ("date", "day", "when") if c in df.columns), None)
+    time_col  = next((c for c in ("time", "timeslot", "start") if c in df.columns), None)
+    title_col = next((c for c in ("title", "title_", "what", "event") if c in df.columns), None)
 
-    if not date_cols:
+    if date_col is None or title_col is None:
         return []
-    if not title_cols:
-        title_cols = ["title"] if "title" in df.columns else []
-
-    dser = pd.to_datetime(df[date_cols[0]], errors="coerce")
-    tser = df[time_cols[0]].astype(str).str.strip() if time_cols else pd.Series([""] * len(df))
-    tsort = pd.to_datetime(tser, format="%H:%M", errors="coerce") if time_cols else pd.Series([pd.NaT] * len(df))
-    titles = df.apply(lambda r: _first_nonempty(r, title_cols) or "", axis=1)
-
-    tmp = pd.DataFrame({"date": dser, "time_str": tser, "time_sort": tsort, "title": titles}).dropna(subset=["date"])
-
-    # (Optional) show a quick peek when ?debug=1
-    if DEBUG:
-        st.write("Filming columns:", list(df.columns))
-        st.write(tmp.head(10))
 
     today = pd.Timestamp.now(tz=LOCAL_TZ).normalize().tz_localize(None)
+    this_year = today.year
 
+    # --- Date parser that infers year if missing ---
+    def parse_date(val: str) -> pd.Timestamp | pd.NaT:
+        s = str(val).strip()
+        if not s:
+            return pd.NaT
+        # match d/m or d/m/y
+        m = re.match(r"^\s*(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?\s*$", s)
+        if m:
+            d, mth, yr = int(m.group(1)), int(m.group(2)), m.group(3)
+            yr = int(yr) if yr else this_year
+            if yr < 100:  # handle '24'
+                yr += 2000
+            try:
+                return pd.Timestamp(year=yr, month=mth, day=d)
+            except Exception:
+                return pd.NaT
+        # fallback: let pandas try with dayfirst
+        return pd.to_datetime(s, dayfirst=True, errors="coerce")
+
+    dates = df[date_col].apply(parse_date)
+
+    # Time (keep as string for display; optional sortable parse)
+    times = df[time_col].astype(str).str.strip() if time_col else pd.Series([""] * len(df))
+    times_sort = pd.to_datetime(times, format="%H:%M", errors="coerce") if time_col else pd.Series([pd.NaT] * len(df))
+
+    titles = df[title_col].astype(str).str.strip()
+
+    tmp = pd.DataFrame({"date": dates, "time_str": times, "time_sort": times_sort, "title": titles}).dropna(subset=["date"])
+
+    # Prefer upcoming (today or later)
     future = tmp[tmp["date"] >= today].sort_values(["date", "time_sort"], kind="stable")
+
     if future.empty:
-        # Fallback: show the closest 5 by date (even if in the past), most recent first
-        fallback = tmp.sort_values(["date", "time_sort"], kind="stable")
-        take = fallback.head(limit)
+        # If nothing upcoming, show nearest by date regardless of past/future
+        nearest = tmp.sort_values(["date", "time_sort"], kind="stable").head(limit)
+        take = nearest
     else:
         take = future.head(limit)
 
     def fmt_date(d: pd.Timestamp) -> str:
-        try:
-            return pd.to_datetime(d).strftime("%a, %b %d")
-        except Exception:
-            return str(d)
+        return pd.to_datetime(d).strftime("%a, %b %d")
 
-    return [(fmt_date(r.date), (r.time_str or "").strip(), r.title or "") for _, r in take.iterrows()]
+    return [(fmt_date(r.date), (r.time_str or ""), r.title or "") for _, r in take.iterrows()]
 
 # =======================
 # Defaults / mocks (safe)
