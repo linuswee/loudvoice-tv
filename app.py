@@ -950,20 +950,27 @@ def load_upcoming_filming(doc_id: str, worksheet: str = "Filming Integration", l
     today = pd.Timestamp.now(tz=LOCAL_TZ).normalize().tz_localize(None)
     this_year = today.year
 
-    def parse_date(val: str) -> pd.Timestamp | pd.NaT:
-        s = str(val or "").strip()
-        if not s: return pd.NaT
-        # d/m[/yy] or d-m[-yy]
-        m = re.match(r"^\s*(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?\s*$", s)
-        if m:
-            d, mth, yr = int(m.group(1)), int(m.group(2)), m.group(3)
-            yr = int(yr) if yr else this_year
-            if yr < 100: yr += 2000
-            try: return pd.Timestamp(year=yr, month=mth, day=d)
-            except Exception: return pd.NaT
-        # allow "Aug 27", "27 Aug", etc.
-        return pd.to_datetime(s, dayfirst=True, errors="coerce")
+    def parse_date(val: str) -> pd.Timestamp | None:
+    s = str(val or "").strip()
+    if not s:
+        return None
 
+    # d/m[/yy] or d-m[-yy]
+    m = re.match(r"^\s*(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?\s*$", s)
+    if m:
+        d, mth, yr = int(m.group(1)), int(m.group(2)), m.group(3)
+        yr = int(yr) if yr else this_year
+        if yr < 100:
+            yr += 2000
+        try:
+            return pd.Timestamp(year=yr, month=mth, day=d)
+        except Exception:
+            return None
+
+    # allow "Aug 27", "27 Aug", etc.
+    d = pd.to_datetime(s, dayfirst=True, errors="coerce")
+    return None if pd.isna(d) else pd.Timestamp(d)
+    
     dates = df[date_col].apply(parse_date)
     times = df[time_col].astype(str).str.strip() if time_col else pd.Series([""] * len(df))
     times_sort = pd.to_datetime(times, format="%H:%M", errors="coerce") if time_col else pd.Series([pd.NaT] * len(df))
