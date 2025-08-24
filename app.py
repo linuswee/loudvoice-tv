@@ -56,6 +56,12 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+st.markdown("""
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+      integrity="sha512-bx8wN/so2HnIY7+q3sU5o7bQ/ud9l1z4PCtRj2CFf7RYI0ehCyBN8DQ3lmgwPcj3doGht+jOZQf1BPZpbnRgfQ=="
+      crossorigin="anonymous" referrerpolicy="no-referrer" />
+""", unsafe_allow_html=True)
 
 # Inject favicon + iOS Home Screen icon into <head>
 st.markdown(
@@ -1252,36 +1258,27 @@ with right:
 
     # Channel stats
     connected = f"<span class='small'>Connected: <b>{oauth_title}</b></span>" if oauth_title else ""
-    st.markdown("""
-        <link rel="stylesheet"
-              href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
-              integrity="sha512-bx8wN/so2HnIY7+q3sU5o7bQ/ud9l1z4PCtRj2CFf7RYI0ehCyBN8DQ3lmgwPcj3doGht+jOZQf1BPZpbnRgfQ=="
-              crossorigin="anonymous" referrerpolicy="no-referrer" />
-        """, unsafe_allow_html=True)
     st.markdown(f"<div class='card'><div class='section'>Channel Stats {connected}</div>", unsafe_allow_html=True)
-    st.markdown(
-        f"""
+    # Channel stats (icons)
+    st.markdown(f"""
         <div class="kpi-grid">
           <div class="kpi-card">
-            <div class="kpi-head"><i class="fab fa-youtube icon" style="color:#ff3d3d"></i><span class="kpi-name">YT</span></div>
+            <div class="kpi-head"><i class="fa-brands fa-youtube icon" style="color:#ff3d3d"></i><span class="kpi-name">YT</span></div>
             <div class="kpi-label">Subs</div><div class="kpi-value">{fmt_num(youtube['subs'])}</div>
             <div class="kpi-label">Total</div><div class="kpi-value">{fmt_num(youtube['total'])}</div>
           </div>
           <div class="kpi-card">
-            <div class="kpi-head"><i class="fab fa-instagram icon" style="color:#e1306c"></i><span class="kpi-name">IG</span></div>
+            <div class="kpi-head"><i class="fa-brands fa-instagram icon"></i><span class="kpi-name">IG</span></div>
             <div class="kpi-label">Follows</div><div class="kpi-value">{fmt_num(ig['followers'])}</div>
             <div class="kpi-label">7‑day Views</div><div class="kpi-value">{fmt_num(ig['views7'])}</div>
           </div>
           <div class="kpi-card">
-            <div class="kpi-head"><i class="fab fa-tiktok icon"></i><span class="kpi-name">TT</span></div>
+            <div class="kpi-head"><i class="fa-brands fa-tiktok icon"></i><span class="kpi-name">TT</span></div>
             <div class="kpi-label">Follows</div><div class="kpi-value">{fmt_num(tt['followers'])}</div>
             <div class="kpi-label">7‑day Views</div><div class="kpi-value">{fmt_num(tt['views7'])}</div>
           </div>
         </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    st.markdown("</div>", unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 
     # YouTube Views (Last 7 Days) — with real daily dates
     st.markdown("<div class='card'><div class='section'>YouTube Views (Last 7 Days)</div>", unsafe_allow_html=True)
