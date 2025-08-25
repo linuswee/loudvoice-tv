@@ -227,7 +227,6 @@ section.main > div.block-container > :first-child{ margin-top:0!important; }
 # Helpers & Data calls
 # =======================
 
-LOCAL_TZ = "Asia/Kuala_Lumpur"   # change if your Studio timezone differs
 DAYS_FOR_MAP = 28                # 28‑day country map window
 # Default 600 desktop, tighter on phones; allow ?map_h=### to override
 MAP_HEIGHT = MAP_H_QP or (340 if COMPACT else 600)
@@ -290,8 +289,6 @@ def yt_analytics_country_lastN(
         creds.refresh(Request())
 
     analytics = build("youtubeAnalytics", "v2", credentials=creds, cache_discovery=False)
-    LOCAL_TZ_NAME = "Asia/Kuala_Lumpur"
-    LOCAL_TZ = pytz.timezone(LOCAL_TZ_NAME)
 
     end_date = (datetime.now(LOCAL_TZ).date() - timedelta(days=1))          # yesterday
     start_date = end_date - timedelta(days=days - 1)                   # inclusive window
@@ -338,9 +335,6 @@ def yt_analytics_lastN_and_countries(client_id, client_secret, refresh_token, da
             creds.refresh(Request())
 
         analytics = build("youtubeAnalytics", "v2", credentials=creds, cache_discovery=False)
-
-        LOCAL_TZ_NAME = "Asia/Kuala_Lumpur"
-        LOCAL_TZ = pytz.timezone(LOCAL_TZ_NAME)
 
         end_date = (datetime.now(LOCAL_TZ).date() - timedelta(days=1))  # yesterday
         start_date = end_date - timedelta(days=days - 1)
@@ -558,8 +552,6 @@ def yt_analytics_daily_lastN(
         creds.refresh(Request())
 
     analytics = build("youtubeAnalytics", "v2", credentials=creds, cache_discovery=False)
-    LOCAL_TZ_NAME = "Asia/Kuala_Lumpur"
-    LOCAL_TZ = pytz.timezone(LOCAL_TZ_NAME)
 
     end_date = (datetime.now(LOCAL_TZ).date() - timedelta(days=1))          # yesterday
     start_date = end_date - timedelta(days=days - 1)                   # inclusive window
@@ -1269,7 +1261,6 @@ if yt_client_id and yt_client_secret and yt_refresh_token:
             days=14   # pull a 2-week window to be safe
         )
         if not raw.empty:
-            LOCAL_TZ = pytz.timezone("Asia/Kuala_Lumpur")
             raw = raw.copy()
             raw["date"] = pd.to_datetime(raw["date"], utc=True)\
                               .dt.tz_convert(LOCAL_TZ).dt.normalize()
@@ -1331,8 +1322,6 @@ with t1:
         unsafe_allow_html=True
     )
 with t2:
-    LOCAL_TZ_NAME = "Asia/Kuala_Lumpur"
-    LOCAL_TZ = pytz.timezone(LOCAL_TZ_NAME)
     now = datetime.now(LOCAL_TZ).strftime('%B %d, %Y %I:%M %p')
     st.markdown(f"<div class='timestamp'>{now}</div>", unsafe_allow_html=True)
 if not analytics_ok:
