@@ -781,7 +781,12 @@ import requests
 from datetime import datetime
 
 @st.cache_data(ttl=120)
-def clickup_calendar_next5(token: str, list_id: str, limit: int = 5, tz_name: LOCAL_TZ_NAME):
+def clickup_calendar_next5(
+    token: str,
+    list_id: str,
+    limit: int = 5,
+    tz_name: str = LOCAL_TZ_NAME,   # ← type is str, default is the string
+):
     """Return up to `limit` upcoming tasks with a due date, sorted soonest-first."""
     url = f"https://api.clickup.com/api/v2/list/{list_id}/task"
     headers = {"Authorization": token}
@@ -1492,7 +1497,7 @@ with c3:
     if not cu_token or not cu_list:
         st.markdown("<div class='small'>Add <code>CLICKUP_TOKEN</code> and <code>CLICKUP_LIST_ID</code> in <code>st.secrets</code>.</div>", unsafe_allow_html=True)
     else:
-        cal_items, cal_err = clickup_calendar_next5(cu_token, cu_list, limit=5, tz_name=LOCAL_TZ)
+        cal_items, cal_err = clickup_calendar_next5(cu_token, cu_list, limit=5, tz_name=LOCAL_TZ_NAME)
         if cal_err:
             st.markdown(f"<div class='small'>⚠️ {cal_err}</div>", unsafe_allow_html=True)
         elif not cal_items:
