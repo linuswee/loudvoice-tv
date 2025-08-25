@@ -290,8 +290,8 @@ def yt_analytics_country_lastN(
         creds.refresh(Request())
 
     analytics = build("youtubeAnalytics", "v2", credentials=creds, cache_discovery=False)
-
-    LOCAL_TZ = pytz.timezone("Asia/Kuala_Lumpur")
+    LOCAL_TZ_NAME = "Asia/Kuala_Lumpur"
+    LOCAL_TZ = pytz.timezone(LOCAL_TZ_NAME)
 
     end_date = (datetime.now(LOCAL_TZ).date() - timedelta(days=1))          # yesterday
     start_date = end_date - timedelta(days=days - 1)                   # inclusive window
@@ -339,7 +339,8 @@ def yt_analytics_lastN_and_countries(client_id, client_secret, refresh_token, da
 
         analytics = build("youtubeAnalytics", "v2", credentials=creds, cache_discovery=False)
 
-        LOCAL_TZ = pytz.timezone("Asia/Kuala_Lumpur")
+        LOCAL_TZ_NAME = "Asia/Kuala_Lumpur"
+        LOCAL_TZ = pytz.timezone(LOCAL_TZ_NAME)
 
         end_date = (datetime.now(LOCAL_TZ).date() - timedelta(days=1))  # yesterday
         start_date = end_date - timedelta(days=days - 1)
@@ -557,7 +558,8 @@ def yt_analytics_daily_lastN(
         creds.refresh(Request())
 
     analytics = build("youtubeAnalytics", "v2", credentials=creds, cache_discovery=False)
-    LOCAL_TZ = pytz.timezone("Asia/Kuala_Lumpur")
+    LOCAL_TZ_NAME = "Asia/Kuala_Lumpur"
+    LOCAL_TZ = pytz.timezone(LOCAL_TZ_NAME)
 
     end_date = (datetime.now(LOCAL_TZ).date() - timedelta(days=1))          # yesterday
     start_date = end_date - timedelta(days=days - 1)                   # inclusive window
@@ -1329,8 +1331,9 @@ with t1:
         unsafe_allow_html=True
     )
 with t2:
-    LOCAL_TZ = pytz.timezone("Asia/Kuala_Lumpur")
-    now = datetime.now(LOCAL_TZ).strftime('%B %d, %Y %I:%M %p')
+    LOCAL_TZ_NAME = "Asia/Kuala_Lumpur"
+    LOCAL_TZ = pytz.timezone(LOCAL_TZ_NAME)
+now = datetime.now(LOCAL_TZ).strftime('%B %d, %Y %I:%M %p')
     st.markdown(f"<div class='timestamp'>{now}</div>", unsafe_allow_html=True)
 if not analytics_ok:
     st.info("Using mock for YT 7‑day & country (Analytics call failed or not configured).")
