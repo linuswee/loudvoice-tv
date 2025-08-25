@@ -43,6 +43,10 @@ SCOPE = [
 # -------------------------------
 # Page config & compact helpers
 # -------------------------------
+
+LOCAL_TZ_NAME = "Asia/Kuala_Lumpur"           # string
+LOCAL_TZ = pytz.timezone(LOCAL_TZ_NAME)       # tz object
+
 st.set_page_config(
     page_title="LOUDVOICE",
     page_icon="assets/loudvoice_favicon.ico",  # favicon
@@ -777,7 +781,7 @@ import requests
 from datetime import datetime
 
 @st.cache_data(ttl=120)
-def clickup_calendar_next5(token: str, list_id: str, limit: int = 5, tz_name: str = "Asia/Kuala_Lumpur"):
+def clickup_calendar_next5(token: str, list_id: str, limit: int = 5, tz_name: LOCAL_TZ_NAME):
     """Return up to `limit` upcoming tasks with a due date, sorted soonest-first."""
     url = f"https://api.clickup.com/api/v2/list/{list_id}/task"
     headers = {"Authorization": token}
