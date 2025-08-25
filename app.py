@@ -1333,7 +1333,7 @@ with t1:
 with t2:
     LOCAL_TZ_NAME = "Asia/Kuala_Lumpur"
     LOCAL_TZ = pytz.timezone(LOCAL_TZ_NAME)
-now = datetime.now(LOCAL_TZ).strftime('%B %d, %Y %I:%M %p')
+    now = datetime.now(LOCAL_TZ).strftime('%B %d, %Y %I:%M %p')
     st.markdown(f"<div class='timestamp'>{now}</div>", unsafe_allow_html=True)
 if not analytics_ok:
     st.info("Using mock for YT 7‑day & country (Analytics call failed or not configured).")
