@@ -780,31 +780,66 @@ def _secret_missing(name: str) -> bool:
     return False
 
 import requests
-import icalendar
 from datetime import datetime
 
 @st.cache_data(ttl=120)
-def fetch_calendar_events(ical_url: str, limit: int = 6):
-    """Parse ClickUp public calendar (ICS) and return upcoming events as list."""
+def clickup_calendar_next5(token: str, list_id: str, limit: int = 5, tz_name: str = "Asia/Kuala_Lumpur"):
+    """Return up to `limit` upcoming tasks with a due date, sorted soonest-first."""
+    url = f"https://api.clickup.com/api/v2/list/{list_id}/task"
+    headers = {"Authorization": token}
+    # Pull a couple pages of tasks and we’ll filter client-side
+    params = {
+        "archived": "false",
+        "subtasks": "true",
+        "include_closed": "false",
+        "page": 0,
+        "order_by": "due_date",
+        "reverse": "false",
+    }
     try:
-        r = requests.get(ical_url, timeout=15)
+        r = requests.get(url, headers=headers, params=params, timeout=20)
         r.raise_for_status()
-        cal = icalendar.Calendar.from_ical(r.text)
-
-        events = []
-        now = datetime.now()
-        for comp in cal.walk("VEVENT"):
-            start = comp.get("DTSTART").dt
-            summary = str(comp.get("SUMMARY"))
-            if start >= now:
-                events.append((start, summary))
-
-        # Sort and limit
-        events.sort(key=lambda e: e[0])
-        return events[:limit]
+        items = (r.json() or {}).get("tasks", [])
     except Exception as e:
-        st.warning(f"Calendar error: {e}")
-        return []
+        return [], f"ClickUp Calendar error: {e}"
+
+    # Now → local midnight for comparisons
+    tz = pytz.timezone(tz_name)
+    now_local = datetime.now(tz)
+
+    upcoming = []
+    for t in items:
+        due_ms = t.get("due_date")
+        if not due_ms:
+            continue  # skip items without a due date
+        try:
+            due_dt = datetime.utcfromtimestamp(int(due_ms)/1000).replace(tzinfo=pytz.UTC).astimezone(tz)
+        except Exception:
+            continue
+        if due_dt < now_local:
+            continue  # keep only future
+
+        name = t.get("name", "Untitled")
+        status_hex = (t.get("status") or {}).get("color") or "#ffd54a"
+        url_ = t.get("url") or "#"
+
+        # Nice labels
+        day_str  = due_dt.strftime("%a")
+        date_str = due_dt.strftime("%b %d")
+        time_str = due_dt.strftime("%H:%M") if due_dt.hour or due_dt.minute else ""
+
+        upcoming.append({
+            "when_day": day_str,
+            "when_date": date_str,
+            "when_time": time_str,
+            "title": name,
+            "url": url_,
+            "status_hex": status_hex,
+            "due_dt": due_dt,
+        })
+
+    upcoming.sort(key=lambda x: x["due_dt"])
+    return upcoming[:limit], ""
 
 # ---- Google Sheets: Ministry & Filming (READ ONLY) ----------------------------
 import re
@@ -1410,10 +1445,8 @@ with right:
         )
     st.markdown("</div>", unsafe_allow_html=True)
 
-# =======================
-# Bottom row: 3 columns
-# =======================
-c1, c2, c3 = st.columns([1.05, 0.95, 1.0])
+# --- Bottom row: 3 columns (Tasks | Filming | ClickUp Calendar) ---
+c1, c2, c3 = st.columns([1.05, 1.0, 0.95])
 
 with c1:
     st.markdown("<div class='card'><div class='section'>ClickUp Tasks (Upcoming)</div>", unsafe_allow_html=True)
@@ -1438,8 +1471,7 @@ with c1:
         st.markdown(
             f"<div class='grid-tasks-2'>"
             f"<div><a href='{url}' target='_blank' style='color:#eef3ff;text-decoration:none'><b>{name}</b></a>{who_chip}"
-            f"<div>{small_line}</div>"
-            f"</div>"
+            f"<div>{small_line}</div></div>"
             f"<div class='hbar'><span style='width:{task_pct(status)}%; background:{status_hex}'></span></div>"
             f"</div>",
             unsafe_allow_html=True,
@@ -1452,32 +1484,29 @@ with c2:
         st.markdown("<div class='small'>No upcoming timeslots found.</div>", unsafe_allow_html=True)
     for daydate, time_str, label in filming:
         st.markdown(
-            f"<div class='film-row'><div><b>{daydate}</b> — {time_str}</div><div class='film-right'>{label}</div></div>",
+            f"<div class='film-row'><div><b>{daydate}</b> — {time_str}</div>"
+            f"<div class='film-right'>{label}</div></div>",
             unsafe_allow_html=True,
         )
     st.markdown("</div>", unsafe_allow_html=True)
 
 with c3:
     st.markdown("<div class='card'><div class='section'>ClickUp Calendar</div>", unsafe_allow_html=True)
-    ics_url = st.secrets.get("CLICKUP_CAL_ICS_URL")
-    if not ics_url:
-        st.markdown(
-            "<div class='small'>Add a public iCal link to <code>CLICKUP_CAL_ICS_URL</code> in <code>st.secrets</code> to show items here.</div>",
-            unsafe_allow_html=True,
-        )
-        # Fallback: offer the normal public URL if present
-        pub = st.secrets.get("CLICKUP_CAL_PUBLIC_URL")
-        if pub:
-            st.link_button("Open ClickUp Calendar", pub, use_container_width=True)
+    cu_token, cu_list = _get_clickup_creds()
+    if not cu_token or not cu_list:
+        st.markdown("<div class='small'>Add <code>CLICKUP_TOKEN</code> and <code>CLICKUP_LIST_ID</code> in <code>st.secrets</code>.</div>", unsafe_allow_html=True)
     else:
-        evs = fetch_clickup_calendar_events(ics_url, limit=8)
-        if not evs:
+        cal_items, cal_err = clickup_calendar_next5(cu_token, cu_list, limit=5, tz_name=LOCAL_TZ)
+        if cal_err:
+            st.markdown(f"<div class='small'>⚠️ {cal_err}</div>", unsafe_allow_html=True)
+        elif not cal_items:
             st.markdown("<div class='small'>No upcoming items.</div>", unsafe_allow_html=True)
-        for ev in evs:
-            d, t, title = _fmt_event_row(ev, tz_str=LOCAL_TZ)
-            right = ev.get("location") or ""
-            st.markdown(
-                f"<div class='film-row'><div><b>{d}</b> — {t}</div><div class='film-right'>{title}</div></div>",
-                unsafe_allow_html=True,
-            )
+        else:
+            for ev in cal_items:
+                left = f"<b>{ev['when_day']}, {ev['when_date']}</b>" + (f" — {ev['when_time']}" if ev['when_time'] else "")
+                right = f"<a href='{ev['url']}' target='_blank' style='color:var(--brand);text-decoration:none'>{ev['title']}</a>"
+                st.markdown(
+                    f"<div class='film-row'><div>{left}</div><div class='film-right'>{right}</div></div>",
+                    unsafe_allow_html=True
+                )
     st.markdown("</div>", unsafe_allow_html=True)
