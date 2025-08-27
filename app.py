@@ -1502,7 +1502,7 @@ with c3:
                 s, e = ev["start"], ev["end"]
                 if s.date() == e.date():
                     return f"<b>{s.strftime('%a, %b %d')}</b>" + (f" — {s.strftime('%H:%M')}" if (s.hour or s.minute) else "")
-                return f"<b>{s.strftime('%a, %b %d')}</b> → {e.strftime('%a, %b %d')}
+                return f"<b>{s.strftime('%a, %b %d')}</b> → {e.strftime('%a, %b %d')}"
                     
             for ev in cal_items:
                 left = fmt_range(ev)
