@@ -1061,80 +1061,80 @@ def load_upcoming_filming(doc_id: str, worksheet: str = "Filming Integration", l
     if DEBUG: st.info(f"[filming] out={len(out)} (fut={len(fut)} past={len(past)})")
     return out
 
-# ------------ Simple ICS fetch (no icalendar dependency) -------------
-@st.cache_data(ttl=120)
-def _unfold_ics(text: str) -> list[str]:
-    """RFC5545 line folding: continuation lines start with a single space."""
-    out = []
-    for line in text.splitlines():
-        if line.startswith(" ") and out:
-            out[-1] += line[1:]
-        else:
-            out.append(line)
-    return out
-
-def _parse_ics_dt(s: str) -> datetime | None:
-    # Supports: YYYYMMDD (all‑day), YYYYMMDDTHHMMSSZ, YYYYMMDDTHHMMSS
-    try:
-        if len(s) == 8:  # date only
-            dt = datetime.strptime(s, "%Y%m%d")
-            return pytz.UTC.localize(dt)  # treat all‑day as UTC midnight
-        if s.endswith("Z"):
-            dt = datetime.strptime(s[:-1], "%Y%m%dT%H%M%S")
-            return pytz.UTC.localize(dt)
-        # naive → assume UTC
-        dt = datetime.strptime(s, "%Y%m%dT%H%M%S")
-        return pytz.UTC.localize(dt)
-    except Exception:
-        return None
 
 @st.cache_data(ttl=120)
-def fetch_clickup_calendar_events(ics_url: str, limit: int = 8) -> list[dict]:
+def clickup_calendar_events(
+    token: str,
+    list_id: str,
+    limit: int = 8,
+    tz_name: str = LOCAL_TZ_NAME,  # pass a STRING, not a tz object
+):
     """
-    Returns upcoming events as:
-    [{start: datetime, end: datetime|None, summary: str, location: str|"" , url: str|""}, ...]
+    Return upcoming calendar-style events using task start_date + due_date,
+    similar to ClickUp's Calendar view. Includes multi-day spans.
     """
+    headers = {"Authorization": token}
+    url     = f"https://api.clickup.com/api/v2/list/{list_id}/task"
+
+    # We order by start_date so multi-day ranges appear in the same order
+    params = {
+        "archived": "false",
+        "subtasks": "true",
+        "include_closed": "false",
+        "page": 0,
+        "order_by": "start_date",
+        "reverse": "false",
+    }
+
     try:
-        r = requests.get(ics_url, timeout=20)
+        r = requests.get(url, headers=headers, params=params, timeout=20)
         r.raise_for_status()
-        lines = _unfold_ics(r.text)
-
-        events = []
-        cur = {}
-        for line in lines:
-            if line == "BEGIN:VEVENT":
-                cur = {}
-            elif line.startswith("SUMMARY:"):
-                cur["summary"] = line.split(":", 1)[1].strip()
-            elif line.startswith("LOCATION:"):
-                cur["location"] = line.split(":", 1)[1].strip()
-            elif line.startswith("URL:"):
-                cur["url"] = line.split(":", 1)[1].strip()
-            elif line.startswith("DTSTART"):
-                cur["start"] = _parse_ics_dt(line.split(":", 1)[1].strip())
-            elif line.startswith("DTEND"):
-                cur["end"] = _parse_ics_dt(line.split(":", 1)[1].strip())
-            elif line == "END:VEVENT":
-                if cur.get("start") and cur.get("summary"):
-                    events.append(cur)
-
-        # future/upcoming only, sort by start
-        now_utc = datetime.utcnow().replace(tzinfo=pytz.UTC)
-        events = [e for e in events if e["start"] >= now_utc]
-        events.sort(key=lambda e: e["start"])
-        return events[:limit]
+        items = (r.json() or {}).get("tasks", [])
     except Exception as e:
-        st.warning(f"Calendar fetch error: {e}")
-        return []
+        return [], f"ClickUp Calendar API error: {e}"
 
-def _fmt_event_row(ev: dict, tz_str: str = "Asia/Kuala_Lumpur") -> tuple[str, str, str]:
-    tz = pytz.timezone(tz_str)
-    start_local = ev["start"].astimezone(tz)
-    # prefer "Wed, Sep 04 — 10:45"
-    date_txt = start_local.strftime("%a, %b %d")
-    time_txt = start_local.strftime("%H:%M")
-    title = ev.get("summary", "")
-    return date_txt, time_txt, title
+    tz = pytz.timezone(tz_name)
+    now_local = datetime.now(tz)
+
+    events = []
+    for t in items:
+        start_ms = t.get("start_date")
+        end_ms   = t.get("due_date")
+
+        # Accept items that have either start OR end; fall back to whichever exists
+        if not start_ms and not end_ms:
+            continue
+
+        try:
+            if start_ms:
+                start_dt = datetime.utcfromtimestamp(int(start_ms)/1000)\
+                                   .replace(tzinfo=pytz.UTC).astimezone(tz)
+            else:
+                start_dt = datetime.utcfromtimestamp(int(end_ms)/1000)\
+                                   .replace(tzinfo=pytz.UTC).astimezone(tz)
+
+            if end_ms:
+                end_dt = datetime.utcfromtimestamp(int(end_ms)/1000)\
+                                 .replace(tzinfo=pytz.UTC).astimezone(tz)
+            else:
+                end_dt = start_dt
+        except Exception:
+            continue
+
+        # Skip events that fully ended in the past
+        if end_dt < now_local:
+            continue
+
+        events.append({
+            "title": t.get("name", "Untitled"),
+            "url": t.get("url") or "#",
+            "start": start_dt,
+            "end": end_dt,
+        })
+
+    # Sort by start date and cap
+    events.sort(key=lambda e: e["start"])
+    return events[:limit], ""
 
 # =======================
 # Defaults / mocks (safe)
@@ -1483,14 +1483,28 @@ with c3:
     if not cu_token or not cu_list:
         st.markdown("<div class='small'>Add <code>CLICKUP_TOKEN</code> and <code>CLICKUP_LIST_ID</code> in <code>st.secrets</code>.</div>", unsafe_allow_html=True)
     else:
-        cal_items, cal_err = clickup_calendar_next5(cu_token, cu_list, limit=5, tz_name=LOCAL_TZ_NAME)
+        # NEW: calendar events based on start_date + due_date (multi-day supported)
+        cal_items, cal_err = clickup_calendar_events(
+            cu_token, cu_list, limit=8, tz_name=LOCAL_TZ_NAME
+        )
         if cal_err:
             st.markdown(f"<div class='small'>⚠️ {cal_err}</div>", unsafe_allow_html=True)
         elif not cal_items:
             st.markdown("<div class='small'>No upcoming items.</div>", unsafe_allow_html=True)
         else:
+            def fmt_range(ev):
+                s = ev["start"]
+                e = ev["end"]
+                # Same day → show time if available
+                if s.date() == e.date():
+                    left = f"<b>{s.strftime('%a, %b %d')}</b>" + (f" — {s.strftime('%H:%M')}" if (s.hour or s.minute) else "")
+                else:
+                    # Multi-day: show start → end (dates only)
+                    left = f"<b>{s.strftime('%a, %b %d')}</b> → {e.strftime('%a, %b %d')}"
+                return left
+
             for ev in cal_items:
-                left = f"<b>{ev['when_day']}, {ev['when_date']}</b>" + (f" — {ev['when_time']}" if ev['when_time'] else "")
+                left = fmt_range(ev)
                 right = f"<a href='{ev['url']}' target='_blank' style='color:var(--brand);text-decoration:none'>{ev['title']}</a>"
                 st.markdown(
                     f"<div class='film-row'><div>{left}</div><div class='film-right'>{right}</div></div>",
