@@ -782,7 +782,7 @@ from datetime import datetime
 
 @st.cache_data(ttl=120)
 def clickup_calendar_events(token: str, list_id: str, limit: int = 10, tz_name: str = LOCAL_TZ_NAME):
-    """Return upcoming events (using start_date + due_date) to mimic ClickUp Calendar view."""
+    """Return upcoming events from ClickUp List, using start_date/due_date like Calendar view."""
     url = f"https://api.clickup.com/api/v2/list/{list_id}/task"
     headers = {"Authorization": token}
     params = {
@@ -790,8 +790,6 @@ def clickup_calendar_events(token: str, list_id: str, limit: int = 10, tz_name: 
         "subtasks": "true",
         "include_closed": "false",
         "page": 0,
-        "order_by": "start_date",
-        "reverse": "false",
     }
     try:
         r = requests.get(url, headers=headers, params=params, timeout=20)
@@ -817,7 +815,7 @@ def clickup_calendar_events(token: str, list_id: str, limit: int = 10, tz_name: 
             continue
 
         if end_dt < now_local:
-            continue  # skip past events
+            continue
 
         events.append({
             "title": t.get("name", "Untitled"),
@@ -826,10 +824,8 @@ def clickup_calendar_events(token: str, list_id: str, limit: int = 10, tz_name: 
             "end": end_dt,
         })
 
-    # sort by start date
     events.sort(key=lambda e: e["start"])
     return events[:limit], ""
-
 # ---- Google Sheets: Ministry & Filming (READ ONLY) ----------------------------
 import re
 import pandas as pd
