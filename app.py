@@ -780,6 +780,21 @@ def _secret_missing(name: str) -> bool:
 import requests
 from datetime import datetime
 
+@st.cache_data(ttl=600)
+def clickup_find_calendar_view_id(token: str, list_id: str) -> tuple[str|None, str]:
+    """Return the calendar view_id for a List (or None, err_msg)."""
+    url = f"https://api.clickup.com/api/v2/list/{list_id}/view"
+    try:
+        r = requests.get(url, headers={"Authorization": token}, timeout=20)
+        r.raise_for_status()
+        for v in (r.json() or {}).get("views", []):
+            # Prefer explicit type match; fall back to name contains 'calendar'
+            if (v.get("type") == "calendar") or ("calendar" in (v.get("name","").lower())):
+                return v.get("id"), ""
+        return None, "No calendar view found on this List."
+    except Exception as e:
+        return None, f"List views API error: {e}"
+
 @st.cache_data(ttl=120)
 def clickup_calendar_events(token: str, list_id: str, limit: int = 10, tz_name: str = LOCAL_TZ_NAME):
     """Return upcoming events (using start_date + due_date) to mimic ClickUp Calendar view."""
@@ -1489,32 +1504,34 @@ with c2:
 with c3:
     st.markdown("<div class='card'><div class='section'>ClickUp Calendar</div>", unsafe_allow_html=True)
     cu_token, cu_list = _get_clickup_creds()
-    view_id = (st.secrets.get("clickup", {}) or {}).get("view_id") or st.secrets.get("CLICKUP_VIEW_ID")
 
-    if not cu_token or not view_id:
-        st.markdown("<div class='small'>Add <code>CLICKUP_TOKEN</code> and <code>CLICKUP_VIEW_ID</code> in <code>st.secrets</code>.</div>", unsafe_allow_html=True)
+    if not cu_token or not cu_list:
+        st.markdown("<div class='small'>Add <code>CLICKUP_TOKEN</code> and <code>CLICKUP_LIST_ID</code> in <code>st.secrets</code>.</div>", unsafe_allow_html=True)
     else:
-        cal_items, cal_err = clickup_calendar_events_from_view(
-            cu_token, view_id, limit=12, tz_name=LOCAL_TZ_NAME
-        )
-        if cal_err:
-            st.markdown(f"<div class='small'>⚠️ {cal_err}</div>", unsafe_allow_html=True)
-        elif not cal_items:
-            st.markdown("<div class='small'>No upcoming items.</div>", unsafe_allow_html=True)
+        # 1) find the real calendar view_id dynamically
+        view_id, v_err = clickup_find_calendar_view_id(cu_token, cu_list)
+        if v_err:
+            st.markdown(f"<div class='small'>⚠️ {v_err}</div>", unsafe_allow_html=True)
+        elif not view_id:
+            st.markdown("<div class='small'>No calendar view found.</div>", unsafe_allow_html=True)
         else:
-            def fmt_range(ev):
-                s, e = ev["start"], ev["end"]
-                if s.date() == e.date():
-                    left = f"<b>{s.strftime('%a, %b %d')}</b>" + (f" — {s.strftime('%H:%M')}" if (s.hour or s.minute) else "")
-                else:
-                    left = f"<b>{s.strftime('%a, %b %d')}</b> → {e.strftime('%a, %b %d')}"
-                return left
+            # 2) pull events from that view (no server-side ordering)
+            cal_items, cal_err = clickup_calendar_events_from_view(
+                cu_token, view_id, limit=12, tz_name=LOCAL_TZ_NAME
+            )
+            if cal_err:
+                st.markdown(f"<div class='small'>⚠️ {cal_err}</div>", unsafe_allow_html=True)
+            elif not cal_items:
+                st.markdown("<div class='small'>No upcoming items.</div>", unsafe_allow_html=True)
+            else:
+                def fmt_range(ev):
+                    s, e = ev["start"], ev["end"]
+                    if s.date() == e.date():
+                        return f"<b>{s.strftime('%a, %b %d')}</b>" + (f" — {s.strftime('%H:%M')}" if (s.hour or s.minute) else "")
+                    return f"<b>{s.strftime('%a, %b %d')}</b> → {e.strftime('%a, %b %d')}"
+                for ev in cal_items:
+                    left = fmt_range(ev)
+                    right = f"<a href='{ev['url']}' target='_blank' style='color:var(--brand);text-decoration:none'>{ev['title']}</a>"
+                    st.markdown(f"<div class='film-row'><div>{left}</div><div class='film-right'>{right}</div></div>", unsafe_allow_html=True)
 
-            for ev in cal_items:
-                left = fmt_range(ev)
-                right = f"<a href='{ev['url']}' target='_blank' style='color:var(--brand);text-decoration:none'>{ev['title']}</a>"
-                st.markdown(
-                    f"<div class='film-row'><div>{left}</div><div class='film-right'>{right}</div></div>",
-                    unsafe_allow_html=True
-                )
     st.markdown("</div>", unsafe_allow_html=True)
