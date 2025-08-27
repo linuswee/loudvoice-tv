@@ -1057,76 +1057,40 @@ def load_upcoming_filming(doc_id: str, worksheet: str = "Filming Integration", l
     if DEBUG: st.info(f"[filming] out={len(out)} (fut={len(fut)} past={len(past)})")
     return out
 
-
 @st.cache_data(ttl=120)
-def clickup_calendar_events_from_view(
-    token: str,
-    view_id: str,
-    limit: int = 12,
-    tz_name: str = LOCAL_TZ_NAME,  # pass a STRING, not a tz object
-):
-    """
-    Mirror the ClickUp Calendar view by pulling tasks from a specific VIEW.
-    Handles multi-day spans using start_date + due_date. Skips fully past items.
-    """
-    import math
+def clickup_calendar_events(token: str, list_id: str, limit: int = 10, tz_name: str = LOCAL_TZ_NAME):
+    """Return upcoming events from ClickUp List, using start_date/due_date like Calendar view."""
+    url = f"https://api.clickup.com/api/v2/list/{list_id}/task"
     headers = {"Authorization": token}
-    base = f"https://api.clickup.com/api/v2/view/{view_id}/task"
+    params = {
+        "archived": "false",
+        "subtasks": "true",
+        "include_closed": "false",
+        "page": 0,
+    }
+    try:
+        r = requests.get(url, headers=headers, params=params, timeout=20)
+        r.raise_for_status()
+        items = (r.json() or {}).get("tasks", [])
+    except Exception as e:
+        return [], f"ClickUp Calendar API error: {e}"
 
     tz = pytz.timezone(tz_name)
     now_local = datetime.now(tz)
 
-    all_items = []
-    page = 0
-    per_page = 100  # ClickUp defaults to 100; we'll loop until we stop getting results
-
-    while True:
-        params = {
-            "include_closed": "false",
-            "subtasks": "true",
-            "page": page,
-            # NOTE: we don't set order_by (server can 500 on start_date). We'll sort client-side.
-        }
-        try:
-            r = requests.get(base, headers=headers, params=params, timeout=25)
-            r.raise_for_status()
-            items = (r.json() or {}).get("tasks", [])
-        except Exception as e:
-            return [], f"ClickUp View API error: {e}"
-
-        if not items:
-            break
-
-        all_items.extend(items)
-        # stop if fewer than a full page came back
-        if len(items) < per_page:
-            break
-        page += 1
-        if len(all_items) >= 500:  # sanity cap
-            break
-
     events = []
-    for t in all_items:
+    for t in items:
         start_ms = t.get("start_date")
-        end_ms   = t.get("due_date")
-
-        if not start_ms and not end_ms:
+        end_ms   = t.get("due_date") or start_ms
+        if not start_ms:
             continue
 
         try:
-            if start_ms:
-                start_dt = datetime.utcfromtimestamp(int(start_ms)/1000).replace(tzinfo=pytz.UTC).astimezone(tz)
-            else:
-                start_dt = datetime.utcfromtimestamp(int(end_ms)/1000).replace(tzinfo=pytz.UTC).astimezone(tz)
-
-            if end_ms:
-                end_dt = datetime.utcfromtimestamp(int(end_ms)/1000).replace(tzinfo=pytz.UTC).astimezone(tz)
-            else:
-                end_dt = start_dt
+            start_dt = datetime.utcfromtimestamp(int(start_ms)/1000).replace(tzinfo=pytz.UTC).astimezone(tz)
+            end_dt   = datetime.utcfromtimestamp(int(end_ms)/1000).replace(tzinfo=pytz.UTC).astimezone(tz)
         except Exception:
             continue
 
-        # Skip events that fully ended
         if end_dt < now_local:
             continue
 
@@ -1137,8 +1101,7 @@ def clickup_calendar_events_from_view(
             "end": end_dt,
         })
 
-    # Sort by start time (client-side), then trim
-    events.sort(key=lambda e: (e["start"], e["end"]))
+    events.sort(key=lambda e: e["start"])
     return events[:limit], ""
 
 # =======================
@@ -1491,7 +1454,7 @@ with c3:
     else:
          # 2) pull events from that view (no server-side ordering)
         cal_items, cal_err = clickup_calendar_events(
-            cu_token, view_id, limit=12, tz_name=LOCAL_TZ_NAME
+            cu_token, limit=12, tz_name=LOCAL_TZ_NAME
         )
         if cal_err:
             st.markdown(f"<div class='small'>⚠️ {cal_err}</div>", unsafe_allow_html=True)
