@@ -1063,65 +1063,74 @@ def load_upcoming_filming(doc_id: str, worksheet: str = "Filming Integration", l
 
 
 @st.cache_data(ttl=120)
-def clickup_calendar_events(
+def clickup_calendar_events_from_view(
     token: str,
-    list_id: str,
-    limit: int = 8,
+    view_id: str,
+    limit: int = 12,
     tz_name: str = LOCAL_TZ_NAME,  # pass a STRING, not a tz object
 ):
     """
-    Return upcoming calendar-style events using task start_date + due_date,
-    similar to ClickUp's Calendar view. Includes multi-day spans.
+    Mirror the ClickUp Calendar view by pulling tasks from a specific VIEW.
+    Handles multi-day spans using start_date + due_date. Skips fully past items.
     """
+    import math
     headers = {"Authorization": token}
-    url     = f"https://api.clickup.com/api/v2/list/{list_id}/task"
-
-    # We order by start_date so multi-day ranges appear in the same order
-    params = {
-        "archived": "false",
-        "subtasks": "true",
-        "include_closed": "false",
-        "page": 0,
-        "order_by": "start_date",
-        "reverse": "false",
-    }
-
-    try:
-        r = requests.get(url, headers=headers, params=params, timeout=20)
-        r.raise_for_status()
-        items = (r.json() or {}).get("tasks", [])
-    except Exception as e:
-        return [], f"ClickUp Calendar API error: {e}"
+    base = f"https://api.clickup.com/api/v2/view/{view_id}/task"
 
     tz = pytz.timezone(tz_name)
     now_local = datetime.now(tz)
 
+    all_items = []
+    page = 0
+    per_page = 100  # ClickUp defaults to 100; we'll loop until we stop getting results
+
+    while True:
+        params = {
+            "include_closed": "false",
+            "subtasks": "true",
+            "page": page,
+            # NOTE: we don't set order_by (server can 500 on start_date). We'll sort client-side.
+        }
+        try:
+            r = requests.get(base, headers=headers, params=params, timeout=25)
+            r.raise_for_status()
+            items = (r.json() or {}).get("tasks", [])
+        except Exception as e:
+            return [], f"ClickUp View API error: {e}"
+
+        if not items:
+            break
+
+        all_items.extend(items)
+        # stop if fewer than a full page came back
+        if len(items) < per_page:
+            break
+        page += 1
+        if len(all_items) >= 500:  # sanity cap
+            break
+
     events = []
-    for t in items:
+    for t in all_items:
         start_ms = t.get("start_date")
         end_ms   = t.get("due_date")
 
-        # Accept items that have either start OR end; fall back to whichever exists
         if not start_ms and not end_ms:
             continue
 
         try:
             if start_ms:
-                start_dt = datetime.utcfromtimestamp(int(start_ms)/1000)\
-                                   .replace(tzinfo=pytz.UTC).astimezone(tz)
+                start_dt = datetime.utcfromtimestamp(int(start_ms)/1000).replace(tzinfo=pytz.UTC).astimezone(tz)
             else:
-                start_dt = datetime.utcfromtimestamp(int(end_ms)/1000)\
-                                   .replace(tzinfo=pytz.UTC).astimezone(tz)
+                start_dt = datetime.utcfromtimestamp(int(end_ms)/1000).replace(tzinfo=pytz.UTC).astimezone(tz)
 
             if end_ms:
-                end_dt = datetime.utcfromtimestamp(int(end_ms)/1000)\
-                                 .replace(tzinfo=pytz.UTC).astimezone(tz)
+                end_dt = datetime.utcfromtimestamp(int(end_ms)/1000).replace(tzinfo=pytz.UTC).astimezone(tz)
             else:
                 end_dt = start_dt
         except Exception:
             continue
 
-        # Skip events that fully ended in the past
+        # Skip events that fully ended
         if end_dt < now_local:
             continue
 
@@ -1132,8 +1141,8 @@ def clickup_calendar_events(
             "end": end_dt,
         })
 
-    # Sort by start date and cap
-    events.sort(key=lambda e: e["start"])
+    # Sort by start time (client-side), then trim
+    events.sort(key=lambda e: (e["start"], e["end"]))
     return events[:limit], ""
 
 # =======================
@@ -1480,12 +1489,13 @@ with c2:
 with c3:
     st.markdown("<div class='card'><div class='section'>ClickUp Calendar</div>", unsafe_allow_html=True)
     cu_token, cu_list = _get_clickup_creds()
-    if not cu_token or not cu_list:
-        st.markdown("<div class='small'>Add <code>CLICKUP_TOKEN</code> and <code>CLICKUP_LIST_ID</code> in <code>st.secrets</code>.</div>", unsafe_allow_html=True)
+    view_id = (st.secrets.get("clickup", {}) or {}).get("view_id") or st.secrets.get("CLICKUP_VIEW_ID")
+
+    if not cu_token or not view_id:
+        st.markdown("<div class='small'>Add <code>CLICKUP_TOKEN</code> and <code>CLICKUP_VIEW_ID</code> in <code>st.secrets</code>.</div>", unsafe_allow_html=True)
     else:
-        # NEW: calendar events based on start_date + due_date (multi-day supported)
-        cal_items, cal_err = clickup_calendar_events(
-            cu_token, cu_list, limit=8, tz_name=LOCAL_TZ_NAME
+        cal_items, cal_err = clickup_calendar_events_from_view(
+            cu_token, view_id, limit=12, tz_name=LOCAL_TZ_NAME
         )
         if cal_err:
             st.markdown(f"<div class='small'>⚠️ {cal_err}</div>", unsafe_allow_html=True)
@@ -1493,13 +1503,10 @@ with c3:
             st.markdown("<div class='small'>No upcoming items.</div>", unsafe_allow_html=True)
         else:
             def fmt_range(ev):
-                s = ev["start"]
-                e = ev["end"]
-                # Same day → show time if available
+                s, e = ev["start"], ev["end"]
                 if s.date() == e.date():
                     left = f"<b>{s.strftime('%a, %b %d')}</b>" + (f" — {s.strftime('%H:%M')}" if (s.hour or s.minute) else "")
                 else:
-                    # Multi-day: show start → end (dates only)
                     left = f"<b>{s.strftime('%a, %b %d')}</b> → {e.strftime('%a, %b %d')}"
                 return left
 
