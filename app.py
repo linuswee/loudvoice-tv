@@ -781,22 +781,16 @@ import requests
 from datetime import datetime
 
 @st.cache_data(ttl=120)
-def clickup_calendar_next5(
-    token: str, 
-    list_id: str,
-    limit: int = 5,
-    tz_name: str = LOCAL_TZ_NAME,   # ← type is str, default is the string
-):
-    """Return up to `limit` upcoming tasks with a due date, sorted soonest-first."""
+def clickup_calendar_events(token: str, list_id: str, limit: int = 10, tz_name: str = LOCAL_TZ_NAME):
+    """Return upcoming events (using start_date + due_date) to mimic ClickUp Calendar view."""
     url = f"https://api.clickup.com/api/v2/list/{list_id}/task"
     headers = {"Authorization": token}
-    # Pull a couple pages of tasks and we’ll filter client-side
     params = {
         "archived": "false",
         "subtasks": "true",
         "include_closed": "false",
         "page": 0,
-        "order_by": "due_date",
+        "order_by": "start_date",
         "reverse": "false",
     }
     try:
@@ -804,45 +798,37 @@ def clickup_calendar_next5(
         r.raise_for_status()
         items = (r.json() or {}).get("tasks", [])
     except Exception as e:
-        return [], f"ClickUp Calendar error: {e}"
+        return [], f"ClickUp Calendar API error: {e}"
 
-    # Now → local midnight for comparisons
     tz = pytz.timezone(tz_name)
     now_local = datetime.now(tz)
 
-    upcoming = []
+    events = []
     for t in items:
-        due_ms = t.get("due_date")
-        if not due_ms:
-            continue  # skip items without a due date
+        start_ms = t.get("start_date")
+        end_ms   = t.get("due_date") or start_ms
+        if not start_ms:
+            continue
+
         try:
-            due_dt = datetime.utcfromtimestamp(int(due_ms)/1000).replace(tzinfo=pytz.UTC).astimezone(tz)
+            start_dt = datetime.utcfromtimestamp(int(start_ms)/1000).replace(tzinfo=pytz.UTC).astimezone(tz)
+            end_dt   = datetime.utcfromtimestamp(int(end_ms)/1000).replace(tzinfo=pytz.UTC).astimezone(tz)
         except Exception:
             continue
-        if due_dt < now_local:
-            continue  # keep only future
 
-        name = t.get("name", "Untitled")
-        status_hex = (t.get("status") or {}).get("color") or "#ffd54a"
-        url_ = t.get("url") or "#"
+        if end_dt < now_local:
+            continue  # skip past events
 
-        # Nice labels
-        day_str  = due_dt.strftime("%a")
-        date_str = due_dt.strftime("%b %d")
-        time_str = due_dt.strftime("%H:%M") if due_dt.hour or due_dt.minute else ""
-
-        upcoming.append({
-            "when_day": day_str,
-            "when_date": date_str,
-            "when_time": time_str,
-            "title": name,
-            "url": url_,
-            "status_hex": status_hex,
-            "due_dt": due_dt,
+        events.append({
+            "title": t.get("name", "Untitled"),
+            "url": t.get("url") or "#",
+            "start": start_dt,
+            "end": end_dt,
         })
 
-    upcoming.sort(key=lambda x: x["due_dt"])
-    return upcoming[:limit], ""
+    # sort by start date
+    events.sort(key=lambda e: e["start"])
+    return events[:limit], ""
 
 # ---- Google Sheets: Ministry & Filming (READ ONLY) ----------------------------
 import re
