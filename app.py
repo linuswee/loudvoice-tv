@@ -1499,7 +1499,7 @@ with c3:
     st.markdown("<div class='card'><div class='section'>ClickUp Calendar</div>", unsafe_allow_html=True)
     cu_token, cu_list, cu_view = _get_clickup_ids()
     if DEBUG and cu_view:
-    _debug_clickup_view(cu_token, cu_view)
+        _debug_clickup_view(cu_token, cu_view)
 
     if not cu_token or not (cu_view or cu_list):
         st.markdown("<div class='small'>Add <code>CLICKUP_TOKEN</code> and either <code>CLICKUP_VIEW_ID</code> (preferred) or <code>CLICKUP_LIST_ID</code> in <code>st.secrets</code>.</div>", unsafe_allow_html=True)
