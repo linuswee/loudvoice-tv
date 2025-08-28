@@ -60,7 +60,7 @@ st.markdown("""
 /* ========== LOUDVOICE — minimal, unified CSS ========== */
 /* ... your same CSS ... */
 .kpi-head{ display:flex; align-items:center; gap:8px; margin-bottom:4px; }
-.icon{ font-size:14px; }   /* add this so the FA glyph has a size */
+.icon{ font-size:15px; }   /* add this so the FA glyph has a size */
 </style>
 """, unsafe_allow_html=True)
 
@@ -112,7 +112,7 @@ HIDE_CB = qp.get("legend", ["1"])[0].lower() in ("0","false","no")  # legend=0 h
 MAP_H_QP = qp.get("map_h", [""])[0]
 MAP_H_QP = int(MAP_H_QP) if MAP_H_QP.isdigit() else None
 
-ZOOM = qp.get("zoom", ["100"])[0]
+ZOOM = qp.get("zoom", ["80"])[0]   # default 80%; override with ?zoom=100 if needed
 COMPACT = qp.get("compact", ["0"])[0].lower() in ("1", "true", "yes")
 # QoL: force clear all Streamlit caches via ?clear_cache=1
 if qp.get("clear_cache", ["0"])[0] in ("1","true","yes"):
@@ -150,27 +150,43 @@ div[data-testid="stToolbar"],
 div[data-testid="stDecoration"],
 #MainMenu, footer{ display:none!important; }
 
+/* make columns stretch edge-to-edge in any horizontal blocks */
 div[data-testid="stAppViewContainer"] > .main,
 section.main,
 section.main > div.block-container,
 div[data-testid="stHorizontalBlock"]{
-  padding-top:0!important; margin-top:0!important;
+  padding-top:0!important;
+  margin-top:0!important;
 }
 
-.block-container{ max-width:1820px; padding:8px var(--pad) 10px; }
+/* use full browser width + tighter side padding */
+.block-container{
+  max-width: 100vw;              /* was 1820px */
+  padding: 8px 12px 10px;        /* was: 8px var(--pad) 10px */
+}
 
 /* ---- Logo size (desktop → mobile) ---- */
 .lv-logo{ width:40px; height:auto; }
 
 /* ---- Typography ---- */
-.title{
+.title{                /* app title */
   color:var(--brand);
-  font-weight:900; font-size:34px; letter-spacing:.12em;
-  margin:0 0 6px 0!important;         /* (fixed typo: keep the semicolon) */
+  font-weight:900;
+  font-size:38px;      /* was 34px */
+  letter-spacing:.12em;
+  margin:0 0 6px 0!important;
 }
 .timestamp{ color:var(--brand); font-size:12px; font-weight:700; text-align:right; }
-.section{ color:var(--brand); font-weight:800; font-size:15px; margin:0 0 8px 0; }
-.small{ font-size:12px; color:#9aa3bd; }
+.section{              /* card headers */
+  color:var(--brand);
+  font-weight:800;
+  font-size:16px;      /* was 15px */
+  margin:0 0 8px 0;
+}
+.small{                /* helper text */
+  font-size:13px;      /* was 12px */
+  color:#9aa3bd;
+}
 
 /* ---- Card primitives ---- */
 .card{
@@ -183,18 +199,18 @@ div[data-testid="stHorizontalBlock"]{
 .mini-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
 .mini-card{ background:var(--card-bg); border:1px solid var(--card-bd); border-radius:10px; padding:8px 10px; text-align:center; }
 .mini-label{ font-size:11px; color:var(--ink-dim); margin:0; }
-.mini-value{ font-size:22px; font-weight:800; margin:2px 0 0; }
+.mini-value{ font-size:24px; font-weight:800; margin:2px 0 0; }
 
 /* ---- KPI cards ---- */
 .kpi-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
 .kpi-card{ background:var(--card-bg); border:1px solid var(--card-bd); border-radius:10px; padding:10px 12px; }
 .kpi-head{ display:flex; align-items:center; gap:8px; margin-bottom:4px; }
-.kpi-name{ font-size:14px; font-weight:800; }
-.kpi-label{ font-size:10px; color:var(--ink-dim); margin:0; }
-.kpi-value{ font-size:18px; font-weight:800; margin:0; }
+.kpi-name{ font-size:15px; font-weight:800; }
+.kpi-label{ font-size:11px; color:var(--ink-dim); margin:0; }
+.kpi-value{ font-size:20px; font-weight:800; margin:0; }
 
 /* ---- Bars (7‑day views + task progress) ---- */
-.grid-views{ display:grid; grid-template-columns:56px 1fr 76px; gap:10px; align-items:center; margin:4px 0; }
+.grid-views{ display:grid; grid-template-columns:64px 1fr 76px; gap:10px; align-items:center; margin:4px 0; }
 .views-bar{ height:10px; border-radius:6px; background:#1f2736; overflow:hidden; }
 .views-bar>span{ display:block; height:100%; background:#4aa3ff; }
 
@@ -233,7 +249,7 @@ section.main > div.block-container > :first-child{ margin-top:0!important; }
 
 DAYS_FOR_MAP = 28                # 28‑day country map window
 # Default 600 desktop, tighter on phones; allow ?map_h=### to override
-MAP_HEIGHT = MAP_H_QP or (340 if COMPACT else 600)
+MAP_HEIGHT = MAP_H_QP or (360 if COMPACT else 620)
 
 def embed_img_b64(path: str) -> str:
     return base64.b64encode(Path(path).read_bytes()).decode("utf-8")
