@@ -1104,6 +1104,14 @@ def clickup_calendar_events(token: str, list_id: str, limit: int = 10, tz_name: 
     events.sort(key=lambda e: e["start"])
     return events[:limit], ""
 
+# --- helpers to get ids cleanly
+def _get_clickup_ids():
+    sect = st.secrets.get("clickup", {}) or {}
+    token   = (sect.get("token")   or st.secrets.get("CLICKUP_TOKEN")   or "").strip()
+    list_id = (sect.get("list_id") or st.secrets.get("CLICKUP_LIST_ID") or "").strip()
+    view_id = (sect.get("view_id") or st.secrets.get("CLICKUP_VIEW_ID") or "").strip()
+    return token, list_id, view_id
+
 # =======================
 # Defaults / mocks (safe)
 # =======================
@@ -1447,15 +1455,31 @@ with c2:
 
 with c3:
     st.markdown("<div class='card'><div class='section'>ClickUp Calendar</div>", unsafe_allow_html=True)
-    cu_token, cu_list = _get_clickup_creds()
+    cu_token, cu_list, cu_view = _get_clickup_ids()
 
-    if not cu_token or not cu_list:
-        st.markdown("<div class='small'>Add <code>CLICKUP_TOKEN</code> and <code>CLICKUP_LIST_ID</code> in <code>st.secrets</code>.</div>", unsafe_allow_html=True)
+    if not cu_token or not (cu_view or cu_list):
+        st.markdown("<div class='small'>Add <code>CLICKUP_TOKEN</code> and either <code>CLICKUP_VIEW_ID</code> (preferred) or <code>CLICKUP_LIST_ID</code> in <code>st.secrets</code>.</div>", unsafe_allow_html=True)
     else:
-         # 2) pull events from that view (no server-side ordering)
-        cal_items, cal_err = clickup_calendar_events(
-            cu_token, limit=12, tz_name=LOCAL_TZ_NAME
-        )
+        cal_items, cal_err = ([], "")
+        used = ""
+
+        if cu_view:
+            cal_items, cal_err = clickup_calendar_events_from_view(
+                cu_token, cu_view, limit=12, tz_name=LOCAL_TZ_NAME
+            )
+            used = f"view:{cu_view}"
+            # If the view endpoint 404s (very common when the id is wrong),
+            # fall back to list pull so the UI still shows something.
+            if cal_err and "404" in cal_err:
+                st.info("View ID returned 404. Falling back to list-based calendar.", icon="ℹ️")
+                cu_view = ""  # disable for this run
+
+        if not cu_view and cu_list and (not cal_items):
+            cal_items, cal_err = clickup_calendar_events(
+                cu_token, cu_list, limit=12, tz_name=LOCAL_TZ_NAME
+            )
+            used = f"list:{cu_list}" if not used else used + f" → list:{cu_list}"
+
         if cal_err:
             st.markdown(f"<div class='small'>⚠️ {cal_err}</div>", unsafe_allow_html=True)
         elif not cal_items:
@@ -1463,10 +1487,7 @@ with c3:
         else:
             def fmt_range(ev):
                 s, e = ev["start"], ev["end"]
-                if s.date() == e.date():
-                    return f"<b>{s.strftime('%a, %b %d')}</b>" + (f" — {s.strftime('%H:%M')}" if (s.hour or s.minute) else "")
-                return f"<b>{s.strftime('%a, %b %d')}</b> → {e.strftime('%a, %b %d')}"
-                    
+                return f"<b>{s.strftime('%a, %b %d')}</b>" + (f" — {s.strftime('%H:%M')}" if s.date()==e.date() and (s.hour or s.minute) else f" → {e.strftime('%a, %b %d')}")
             for ev in cal_items:
                 left = fmt_range(ev)
                 right = f"<a href='{ev['url']}' target='_blank' style='color:var(--brand);text-decoration:none'>{ev['title']}</a>"
