@@ -848,26 +848,6 @@ def clickup_calendar_events_from_view(
     events.sort(key=lambda e: (e["start"], e["end"]))
     return events[:limit], ""
 
-def _debug_clickup_view(token: str, view_id: str):
-    try:
-        r = requests.get(
-            f"https://api.clickup.com/api/v2/view/{view_id}",
-            headers={"Authorization": token},
-            timeout=15
-        )
-        st.write("View probe status:", r.status_code)
-        if r.status_code == 200:
-            j = r.json() or {}
-            st.write({
-                "name": j.get("name"),
-                "type": (j.get("type") or {}).get("name") if isinstance(j.get("type"), dict) else j.get("type"),
-                "protected": j.get("protected"),
-            })
-        else:
-            st.write("Body:", r.text[:400])
-    except Exception as e:
-        st.write("Probe error:", e)
-
 # ---- Google Sheets: Ministry & Filming (READ ONLY) ----------------------------
 import re
 import pandas as pd
@@ -1498,8 +1478,6 @@ with c2:
 with c3:
     st.markdown("<div class='card'><div class='section'>ClickUp Calendar</div>", unsafe_allow_html=True)
     cu_token, cu_list, cu_view = _get_clickup_ids()
-    if DEBUG and cu_view:
-        _debug_clickup_view(cu_token, cu_view)
 
     if not cu_token or not (cu_view or cu_list):
         st.markdown("<div class='small'>Add <code>CLICKUP_TOKEN</code> and either <code>CLICKUP_VIEW_ID</code> (preferred) or <code>CLICKUP_LIST_ID</code> in <code>st.secrets</code>.</div>", unsafe_allow_html=True)
