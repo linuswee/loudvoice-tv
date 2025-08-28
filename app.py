@@ -121,14 +121,13 @@ if qp.get("clear_cache", ["0"])[0] in ("1","true","yes"):
 
 # Optional debug panel via ?debug=1
 DEBUG = qp.get("debug", ["0"])[0].lower() in ("1","true","yes")
-st.markdown(f"<style>body{{zoom:{ZOOM}%}}</style>", unsafe_allow_html=True)
 
 # -------------------------------
 # Styles
 # -------------------------------
 st.markdown("""
 <style>
-/* ========== LOUDVOICE — unified CSS (full-width + clearer at 80%) ========== */
+/* ========== LOUDVOICE — unified CSS (full-width, no zoom, no bottom gap) ========== */
 
 /* ---- Theme tokens ---- */
 :root{
@@ -150,15 +149,18 @@ div[data-testid="stToolbar"],
 div[data-testid="stDecoration"],
 #MainMenu, footer{ display:none!important; }
 
-/* ---- FULL-WIDTH OVERRIDES (remove the centered frame) ---- */
+/* ---- FULL-WIDTH & HEIGHT (remove centered frame + bottom black bar) ---- */
 div[data-testid="stAppViewContainer"] > .main{
   max-width:100vw!important;
   padding-left:0!important; padding-right:0!important;
+  overflow: visible!important;                 /* allow content to extend */
 }
+section.main{ overflow: visible!important; }
 section.main > div.block-container{
   max-width:100vw!important;
-  padding:8px 12px 10px!important;   /* small gutter */
+  padding:8px 12px 10px!important;             /* slim side gutters */
   margin-left:0!important; margin-right:0!important;
+  min-height:100vh!important;                  /* fill page height */
 }
 
 /* Make horizontal block rows truly stretch */
@@ -171,7 +173,7 @@ section.main > div.block-container > div:has(> div[data-testid="stHorizontalBloc
   width:auto!important;
 }
 
-/* ---- General spacing reset ---- */
+/* ---- Spacing reset ---- */
 div[data-testid="stAppViewContainer"] > .main,
 section.main,
 section.main > div.block-container,
@@ -182,11 +184,11 @@ div[data-testid="stHorizontalBlock"]{
 /* ---- Logo ---- */
 .lv-logo{ width:40px; height:auto; }
 
-/* ---- Typography (slightly larger for clarity at 80% zoom) ---- */
+/* ---- Typography (clear at “80% look” without using zoom) ---- */
 .title{
   color:var(--brand);
   font-weight:900;
-  font-size:38px;           /* was 34 */
+  font-size:38px;                    /* slightly larger for clarity */
   letter-spacing:.12em;
   margin:0 0 6px 0!important;
 }
@@ -194,18 +196,15 @@ div[data-testid="stHorizontalBlock"]{
 .section{
   color:var(--brand);
   font-weight:800;
-  font-size:16px;           /* was 15 */
+  font-size:16px;
   margin:0 0 8px 0;
 }
-.small{ font-size:13px; color:#9aa3bd; }  /* was 12 */
+.small{ font-size:13px; color:#9aa3bd; }
 
 /* ---- Cards ---- */
 .card{
-  background:var(--card-bg);
-  border:1px solid var(--card-bd);
-  border-radius:var(--radius);
-  padding:10px 14px;
-  margin-bottom:10px;
+  background:var(--card-bg); border:1px solid var(--card-bd);
+  border-radius:var(--radius); padding:10px 14px; margin-bottom:10px;
   box-shadow:var(--shadow);
 }
 
