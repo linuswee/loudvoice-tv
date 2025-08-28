@@ -781,36 +781,63 @@ import requests
 from datetime import datetime
 
 @st.cache_data(ttl=120)
-def clickup_calendar_events(token: str, list_id: str, limit: int = 10, tz_name: str = LOCAL_TZ_NAME):
-    """Return upcoming events from ClickUp List, using start_date/due_date like Calendar view."""
-    url = f"https://api.clickup.com/api/v2/list/{list_id}/task"
+def clickup_calendar_events_from_view(
+    token: str,
+    view_id: str,
+    limit: int = 12,
+    tz_name: str = LOCAL_TZ_NAME,
+):
+    """
+    Pull tasks from a specific ClickUp *View* (e.g., your Calendar view).
+    Handles multi-day spans via start_date + due_date. Skips fully past items.
+    Returns (events, error_message). On HTTP errors, error_message contains details.
+    """
     headers = {"Authorization": token}
-    params = {
-        "archived": "false",
-        "subtasks": "true",
-        "include_closed": "false",
-        "page": 0,
-    }
-    try:
-        r = requests.get(url, headers=headers, params=params, timeout=20)
-        r.raise_for_status()
-        items = (r.json() or {}).get("tasks", [])
-    except Exception as e:
-        return [], f"ClickUp Calendar API error: {e}"
+    base = f"https://api.clickup.com/api/v2/view/{view_id}/task"
 
     tz = pytz.timezone(tz_name)
     now_local = datetime.now(tz)
 
+    all_items = []
+    page = 0
+    per_page = 100
+
+    while True:
+        params = {
+            "include_closed": "false",
+            "subtasks": "true",
+            "page": page,
+            # don’t set order_by (server sometimes 500s on start_date); sort client-side
+        }
+        try:
+            r = requests.get(base, headers=headers, params=params, timeout=25)
+            r.raise_for_status()
+            items = (r.json() or {}).get("tasks", [])
+        except Exception as e:
+            return [], f"ClickUp View API error: {e}"
+
+        if not items:
+            break
+
+        all_items.extend(items)
+        if len(items) < per_page or len(all_items) >= 500:
+            break
+        page += 1
+
     events = []
-    for t in items:
+    for t in all_items:
         start_ms = t.get("start_date")
-        end_ms   = t.get("due_date") or start_ms
-        if not start_ms:
+        end_ms   = t.get("due_date")
+
+        if not start_ms and not end_ms:
             continue
 
         try:
-            start_dt = datetime.utcfromtimestamp(int(start_ms)/1000).replace(tzinfo=pytz.UTC).astimezone(tz)
-            end_dt   = datetime.utcfromtimestamp(int(end_ms)/1000).replace(tzinfo=pytz.UTC).astimezone(tz)
+            if start_ms:
+                start_dt = datetime.utcfromtimestamp(int(start_ms)/1000).replace(tzinfo=pytz.UTC).astimezone(tz)
+            else:
+                start_dt = datetime.utcfromtimestamp(int(end_ms)/1000).replace(tzinfo=pytz.UTC).astimezone(tz)
+            end_dt = datetime.utcfromtimestamp(int((end_ms or start_ms))/1000).replace(tzinfo=pytz.UTC).astimezone(tz)
         except Exception:
             continue
 
@@ -824,8 +851,9 @@ def clickup_calendar_events(token: str, list_id: str, limit: int = 10, tz_name: 
             "end": end_dt,
         })
 
-    events.sort(key=lambda e: e["start"])
+    events.sort(key=lambda e: (e["start"], e["end"]))
     return events[:limit], ""
+
 # ---- Google Sheets: Ministry & Filming (READ ONLY) ----------------------------
 import re
 import pandas as pd
