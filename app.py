@@ -1489,12 +1489,6 @@ with c3:
             cal_items, cal_err = clickup_calendar_events_from_view(
                 cu_token, cu_view, limit=12, tz_name=LOCAL_TZ_NAME
             )
-            # after fetching cal_items, cal_err
-            st.write("Calendar source:", used)          # shows view:<id> or list:<id>
-            st.write("Items fetched:", len(cal_items))  # how many
-            if cal_items:
-                st.write([{"title": e["title"], "start": e["start"], "end": e["end"]} for e in cal_items[:5]])
-            used = f"view:{cu_view}"
             # If the view endpoint 404s (very common when the id is wrong),
             # fall back to list pull so the UI still shows something.
             if cal_err and "404" in cal_err:
