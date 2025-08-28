@@ -128,9 +128,9 @@ st.markdown(f"<style>body{{zoom:{ZOOM}%}}</style>", unsafe_allow_html=True)
 # -------------------------------
 st.markdown("""
 <style>
-/* ========== LOUDVOICE — minimal, unified CSS ========== */
+/* ========== LOUDVOICE — unified CSS (full-width + clearer at 80%) ========== */
 
-/* ---- Theme tokens (easy to tweak) ---- */
+/* ---- Theme tokens ---- */
 :root{
   --bg:#0b0f16;
   --ink:#eef3ff;
@@ -150,52 +150,66 @@ div[data-testid="stToolbar"],
 div[data-testid="stDecoration"],
 #MainMenu, footer{ display:none!important; }
 
-/* make columns stretch edge-to-edge in any horizontal blocks */
+/* ---- FULL-WIDTH OVERRIDES (remove the centered frame) ---- */
+div[data-testid="stAppViewContainer"] > .main{
+  max-width:100vw!important;
+  padding-left:0!important; padding-right:0!important;
+}
+section.main > div.block-container{
+  max-width:100vw!important;
+  padding:8px 12px 10px!important;   /* small gutter */
+  margin-left:0!important; margin-right:0!important;
+}
+
+/* Make horizontal block rows truly stretch */
+section.main > div.block-container > div:has(> div[data-testid="stHorizontalBlock"]){
+  max-width:100%!important;
+}
+section.main > div.block-container > div:has(> div[data-testid="stHorizontalBlock"])
+  div[data-testid="column"]{
+  flex:1 1 0!important;
+  width:auto!important;
+}
+
+/* ---- General spacing reset ---- */
 div[data-testid="stAppViewContainer"] > .main,
 section.main,
 section.main > div.block-container,
 div[data-testid="stHorizontalBlock"]{
-  padding-top:0!important;
-  margin-top:0!important;
+  padding-top:0!important; margin-top:0!important;
 }
 
-/* use full browser width + tighter side padding */
-.block-container{
-  max-width: 100vw;              /* was 1820px */
-  padding: 8px 12px 10px;        /* was: 8px var(--pad) 10px */
-}
-
-/* ---- Logo size (desktop → mobile) ---- */
+/* ---- Logo ---- */
 .lv-logo{ width:40px; height:auto; }
 
-/* ---- Typography ---- */
-.title{                /* app title */
+/* ---- Typography (slightly larger for clarity at 80% zoom) ---- */
+.title{
   color:var(--brand);
   font-weight:900;
-  font-size:38px;      /* was 34px */
+  font-size:38px;           /* was 34 */
   letter-spacing:.12em;
   margin:0 0 6px 0!important;
 }
 .timestamp{ color:var(--brand); font-size:12px; font-weight:700; text-align:right; }
-.section{              /* card headers */
+.section{
   color:var(--brand);
   font-weight:800;
-  font-size:16px;      /* was 15px */
+  font-size:16px;           /* was 15 */
   margin:0 0 8px 0;
 }
-.small{                /* helper text */
-  font-size:13px;      /* was 12px */
-  color:#9aa3bd;
-}
+.small{ font-size:13px; color:#9aa3bd; }  /* was 12 */
 
-/* ---- Card primitives ---- */
+/* ---- Cards ---- */
 .card{
-  background:var(--card-bg); border:1px solid var(--card-bd);
-  border-radius:var(--radius); padding:10px 14px; margin-bottom:10px;
+  background:var(--card-bg);
+  border:1px solid var(--card-bd);
+  border-radius:var(--radius);
+  padding:10px 14px;
+  margin-bottom:10px;
   box-shadow:var(--shadow);
 }
 
-/* ---- Mini stats (Prayer/Studies/Baptisms) ---- */
+/* ---- Mini stats ---- */
 .mini-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
 .mini-card{ background:var(--card-bg); border:1px solid var(--card-bd); border-radius:10px; padding:8px 10px; text-align:center; }
 .mini-label{ font-size:11px; color:var(--ink-dim); margin:0; }
@@ -209,25 +223,28 @@ div[data-testid="stHorizontalBlock"]{
 .kpi-label{ font-size:11px; color:var(--ink-dim); margin:0; }
 .kpi-value{ font-size:20px; font-weight:800; margin:0; }
 
-/* ---- Bars (7‑day views + task progress) ---- */
+/* Font Awesome icon sizing */
+.icon{ font-size:15px; }
+
+/* ---- Bars (7-day views + task progress) ---- */
 .grid-views{ display:grid; grid-template-columns:64px 1fr 76px; gap:10px; align-items:center; margin:4px 0; }
 .views-bar{ height:10px; border-radius:6px; background:#1f2736; overflow:hidden; }
 .views-bar>span{ display:block; height:100%; background:#4aa3ff; }
 
 .grid-tasks-2{ display:grid; grid-template-columns:1fr 1.1fr; gap:12px; align-items:center; margin:6px 0; }
 .hbar{ height:10px; border-radius:6px; background:#1f2736; overflow:hidden; }
-.hbar>span{ display:block; height:100%; }   /* color set inline from status */
+.hbar>span{ display:block; height:100%; }   /* color set inline */
 
 /* ---- Filming list ---- */
 .film-row{ display:grid; grid-template-columns:1fr auto; gap:12px; align-items:center; padding:6px 0; }
 .film-right{ color:var(--brand); white-space:nowrap; }
 
-/* ---- First child guard: avoid stray top margins ---- */
+/* ---- First child guard ---- */
 section.main > div.block-container > :first-child{ margin-top:0!important; }
 
 /* ---- Responsive (≤1100px) ---- */
 @media (max-width:1100px){
-  .block-container{ max-width:100%; padding-left:8px; padding-right:8px; }
+  section.main > div.block-container{ padding-left:8px!important; padding-right:8px!important; }
   .lv-logo{ width:28px; }
   .title{ font-size:28px; letter-spacing:.10em; }
   .timestamp{ display:none; }
