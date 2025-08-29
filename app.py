@@ -1355,37 +1355,22 @@ yt_client_id     = st.secrets.get("YT_CLIENT_ID")
 yt_client_secret = st.secrets.get("YT_CLIENT_SECRET")
 yt_refresh_token = st.secrets.get("YT_REFRESH_TOKEN")
 
-# ---- Identify connected channel (safe default) ----
-oauth_title = ""  # avoid NameError if nothing resolves
+# --- Aggregated Analytics ---
+oauth_bundles = st.secrets.get("YT_OAUTH_CHANNELS", [])
 
+oauth_title = ""
 try:
-    # Prefer the single OAuth creds if present
+    # Prefer dedicated single OAuth creds if provided
     if yt_client_id and yt_client_secret and yt_refresh_token:
         ident = oauth_channel_identity(yt_client_id, yt_client_secret, yt_refresh_token)
         oauth_title = ident.get("title") or ""
-    # Otherwise fall back to the first bundle (if you’re aggregating multiple channels)
+    # Else fall back to first bundle if you’re aggregating
     elif oauth_bundles:
         b0 = oauth_bundles[0]
         ident = oauth_channel_identity(b0["client_id"], b0["client_secret"], b0["refresh_token"])
         oauth_title = ident.get("title") or (b0.get("label") or "")
 except Exception as e:
     if DEBUG: st.info(f"[oauth identity] {e}")
-
-# Use OAuth identity to 1) confirm we’re on the right channel and
-# 2) drive Channel Stats numbers (subs + lifetime views).
-daily_df = pd.DataFrame()
-cdf = pd.DataFrame()
-analytics_err = ""
-if yt_client_id and yt_client_secret and yt_refresh_token:
-    with st.spinner("Fetching YouTube Analytics…"):
-        daily_df, cdf, analytics_err = yt_analytics_lastN_and_countries(
-            yt_client_id, yt_client_secret, yt_refresh_token, days=DAYS_FOR_MAP
-        )
-    if not daily_df.empty:
-        daily_df = normalize_daily_to_local(daily_df, LOCAL_TZ)
-
-# --- Aggregated Analytics ---
-oauth_bundles = st.secrets.get("YT_OAUTH_CHANNELS", [])
 
 last7_df = pd.DataFrame()
 cdf = pd.DataFrame()
@@ -1405,11 +1390,6 @@ if last7_df.empty:
 else:
     yt_last7_vals   = last7_df["views"].tolist()
     yt_last7_labels = last7_df["date"].dt.strftime("%b %d").tolist()
-
-if bars_err:
-    st.warning(f"YT Analytics (daily aggregate) error: {bars_err}")
-connected = f"<span class='small'>Connected: <b>{oauth_title}</b></span>" if oauth_title else ""
-st.markdown(f"<div class='card'><div class='section'>Channel Stats {connected}</div>", unsafe_allow_html=True)
 
 # 28-day countries aggregate (for the map)
 cdf = pd.DataFrame()
