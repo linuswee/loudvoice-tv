@@ -294,6 +294,116 @@ def yt_channel_stats(api_key: str, channel_id: str):
         raise RuntimeError("No channel found for the given ID/API key.")
     stats = items[0]["statistics"]
     return {"subs": int(stats.get("subscriberCount", 0)), "total": int(stats.get("viewCount", 0))}
+    
+# ---- Aggregation helpers ----
+def yt_channels_aggregate(api_key: str, channel_ids: list[str]) -> dict:
+    """Sum subs + lifetime views across multiple 'UC...' channels (Data API)."""
+    total_subs, total_views = 0, 0
+    for cid in (channel_ids or []):
+        try:
+            stats = yt_channel_stats(api_key, cid)
+            total_subs += stats["subs"]
+            total_views += stats["total"]
+        except Exception as e:
+            st.warning(f"Error fetching channel {cid}: {e}")
+    return {"subs": total_subs, "total": total_views}
+
+def _analytics_daily_for_refresh_token(client_id, client_secret, refresh_token, days=14) -> pd.DataFrame:
+    """Daily views for ONE channel by OAuth bundle -> DataFrame[date, views]."""
+    if not GOOGLE_OK:
+        return pd.DataFrame()
+    creds = UserCredentials(
+        None,
+        refresh_token=refresh_token,
+        token_uri="https://oauth2.googleapis.com/token",
+        client_id=client_id,
+        client_secret=client_secret,
+        scopes=["https://www.googleapis.com/auth/yt-analytics.readonly",
+                "https://www.googleapis.com/auth/youtube.readonly"],
+    )
+    if not creds.valid:
+        creds.refresh(Request())
+    analytics = build("youtubeAnalytics", "v2", credentials=creds, cache_discovery=False)
+    end_date = (datetime.now(LOCAL_TZ).date() - timedelta(days=1))
+    start_date = end_date - timedelta(days=days - 1)
+    resp = analytics.reports().query(
+        ids="channel==MINE",
+        startDate=start_date.isoformat(),
+        endDate=end_date.isoformat(),
+        metrics="views",
+        dimensions="day",
+        sort="day",
+    ).execute()
+    rows = resp.get("rows", []) or []
+    df = pd.DataFrame(rows, columns=["date", "views"])
+    if not df.empty:
+        df["date"] = pd.to_datetime(df["date"], utc=True).dt.tz_convert(LOCAL_TZ).dt.normalize()
+        df["views"] = df["views"].astype(int)
+    return df
+
+def _analytics_countries_for_refresh_token(client_id, client_secret, refresh_token, days=28) -> pd.DataFrame:
+    """28-day country views for ONE channel -> DataFrame[country, views]."""
+    if not GOOGLE_OK:
+        return pd.DataFrame()
+    creds = UserCredentials(
+        None,
+        refresh_token=refresh_token,
+        token_uri="https://oauth2.googleapis.com/token",
+        client_id=client_id,
+        client_secret=client_secret,
+        scopes=["https://www.googleapis.com/auth/yt-analytics.readonly",
+                "https://www.googleapis.com/auth/youtube.readonly"],
+    )
+    if not creds.valid:
+        creds.refresh(Request())
+    analytics = build("youtubeAnalytics", "v2", credentials=creds, cache_discovery=False)
+    end_date = (datetime.now(LOCAL_TZ).date() - timedelta(days=1))
+    start_date = end_date - timedelta(days=days - 1)
+    resp = analytics.reports().query(
+        ids="channel==MINE",
+        startDate=start_date.isoformat(),
+        endDate=end_date.isoformat(),
+        metrics="views",
+        dimensions="country",
+        sort="-views",
+        maxResults=200,
+    ).execute()
+    rows = resp.get("rows", []) or []
+    df = pd.DataFrame(rows, columns=["country", "views"])
+    if not df.empty:
+        df["views"] = df["views"].astype(int)
+    return df
+
+def aggregate_daily_from_oauth_bundles(bundles: list[dict], days=14) -> pd.DataFrame:
+    """Sum daily views across many OAuth bundles -> DataFrame[date, views]."""
+    total = pd.DataFrame(columns=["date", "views"])
+    for b in bundles or []:
+        df = _analytics_daily_for_refresh_token(b["client_id"], b["client_secret"], b["refresh_token"], days=days)
+        if df.empty: 
+            continue
+        if total.empty:
+            total = df.copy()
+        else:
+            total = total.merge(df, on="date", how="outer", suffixes=("", "_x"))
+            # sum across any 'views' columns
+            view_cols = [c for c in total.columns if c.startswith("views")]
+            total["views"] = total[view_cols].fillna(0).sum(axis=1).astype(int)
+            total = total[["date", "views"]]
+    total = total.sort_values("date")
+    return total
+
+def aggregate_countries_from_oauth_bundles(bundles: list[dict], days=28) -> pd.DataFrame:
+    """Sum country views across many OAuth bundles -> DataFrame[country, views]."""
+    from collections import defaultdict
+    acc = defaultdict(int)
+    for b in bundles or []:
+        df = _analytics_countries_for_refresh_token(b["client_id"], b["client_secret"], b["refresh_token"], days=days)
+        for _, r in df.iterrows():
+            acc[str(r["country"])] += int(r["views"])
+    if not acc:
+        return pd.DataFrame()
+    out = pd.DataFrame({"country": list(acc.keys()), "views": list(acc.values())})
+    return out
 
 # ---- YouTube Analytics: country views (last N days) ----
 @st.cache_data(ttl=300)
@@ -1231,14 +1341,14 @@ else:
         ]
 filming = MOCK["filming"]
 
-# KPI card via Data API
+# KPI card via Data API (aggregate)
 yt_api_key = st.secrets.get("YOUTUBE_API_KEY")
-yt_channel_id = st.secrets.get("YT_PRIMARY_CHANNEL_ID") or st.secrets.get("YOUTUBE_CHANNEL_ID")
-if yt_api_key and yt_channel_id:
+channel_ids = st.secrets.get("YT_CHANNEL_IDS", [])  # list of UC IDs
+if yt_api_key and channel_ids:
     try:
-        youtube = yt_channel_stats(yt_api_key, yt_channel_id)
-    except Exception:
-        pass
+        youtube = yt_channels_aggregate(yt_api_key, channel_ids)
+    except Exception as e:
+        st.warning(f"KPI aggregation error: {e}")
 
 # Analytics (28‑day map + real last‑7 with *local* dates)
 yt_client_id     = st.secrets.get("YT_CLIENT_ID")
@@ -1247,17 +1357,6 @@ yt_refresh_token = st.secrets.get("YT_REFRESH_TOKEN")
 
 # Use OAuth identity to 1) confirm we’re on the right channel and
 # 2) drive Channel Stats numbers (subs + lifetime views).
-oauth_title = ""
-if yt_client_id and yt_client_secret and yt_refresh_token:
-    try:
-        who = oauth_channel_identity(yt_client_id, yt_client_secret, yt_refresh_token)
-        oauth_title = who.get("title", "")
-        # Override the KPI card numbers with the *actual* authenticated channel’s stats
-        youtube = {"subs": who["subs"], "total": who["views"]}
-    except Exception as _e:
-        # keep existing youtube numbers if this fails
-        pass
-        
 daily_df = pd.DataFrame()
 cdf = pd.DataFrame()
 analytics_err = ""
@@ -1269,57 +1368,52 @@ if yt_client_id and yt_client_secret and yt_refresh_token:
     if not daily_df.empty:
         daily_df = normalize_daily_to_local(daily_df, LOCAL_TZ)
 
-# ---- Last‑7 bars from YouTube Analytics (fallback to mock if needed) ----
-yt_client_id     = st.secrets.get("YT_CLIENT_ID")
-yt_client_secret = st.secrets.get("YT_CLIENT_SECRET")
-yt_refresh_token = st.secrets.get("YT_REFRESH_TOKEN")
-yt_channel_id    = st.secrets.get("YT_PRIMARY_CHANNEL_ID") or st.secrets.get("YOUTUBE_CHANNEL_ID")
+# --- Aggregated Analytics (optional; requires one OAuth refresh token per channel) ---
+oauth_bundles = st.secrets.get("YT_OAUTH_CHANNELS", [])  # list of {client_id, client_secret, refresh_token, label}
 
-# ---- Last-7 bars (YouTube Analytics, last 7 complete days) ----
+# Last-7 daily views (complete days only)
 last7_df = pd.DataFrame()
 bars_err = ""
-
-if yt_client_id and yt_client_secret and yt_refresh_token:
+if oauth_bundles:
     try:
-        raw = yt_analytics_daily_lastN(
-            yt_client_id, yt_client_secret, yt_refresh_token,
-            days=14   # pull a 2-week window to be safe
-        )
+        raw = aggregate_daily_from_oauth_bundles(oauth_bundles, days=14)  # pull 2 weeks, then take 7
         if not raw.empty:
-            raw = raw.copy()
-            raw["date"] = pd.to_datetime(raw["date"], utc=True)\
-                              .dt.tz_convert(LOCAL_TZ).dt.normalize()
-            raw["views"] = raw["views"].astype(int)
-            # Take the last 7 rows (so always 7 bars, but only where YT gave data)
             last7_df = raw.tail(7)
     except Exception as e:
         bars_err = str(e)
 
 if last7_df.empty:
-    # fallback to mock data
     yt_last7_vals   = MOCK["yt_last7"]
     yt_last7_labels = [(datetime.now(LOCAL_TZ).date() - timedelta(days=i)).strftime("%b %d")
                        for i in range(len(yt_last7_vals)-1, -1, -1)]
 else:
     yt_last7_vals   = last7_df["views"].tolist()
     yt_last7_labels = last7_df["date"].dt.strftime("%b %d").tolist()
-    
-if bars_err:
-    st.warning(f"YT Analytics (daily) error: {bars_err}")
 
-# Country map dataframe for choropleth (no lat/lon needed)
+if bars_err:
+    st.warning(f"YT Analytics (daily aggregate) error: {bars_err}")
+
+# 28-day countries aggregate (for the map)
+cdf = pd.DataFrame()
+analytics_err = ""
+if oauth_bundles:
+    try:
+        cdf = aggregate_countries_from_oauth_bundles(oauth_bundles, days=DAYS_FOR_MAP)
+    except Exception as e:
+        analytics_err = str(e)
+
 if not cdf.empty:
     choro_df = cdf.copy()
 else:
-    choro_df = MOCK["yt_countries"].copy()
+    choro_df = MOCK["yt_countries"].copy()  # fallback
 
-# Ensure we have ISO-3 codes
+# Ensure ISO-3 for map
 choro_df["iso3"] = choro_df["country"].apply(country_to_iso3)
 choro_df = choro_df.dropna(subset=["iso3"])
 
-analytics_ok = (not daily_df.empty) or (not cdf.empty)
-if not analytics_ok and analytics_err:
-    st.warning(f"YT Analytics error: {analytics_err}")
+analytics_ok = not choro_df.empty
+if analytics_err:
+    st.warning(f"YT Analytics (country aggregate) error: {analytics_err}")
 
 MIN_DOC  = st.secrets["gs_ministry_id"]
 FILM_DOC = st.secrets["gs_filming_id"]
@@ -1365,39 +1459,7 @@ with left:
 
     # Use hard-mapped Studio data for now; every other country is present with 0
     # choro_df = build_choro_dataframe(STUDIO_COUNTRY_VIEWS)
-    
-    # ---- Country map dataframe (live from YouTube Analytics if available) ----
-    yt_client_id     = st.secrets.get("YT_CLIENT_ID")
-    yt_client_secret = st.secrets.get("YT_CLIENT_SECRET")
-    yt_refresh_token = st.secrets.get("YT_REFRESH_TOKEN")
-    yt_channel_id    = st.secrets.get("YT_PRIMARY_CHANNEL_ID") or st.secrets.get("YOUTUBE_CHANNEL_ID")
 
-    
-    cdf = pd.DataFrame()
-    analytics_err = ""
-    
-    if yt_client_id and yt_client_secret and yt_refresh_token:
-        try:
-            cdf = yt_analytics_country_lastN(
-                yt_client_id, yt_client_secret, yt_refresh_token,
-                days=DAYS_FOR_MAP
-            )
-        except Exception as e:
-            analytics_err = str(e)
-    
-    # Build the choropleth input. If API fails, we fall back to your mock.
-    if not cdf.empty:
-        # Use ALL countries present; missing ones will default to 0 inside build_choro_dataframe
-        country_views = dict(zip(cdf["country"], cdf["views"]))
-    else:
-        # Fallback to your mock/sample until API is configured
-        country_views = {c: int(v) for c, v in zip(MOCK["yt_countries"]["country"], MOCK["yt_countries"]["views"])}
-    
-    # This uses your existing helper from the previous iteration
-    choro_df = build_choro_dataframe(country_views)
-    
-    if analytics_err:
-        st.warning(f"YT Analytics (country) error: {analytics_err}")
     fig = build_choropleth(choro_df, MAP_HEIGHT)
 
     st.plotly_chart(fig, use_container_width=True, theme=None,
