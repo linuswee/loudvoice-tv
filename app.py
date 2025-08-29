@@ -1355,6 +1355,22 @@ yt_client_id     = st.secrets.get("YT_CLIENT_ID")
 yt_client_secret = st.secrets.get("YT_CLIENT_SECRET")
 yt_refresh_token = st.secrets.get("YT_REFRESH_TOKEN")
 
+# ---- Identify connected channel (safe default) ----
+oauth_title = ""  # avoid NameError if nothing resolves
+
+try:
+    # Prefer the single OAuth creds if present
+    if yt_client_id and yt_client_secret and yt_refresh_token:
+        ident = oauth_channel_identity(yt_client_id, yt_client_secret, yt_refresh_token)
+        oauth_title = ident.get("title") or ""
+    # Otherwise fall back to the first bundle (if you’re aggregating multiple channels)
+    elif oauth_bundles:
+        b0 = oauth_bundles[0]
+        ident = oauth_channel_identity(b0["client_id"], b0["client_secret"], b0["refresh_token"])
+        oauth_title = ident.get("title") or (b0.get("label") or "")
+except Exception as e:
+    if DEBUG: st.info(f"[oauth identity] {e}")
+
 # Use OAuth identity to 1) confirm we’re on the right channel and
 # 2) drive Channel Stats numbers (subs + lifetime views).
 daily_df = pd.DataFrame()
@@ -1392,6 +1408,8 @@ else:
 
 if bars_err:
     st.warning(f"YT Analytics (daily aggregate) error: {bars_err}")
+connected = f"<span class='small'>Connected: <b>{oauth_title}</b></span>" if oauth_title else ""
+st.markdown(f"<div class='card'><div class='section'>Channel Stats {connected}</div>", unsafe_allow_html=True)
 
 # 28-day countries aggregate (for the map)
 cdf = pd.DataFrame()
