@@ -1384,19 +1384,19 @@ if yt_client_id and yt_client_secret and yt_refresh_token:
     if not daily_df.empty:
         daily_df = normalize_daily_to_local(daily_df, LOCAL_TZ)
 
-# --- Aggregated Analytics (optional; requires one OAuth refresh token per channel) ---
-oauth_bundles = st.secrets.get("YT_OAUTH_CHANNELS", [])  # list of {client_id, client_secret, refresh_token, label}
+# --- Aggregated Analytics ---
+oauth_bundles = st.secrets.get("YT_OAUTH_CHANNELS", [])
 
-# Last-7 daily views (complete days only)
 last7_df = pd.DataFrame()
-bars_err = ""
+cdf = pd.DataFrame()
 if oauth_bundles:
     try:
-        raw = aggregate_daily_from_oauth_bundles(oauth_bundles, days=14)  # pull 2 weeks, then take 7
+        raw = aggregate_daily_from_oauth_bundles(oauth_bundles, days=14)
         if not raw.empty:
             last7_df = raw.tail(7)
+        cdf = aggregate_countries_from_oauth_bundles(oauth_bundles, days=DAYS_FOR_MAP)
     except Exception as e:
-        bars_err = str(e)
+        st.warning(f"YT Analytics aggregate error: {e}")
 
 if last7_df.empty:
     yt_last7_vals   = MOCK["yt_last7"]
