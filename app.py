@@ -1482,7 +1482,7 @@ with right:
     st.markdown("</div>", unsafe_allow_html=True)
 
     # Channel stats
-    connected = f"<span class='small'>Connected: <b>{oauth_title}</b></span>" if oauth_title else ""
+    connected = f"<span class='small'>Connected: All Channels</b></span>" if oauth_title else ""
     st.markdown(f"<div class='card'><div class='section'>Channel Stats {connected}</div>", unsafe_allow_html=True)
     # Channel stats (icons)
     st.markdown(f"""
