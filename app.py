@@ -1407,6 +1407,8 @@ if not cdf.empty:
 else:
     choro_df = MOCK["yt_countries"].copy()  # fallback
 
+choro_df = add_country_names(choro_df)   # <-- add this line
+
 # Ensure ISO-3 for map
 choro_df["iso3"] = choro_df["country"].apply(country_to_iso3)
 choro_df = choro_df.dropna(subset=["iso3"])
