@@ -1530,7 +1530,7 @@ with right:
     
     # Build YT rows
     def stack(lines): 
-    return "<span class='stack'>" + "<br>".join(lines) + "</span>"
+        return "<span class='stack'>" + "<br>".join(lines) + "</span>"
 
     # Build YT rows (four channels expected)
     yt_labels = stack([x["label"] for x in yt_per])
