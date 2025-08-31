@@ -192,8 +192,6 @@ section.main > div.block-container > :first-child{ margin-top:0!important; }
   margin-bottom:2px;
   box-shadow:var(--shadow);
 }
-/* 2px gap under *all* card headers */
-.card > .section{ margin-bottom:2px; }
 
 /* ---- Mini stats (Ministry Tracker) ---- */
 .mini-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
@@ -1497,7 +1495,7 @@ with right:
     
     st.markdown("""
     <style>
-    .kpi-yt { display:grid; grid-template-columns:2fr 1fr 1fr; gap:12px; }
+    .kpi-yt { display:grid; grid-template-columns:2fr 1fr 1fr; gap:2px; }
     .kpi-yt-h1{ display:flex; align-items:center; gap:8px; font-weight:800; margin-bottom:6px; }
     .kpi-yt-row{ display:grid; grid-template-columns:2fr 1fr 1fr; gap:4px; align-items:center; margin:2px 0; padding: 0; }
     .kpi-yt-row.head > div {
