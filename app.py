@@ -54,17 +54,6 @@ st.set_page_config(
 )
 
 st.markdown("""
-<style>
-@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css');
-
-/* ========== LOUDVOICE — minimal, unified CSS ========== */
-/* ... your same CSS ... */
-.kpi-head{ display:flex; align-items:center; gap:8px; margin-bottom:4px; }
-.icon{ font-size:15px; }   /* add this so the FA glyph has a size */
-</style>
-""", unsafe_allow_html=True)
-
-st.markdown("""
 <link rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
       integrity="sha512-bx8wN/so2HnIY7+q3sU5o7bQ/ud9l1z4PCtRj2CFf7RYI0ehCyBN8DQ3lmgwPcj3doGht+jOZQf1BPZpbnRgfQ=="
