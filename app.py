@@ -1552,6 +1552,16 @@ with right:
         """,
         unsafe_allow_html=True,
     )
+        
+    # Values (stacked lists keep rows aligned)
+    st.markdown(
+        f"<div class='kpi-yt-row vals'>"
+        f"<div>{stack(names)}</div>"
+        f"<div>{stack(subs)}</div>"
+        f"<div>{stack(totals)}</div>"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
 
     # YouTube Views (Last 7 Days) — with real daily dates
     st.markdown("<div class='card'><div class='section'>YouTube Views (Last 7 Days, complete data only)</div>", unsafe_allow_html=True)
