@@ -1341,6 +1341,26 @@ else:
         ]
 filming = MOCK["filming"]
 
+# --- Per-channel YT stats for the 4-row KPI layout
+yt_channels = st.secrets.get("YT_CHANNELS", [])
+yt_per = []
+if yt_api_key and yt_channels:
+    for ch in yt_channels:
+        try:
+            s = yt_channel_stats(yt_api_key, ch["id"])  # returns {"subs": int, "total": int}
+            yt_per.append({"label": ch["label"], "subs": s["subs"], "total": s["total"]})
+        except Exception as e:
+            st.warning(f"YT stats error for {ch.get('label','(unknown)')}: {e}")
+            yt_per.append({"label": ch["label"], "subs": 0, "total": 0})
+else:
+    # fallback if not configured
+    yt_per = [
+        {"label": "YT LoudVoice",           "subs": 0, "total": 0},
+        {"label": "YT LoudVoice Insights",  "subs": 0, "total": 0},
+        {"label": "YT LoudVoice Bahasa",    "subs": 0, "total": 0},
+        {"label": "YT LoudVoice Chinese",   "subs": 0, "total": 0},
+    ]
+
 # KPI card via Data API (aggregate)
 yt_api_key = st.secrets.get("YOUTUBE_API_KEY")
 channel_ids = st.secrets.get("YT_CHANNEL_IDS", [])  # list of UC IDs
@@ -1483,27 +1503,65 @@ with right:
 
     # Channel stats
     connected = f"<span class='small'>Connected: All Channels</b></span>" if oauth_title else ""
-    st.markdown(f"<div class='card'><div class='section'>Channel Stats {connected}</div>", unsafe_allow_html=True)
-    # Channel stats (icons)
-    st.markdown(f"""
-        <div class="kpi-grid">
-          <div class="kpi-card">
-            <div class="kpi-head"><i class="fa-brands fa-youtube icon" style="color:#ff3d3d"></i><span class="kpi-name">YT</span></div>
-            <div class="kpi-label">Subs</div><div class="kpi-value">{fmt_num(youtube['subs'])}</div>
-            <div class="kpi-label">Total</div><div class="kpi-value">{fmt_num(youtube['total'])}</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-head"><i class="fa-brands fa-instagram icon"></i><span class="kpi-name">IG</span></div>
-            <div class="kpi-label">Follows</div><div class="kpi-value">{fmt_num(ig['followers'])}</div>
-            <div class="kpi-label">7‑day Views</div><div class="kpi-value">{fmt_num(ig['views7'])}</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-head"><i class="fa-brands fa-tiktok icon"></i><span class="kpi-name">TT</span></div>
-            <div class="kpi-label">Follows</div><div class="kpi-value">{fmt_num(tt['followers'])}</div>
-            <div class="kpi-label">7‑day Views</div><div class="kpi-value">{fmt_num(tt['views7'])}</div>
-          </div>
-        </div>
-        """, unsafe_allow_html=True)
+    # ---- Channel Stats (4-row layout) -------------------------------------------
+    st.markdown("<div class='card'><div class='section'>Channel Stats</div>", unsafe_allow_html=True)
+    
+    # simple helper
+    def _row(cells):
+        tds = "".join(f"<div>{c}</div>" for c in cells)
+        return f"<div class='kpi4-row'>{tds}</div>"
+    
+    # CSS for the mini table inside each card (3 columns)
+    st.markdown("""
+    <style>
+    .kpi4 { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+    .kpi4-card{ background:var(--card-bg); border:1px solid var(--card-bd); border-radius:10px; padding:10px 12px; }
+    .kpi4-h1{ display:flex; align-items:center; gap:8px; font-weight:800; margin-bottom:6px; }
+    .kpi4-row{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; align-items:center; margin:6px 0; }
+    .kpi4-row > div { font-size:13px; color:var(--ink-dim); }
+    .kpi4-row.values > div { font-size:22px; font-weight:800; color:var(--ink); }
+    .kpi4-row.totals > div { font-size:16px; font-weight:700; color:var(--ink); }
+    .kpi4-small{ font-size:11px; color:var(--ink-dim); }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # Build YT rows
+    yt_labels = "<br>".join([st._DEFAULT_TEXT_WRAPPER.fill(x["label"]) for x in yt_per])  # keeps labels stacked
+    yt_subs   = "<br>".join(fmt_num(x["subs"])  for x in yt_per)
+    yt_totals = "<br>".join(fmt_num(x["total"]) for x in yt_per)
+    
+    yt_card = (
+        "<div class='kpi4-card'>"
+        "<div class='kpi4-h1'><i class='fa-brands fa-youtube icon' style='color:#ff3d3d'></i><span>YT</span></div>"
+        + _row(["", "", ""])  # spacer under header so rows align across 3 cards
+        + _row([yt_labels, "<span class='kpi4-small'>Follows (IG)</span>", "<span class='kpi4-small'>Follows (TT)</span>"])
+        + f"<div class='kpi4-row values'><div>{yt_subs}</div><div>{fmt_num(ig['followers'])}</div><div>{fmt_num(tt['followers'])}</div></div>"
+        + f"<div class='kpi4-row totals'><div>{yt_totals}</div><div></div><div></div></div>"
+        + "</div>"
+    )
+    
+    # IG card (kept simple)
+    ig_card = (
+        "<div class='kpi4-card'>"
+        "<div class='kpi4-h1'><i class='fa-brands fa-instagram icon'></i><span>IG</span></div>"
+        + _row(["Follows (IG)", "", ""])
+        + f"<div class='kpi4-row values'><div>{fmt_num(ig['followers'])}</div><div></div><div></div></div>"
+        + _row([f"7-day Views: <b>{fmt_num(ig['views7'])}</b>", "", ""])
+        + "</div>"
+    )
+    
+    # TT card
+    tt_card = (
+        "<div class='kpi4-card'>"
+        "<div class='kpi4-h1'><i class='fa-brands fa-tiktok icon'></i><span>TT</span></div>"
+        + _row(["Follows (TT)", "", ""])
+        + f"<div class='kpi4-row values'><div>{fmt_num(tt['followers'])}</div><div></div><div></div></div>"
+        + _row([f"7-day Views: <b>{fmt_num(tt['views7'])}</b>", "", ""])
+        + "</div>"
+    )
+    
+    st.markdown(f"<div class='kpi4'>{yt_card}{ig_card}{tt_card}</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
     # YouTube Views (Last 7 Days) — with real daily dates
     st.markdown("<div class='card'><div class='section'>YouTube Views (Last 7 Days, complete data only)</div>", unsafe_allow_html=True)
