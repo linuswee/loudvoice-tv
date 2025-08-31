@@ -210,6 +210,10 @@ div[data-testid="stHorizontalBlock"]{
   margin-bottom: 2px;
   box-shadow: var(--shadow);
 }
+/* exactly 2px space under any card header */
+.card > .section{
+  margin-bottom: 2px !important;
+}
 
 /* ---- Mini stats ---- */
 .mini-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
@@ -1551,7 +1555,7 @@ with right:
       margin-top: 0;        /* kill extra gap above YouTube row */
       margin-bottom: 2px;
     }
-    .kpi-yt-header{ margin:4px 0 2px; }
+    .kpi-yt-header{ margin:0px 0 2px; }
     .kpi-cell-right{ justify-self:end; }          /* put pills at the right edge of their cells */
     
     .kpi-yt-row{ margin:2px 0; align-items:baseline; }
