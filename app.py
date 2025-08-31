@@ -197,7 +197,7 @@ div[data-testid="stHorizontalBlock"]{
   color:var(--brand);
   font-weight:800;
   font-size:20px;
-  margin:0 0 4px 0;
+  margin:0 0 2px 0;
 }
 .small{ font-size:13px; color:#9aa3bd; }
 
@@ -206,8 +206,8 @@ div[data-testid="stHorizontalBlock"]{
   background: var(--card-bg);
   border: 1px solid var(--card-bd);
   border-radius: var(--radius);
-  padding: 6px 8px;    /* ↓ minimal padding (was 10px 14px) */
-  margin-bottom: 8px;
+  padding: 4px 4px;    /* ↓ minimal padding (was 10px 14px) */
+  margin-bottom: 2px;
   box-shadow: var(--shadow);
 }
 
@@ -1518,9 +1518,9 @@ with right:
       font-size: 14px;
       font-weight: 800;          /* <-- bold */
       color: var(--ink);         /* white like other bold text */
-      padding-top: 2px;          /* reduce gap to Channel Stats heading */
-      padding-bottom: 2px;
-      margin-bottom: 2px;  /* closer to totals */
+      padding-top: 0px;          /* reduce gap to Channel Stats heading */
+      padding-bottom: 0px;
+      margin-bottom: 0px;  /* closer to totals */
     }
     /* Also make the header "Total Views" right-aligned to match */
     .kpi-yt-row.head > div:nth-child(3){
@@ -1532,7 +1532,7 @@ with right:
     .kpi-yt-row.total{ border-top:1px solid rgba(255,255,255,.10); padding-top:4px; margin-top:4px; }
     .kpi-yt-row.total .col-names{ font-weight:700; }  /* the word “Total” */
     .kpi-yt-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px; }
-    .kpi-yt-left{ display:flex; align-items:center; gap:8px; font-weight:800; }
+    .kpi-yt-left{ display:flex; align-items:center; gap:4px; font-weight:800; margin:0px; padding:0px; }
     .kpi-pill{ font-size:13px; background:rgba(255,255,255,.08); padding:6px 10px; border-radius:999px; white-space:nowrap;}
     .kpi-pill b{ font-size:16px; margin-left:6px; }
     .stack{ display:inline-block; line-height:1.35; }
@@ -1548,6 +1548,8 @@ with right:
       grid-template-columns: 2fr 1fr 1fr;
       gap:4px;
       align-items:center;
+      margin-top: 0;        /* kill extra gap above YouTube row */
+      margin-bottom: 2px;
     }
     .kpi-yt-header{ margin:4px 0 2px; }
     .kpi-cell-right{ justify-self:end; }          /* put pills at the right edge of their cells */
@@ -1559,9 +1561,6 @@ with right:
     
     /* make digits align nicely */
     .kpi-yt-grid, .kpi-yt-row { font-variant-numeric: tabular-nums; }
-    
-    /* neutralize any old conflicting rule */
-    .kpi-yt-row.head > div:nth-child(3){ text-align:inherit; }
     </style>
     """, unsafe_allow_html=True)
     
