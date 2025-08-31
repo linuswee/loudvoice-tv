@@ -1477,7 +1477,7 @@ with right:
     )
     st.markdown("</div>", unsafe_allow_html=True)
     # --- YouTube-only Channel Stats ---------------------------------------
-   st.markdown("<div class='card card-spaced'><div class='section'>Channel Stats</div>", unsafe_allow_html=True)
+    st.markdown("<div class='card card-spaced'><div class='section'>Channel Stats</div>", unsafe_allow_html=True)
     
     def stack(lines):
         import html
