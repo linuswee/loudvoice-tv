@@ -193,23 +193,20 @@ div[data-testid="stHorizontalBlock"]{
   margin:0 0 6px 0!important;
 }
 .timestamp{ color:var(--brand); font-size:12px; font-weight:700; text-align:right; }
-.section {
-  color: var(--brand);
-  font-weight: 800;
-  font-size: 20px;
-  margin: 0 0 4px 0;   /* ↓ reduce bottom margin (was 8px) */
-  padding: 0;          /* remove hidden padding */
+.section{
+  color:var(--brand);
+  font-weight:800;
+  font-size:16px;
+  margin:0 0 8px 0;
 }
 .small{ font-size:13px; color:#9aa3bd; }
 
 /* ---- Cards ---- */
-.card {
-  background: var(--card-bg);
-  border: 1px solid var(--card-bd);
-  border-radius: var(--radius);
-  padding: 6px 8px;    /* ↓ minimal padding (was 10px 14px) */
-  margin-bottom: 8px;
-  box-shadow: var(--shadow);
+.card{
+  background:var(--card-bg); border:1px solid var(--card-bd);
+  border-radius:var(--radius); padding:10px 14px; margin-bottom:10px;
+  box-shadow:var(--shadow);
+}
 
 /* ---- Mini stats ---- */
 .mini-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
@@ -1513,29 +1510,10 @@ with right:
     <style>
     .kpi-yt { display:grid; grid-template-columns:2fr 1fr 1fr; gap:12px; }
     .kpi-yt-h1{ display:flex; align-items:center; gap:8px; font-weight:800; margin-bottom:6px; }
-    .kpi-yt-row {
-      margin: 2px 0;       /* ↓ reduce vertical spacing (was 6px) */
-      padding: 0;          /* no extra padding */
-    }
-    .kpi-yt-row.head > div {
-      font-size: 14px;
-      font-weight: 800;          /* <-- bold */
-      color: var(--ink);         /* white like other bold text */
-      padding-top: 1px;          /* reduce gap to Channel Stats heading */
-      padding-bottom: 1px;
-      margin-bottom: 1px;  /* closer to totals */
-    }
-    .kpi-yt-row.vals .col-names {
-      font-size: 16px;           /* same as rest of site text */
-      font-weight: 400;          /* normal, not bold */
-      color: var(--ink);         /* same ink color as body */
-    }
-    .kpi-yt-row.vals .col-subs,
-    .kpi-yt-row.vals .col-views {
-      font-size: 16px;
-      font-weight: 800;          /* keep numbers bold */
-      color: var(--ink);
-    }
+    .kpi-yt-row{ display:grid; grid-template-columns:2fr 1fr 1fr; gap:10px; align-items:center; margin:6px 0; }
+    .kpi-yt-row.head > div { font-size:13px; color:var(--ink-dim); }
+    .kpi-yt-row.vals > div { font-size:18px; font-weight:800; color:var(--ink); }
+    .kpi-yt-row.total{ border-top:1px solid rgba(255,255,255,.10); padding-top:8px; margin-top:10px; }
     .kpi-yt-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px; }
     .kpi-yt-left{ display:flex; align-items:center; gap:8px; font-weight:800; }
     .kpi-pill{ font-size:13px; background:rgba(255,255,255,.08); padding:6px 10px; border-radius:999px; white-space:nowrap;}
@@ -1559,29 +1537,29 @@ with right:
     agg_subs_label   = fmt_num(sum(x["subs"]  for x in yt_per))   # or: fmt_num(youtube.get("subs", 0))
     agg_total_label  = fmt_num(sum(x["total"] for x in yt_per))   # or: fmt_num(youtube.get("total", 0))
     
-    # Header row: YouTube + totals in the same grid
     st.markdown(
         f"""
-        <div class='kpi-yt-row head'>
-          <div style="display:flex;align-items:center;gap:8px;font-weight:800;">
-            <i class='fa-brands fa-youtube icon' style='color:#ff3d3d'></i> YouTube
+        <div class='kpi-yt-head'>
+          <div class='kpi-yt-left'>
+            <i class='fa-brands fa-youtube icon' style='color:#ff3d3d'></i>
+            <span>YouTube</span>
           </div>
-          <div>Subs<br><b>{agg_subs_label}</b></div>
-          <div>Total Views<br><b>{agg_total_label}</b></div>
+          <div style="display:flex; gap:8px;">
+            <span class="kpi-pill">Subs <b>{agg_subs_label}</b></span>
+            <span class="kpi-pill">Total Views <b>{agg_total_label}</b></span>
+          </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
-    
-    # Channel rows
+        
+    # Values (stacked lists keep rows aligned)
     st.markdown(
-        f"""
-        <div class='kpi-yt-row vals'>
-          <div class='col-names'>{stack(names)}</div>
-          <div class='col-subs'>{stack(subs)}</div>
-          <div class='col-views'>{stack(totals)}</div>
-        </div>
-        """,
+        f"<div class='kpi-yt-row vals'>"
+        f"<div>{stack(names)}</div>"
+        f"<div>{stack(subs)}</div>"
+        f"<div>{stack(totals)}</div>"
+        f"</div>",
         unsafe_allow_html=True,
     )
 
@@ -1689,3 +1667,5 @@ with c3:
                 st.markdown(f"<div class='film-row'><div>{left}</div><div class='film-right'>{right}</div></div>", unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
+can I have the channel labels not bolded, and the total subs aligned with the sub count and the view count also aligned?
