@@ -1667,5 +1667,3 @@ with c3:
                 st.markdown(f"<div class='film-row'><div>{left}</div><div class='film-right'>{right}</div></div>", unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
-
-can I have the channel labels not bolded, and the total subs aligned with the sub count and the view count also aligned?
