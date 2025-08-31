@@ -193,7 +193,7 @@ section.main > div.block-container > :first-child{ margin-top:0!important; }
   box-shadow:var(--shadow);
 }
 /* 2px gap under *all* card headers */
-.card > .section{ margin-bottom:2px!important; }
+.card > .section{ margin-bottom:20px!important; }
 
 /* ---- Mini stats (Ministry Tracker) ---- */
 .mini-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
