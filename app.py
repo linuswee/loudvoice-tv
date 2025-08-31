@@ -1539,6 +1539,31 @@ with right:
     .stack .line{ display:block; }
     </style>
     """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <style>
+    /* Shared 3-col grid: names | subs | views */
+    .kpi-yt-grid, .kpi-yt-row{
+      display:grid;
+      grid-template-columns: 2fr 1fr 1fr;
+      gap:4px;
+      align-items:center;
+    }
+    .kpi-yt-header{ margin:4px 0 2px; }
+    .kpi-cell-right{ justify-self:end; }          /* put pills at the right edge of their cells */
+    
+    .kpi-yt-row{ margin:2px 0; align-items:baseline; }
+    .kpi-yt-row .col-names{ font-size:16px; font-weight:400; color:var(--ink); }
+    .kpi-yt-row .col-subs,
+    .kpi-yt-row .col-views{ text-align:right; font-size:16px; font-weight:800; color:var(--ink); }
+    
+    /* make digits align nicely */
+    .kpi-yt-grid, .kpi-yt-row { font-variant-numeric: tabular-nums; }
+    
+    /* neutralize any old conflicting rule */
+    .kpi-yt-row.head > div:nth-child(3){ text-align:inherit; }
+    </style>
+    """, unsafe_allow_html=True)
     
     def stack(lines):
         import html
@@ -1556,24 +1581,27 @@ with right:
     
     st.markdown(
         f"""
-        <div class='kpi-yt-head'>
-          <div class='kpi-yt-left'>
-            <i class='fa-brands fa-youtube icon' style='color:#ff3d3d'></i>
+        <div class="kpi-yt-grid kpi-yt-header">
+          <div class="kpi-yt-left">
+            <i class="fa-brands fa-youtube icon" style="color:#ff3d3d"></i>
             <span>YouTube</span>
           </div>
-          <div><span class="kpi-pill">Subs <b>{agg_subs_label}</b></span></div>
-          <div><span class="kpi-pill">Total Views <b>{agg_total_label}</b></span></div>
+          <div class="kpi-cell-right"><span class="kpi-pill">Subs <b>{agg_subs_label}</b></span></div>
+          <div class="kpi-cell-right"><span class="kpi-pill">Total Views <b>{agg_total_label}</b></span></div>
+        </div>
         """,
         unsafe_allow_html=True,
     )
         
-    # Values (stacked lists keep rows aligned)
+    # --- Values (uses the SAME 3-col grid) ---
     st.markdown(
-        f"<div class='kpi-yt-row vals'>"
-        f"<div>{stack(names)}</div>"
-        f"<div>{stack(subs)}</div>"
-        f"<div>{stack(totals)}</div>"
-        f"</div>",
+        f"""
+        <div class="kpi-yt-row">
+          <div class="col-names">{stack(names)}</div>
+          <div class="col-subs">{stack(subs)}</div>
+          <div class="col-views">{stack(totals)}</div>
+        </div>
+        """,
         unsafe_allow_html=True,
     )
 
