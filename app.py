@@ -177,7 +177,7 @@ section.main > div.block-container > :first-child{ margin-top:0!important; }
   border-radius:10px; padding:6px 8px; text-align:center;
 }
 
-.mini-label{ font-size:11px; color:var(--ink-dim); margin:0 0 2px 0; line-height:1.1; }
+.mini-label{ font-size:16px; color:var(--ink-dim); margin:0 0 2px 0; line-height:1.1; }
 
 .mini-value{
   font-size:36px;          /* was 24px */
