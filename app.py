@@ -1503,55 +1503,6 @@ with right:
 
     # Channel stats
     connected = f"<span class='small'>Connected: All Channels</b></span>" if oauth_title else ""
-    # ---- Channel Stats (4-row layout) -------------------------------------------
-    st.markdown("<div class='card'><div class='section'>Channel Stats</div>", unsafe_allow_html=True)
-    
-    # simple helper
-    def _row(cells):
-        tds = "".join(f"<div>{c}</div>" for c in cells)
-        return f"<div class='kpi4-row'>{tds}</div>"
-    
-    # CSS for the mini table inside each card (3 columns)
-    st.markdown("""
-    <style>
-    .kpi4 { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
-    .kpi4-card{ background:var(--card-bg); border:1px solid var(--card-bd); border-radius:10px; padding:10px 12px; }
-    .kpi4-h1{ display:flex; align-items:center; gap:8px; font-weight:800; margin-bottom:6px; }
-    .kpi4-row{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; align-items:center; margin:6px 0; }
-    .kpi4-row > div { font-size:13px; color:var(--ink-dim); }
-    .kpi4-row.values > div { font-size:22px; font-weight:800; color:var(--ink); }
-    .kpi4-row.totals > div { font-size:16px; font-weight:700; color:var(--ink); }
-    .kpi4-small{ font-size:11px; color:var(--ink-dim); }
-    .kpi4-row > div { white-space: normal; }     /* allow normal wrapping */
-    .stack { display: inline-block; line-height: 1.35; }  /* for multi-line cells */
-    .nowrap { white-space: nowrap; }             /* prevent '(IG)' splitting */
-    </style>
-    """, unsafe_allow_html=True)
-
-    st.markdown("""
-    <style>
-    /* Top-align cells so rows start at the same baseline */
-    .kpi4-row{ 
-      display:grid; 
-      grid-template-columns:1.3fr 1fr 1fr;   /* give labels a bit more width */
-      gap:10px; 
-      align-items:flex-start;                /* <-- was center */
-      margin:6px 0;
-    }
-    
-    /* keep font sizes you already set … */
-    .kpi4-row > div { font-size:13px; color:var(--ink-dim); }
-    
-    /* inside stacked cells, keep each line on one row */
-    .stack{ display:inline-block; line-height:1.35; }
-    .stack .line{ display:block; white-space:nowrap; }   /* <-- no wrapping per line */
-    
-    /* optional: slightly smaller label text in the first column */
-    .kpi4-row > div:first-child { font-size:12px; }
-    </style>
-    """, unsafe_allow_html=True)
-    
-    # Build YT rows
     # --- YouTube-only Channel Stats ---------------------------------------
     st.markdown("<div class='card'><div class='section'>Channel Stats</div>", unsafe_allow_html=True)
     
@@ -1559,12 +1510,12 @@ with right:
     <style>
     .kpi-yt { display:grid; grid-template-columns:2fr 1fr 1fr; gap:12px; }
     .kpi-yt-h1{ display:flex; align-items:center; gap:8px; font-weight:800; margin-bottom:6px; }
-    .kpi-yt-row{ display:grid; grid-template-columns:2fr 1fr 1fr; gap:10px; align-items:flex-start; margin:4px 0; }
-    .kpi-yt-row > div { font-size:13px; color:var(--ink-dim); }
-    .kpi-yt-row.values > div { font-size:20px; font-weight:800; color:var(--ink); }
-    .kpi-yt-row.totals > div { font-size:16px; font-weight:700; color:var(--ink); }
+    .kpi-yt-row{ display:grid; grid-template-columns:2fr 1fr 1fr; gap:10px; align-items:center; margin:6px 0; }
+    .kpi-yt-row.head > div { font-size:13px; color:var(--ink-dim); }
+    .kpi-yt-row.vals > div { font-size:18px; font-weight:800; color:var(--ink); }
+    .kpi-yt-row.total{ border-top:1px solid rgba(255,255,255,.10); padding-top:8px; margin-top:10px; }
     .stack{ display:inline-block; line-height:1.35; }
-    .stack .line{ display:block; white-space:nowrap; }
+    .stack .line{ display:block; }
     </style>
     """, unsafe_allow_html=True)
     
@@ -1573,20 +1524,49 @@ with right:
         inner = "".join(f"<span class='line'>{html.escape(str(l))}</span>" for l in lines)
         return f"<span class='stack'>{inner}</span>"
     
-    # Build rows for each channel
-    yt_labels = stack([x["label"] for x in yt_per])
-    yt_subs   = stack([fmt_num(x["subs"]) for x in yt_per])
-    yt_totals = stack([fmt_num(x["total"]) for x in yt_per])
+    # Build rows for each channel (from yt_per)
+    names  = [x["label"] for x in yt_per]
+    subs   = [fmt_num(x["subs"])  if x["subs"]  else "–" for x in yt_per]
+    totals = [fmt_num(x["total"]) if x["total"] else "–" for x in yt_per]
     
-    yt_card = (
+    # Totals row
+    agg_subs   = fmt_num(sum(x["subs"]  for x in yt_per))
+    agg_totals = fmt_num(sum(x["total"] for x in yt_per))
+    
+    # Header
+    st.markdown(
         "<div class='kpi-yt'>"
         "<div class='kpi-yt-h1'><i class='fa-brands fa-youtube icon' style='color:#ff3d3d'></i><span>YouTube</span></div>"
-        "</div>"
-        f"<div class='kpi-yt-row'><div>{yt_labels}</div><div><b>Subs</b></div><div><b>Total Views</b></div></div>"
-        f"<div class='kpi-yt-row values'><div></div><div>{yt_subs}</div><div>{yt_totals}</div></div>"
+        "</div>",
+        unsafe_allow_html=True,
     )
     
-    st.markdown(yt_card, unsafe_allow_html=True)
+    # Column headers
+    st.markdown(
+        "<div class='kpi-yt-row head'><div></div><div>Subs</div><div>Total Views</div></div>",
+        unsafe_allow_html=True,
+    )
+    
+    # Values (stacked lists keep rows aligned)
+    st.markdown(
+        f"<div class='kpi-yt-row vals'>"
+        f"<div>{stack(names)}</div>"
+        f"<div>{stack(subs)}</div>"
+        f"<div>{stack(totals)}</div>"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
+    
+    # Aggregate totals
+    st.markdown(
+        f"<div class='kpi-yt-row total vals'>"
+        f"<div><b>Total</b></div>"
+        f"<div>{agg_subs}</div>"
+        f"<div>{agg_totals}</div>"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
+    
     st.markdown("</div>", unsafe_allow_html=True)
 
     # YouTube Views (Last 7 Days) — with real daily dates
