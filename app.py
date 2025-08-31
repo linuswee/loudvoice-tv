@@ -1527,10 +1527,37 @@ with right:
     .nowrap { white-space: nowrap; }             /* prevent '(IG)' splitting */
     </style>
     """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <style>
+    /* Top-align cells so rows start at the same baseline */
+    .kpi4-row{ 
+      display:grid; 
+      grid-template-columns:1.3fr 1fr 1fr;   /* give labels a bit more width */
+      gap:10px; 
+      align-items:flex-start;                /* <-- was center */
+      margin:6px 0;
+    }
+    
+    /* keep font sizes you already set … */
+    .kpi4-row > div { font-size:13px; color:var(--ink-dim); }
+    
+    /* inside stacked cells, keep each line on one row */
+    .stack{ display:inline-block; line-height:1.35; }
+    .stack .line{ display:block; white-space:nowrap; }   /* <-- no wrapping per line */
+    
+    /* optional: slightly smaller label text in the first column */
+    .kpi4-row > div:first-child { font-size:12px; }
+    </style>
+    """, unsafe_allow_html=True)
     
     # Build YT rows
-    def stack(lines): 
-        return "<span class='stack'>" + "<br>".join(lines) + "</span>"
+    import html
+
+    def stack(lines):
+        # each logical line is a block that won't wrap mid-word
+        inner = "".join(f"<span class='line'>{html.escape(str(l))}</span>" for l in lines)
+        return f"<span class='stack'>{inner}</span>"
 
     # Build YT rows (four channels expected)
     yt_labels = stack([x["label"] for x in yt_per])
