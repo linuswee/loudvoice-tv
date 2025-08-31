@@ -188,12 +188,12 @@ section.main > div.block-container > :first-child{ margin-top:0!important; }
   background:var(--card-bg);
   border:1px solid var(--card-bd);
   border-radius:var(--radius);
-  padding:2px 2px 2px 2px;
+  padding:4px 4px 4px 4px;
   margin-bottom:2px;
   box-shadow:var(--shadow);
 }
 /* 2px gap under *all* card headers */
-.card > .section{ margin-bottom:0px; }
+.card > .section{ margin-bottom:2px; }
 
 /* ---- Mini stats (Ministry Tracker) ---- */
 .mini-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
