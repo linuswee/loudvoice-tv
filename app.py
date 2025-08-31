@@ -127,7 +127,7 @@ DEBUG = qp.get("debug", ["0"])[0].lower() in ("1","true","yes")
 # -------------------------------
 st.markdown("""
 <style>
-/* ========== LOUDVOICE — unified CSS (full-width, no zoom, no bottom gap) ========== */
+/* ================= LOUDVOICE — Unified CSS ================= */
 
 /* ---- Theme tokens ---- */
 :root{
@@ -138,127 +138,112 @@ st.markdown("""
   --card-bg:rgba(255,255,255,.03);
   --card-bd:rgba(255,255,255,.10);
   --shadow:0 4px 12px rgba(0,0,0,.22);
-  --pad:12px;
   --radius:12px;
 }
 
 /* ---- App chrome + base ---- */
 html, body, [class^="css"]{ background:var(--bg)!important; color:var(--ink); }
-header[data-testid="stHeader"],
-div[data-testid="stToolbar"],
-div[data-testid="stDecoration"],
-#MainMenu, footer{ display:none!important; }
+#MainMenu, header[data-testid="stHeader"], div[data-testid="stToolbar"], div[data-testid="stDecoration"], footer{ display:none!important; }
 
-/* ---- FULL-WIDTH & HEIGHT (remove centered frame + bottom black bar) ---- */
+/* ---- Full width container ---- */
 div[data-testid="stAppViewContainer"] > .main{
   max-width:100vw!important;
   padding-left:0!important; padding-right:0!important;
-  overflow: visible!important;                 /* allow content to extend */
+  overflow:visible!important;
 }
-section.main{ overflow: visible!important; }
+section.main{ overflow:visible!important; }
 section.main > div.block-container{
   max-width:100vw!important;
-  padding:8px 12px 10px!important;             /* slim side gutters */
+  padding:8px 12px 10px!important;
   margin-left:0!important; margin-right:0!important;
-  min-height:100vh!important;                  /* fill page height */
+  min-height:100vh!important;
 }
-
-/* Make horizontal block rows truly stretch */
-section.main > div.block-container > div:has(> div[data-testid="stHorizontalBlock"]){
-  max-width:100%!important;
+/* Stretch horizontal blocks */
+section.main > div.block-container > div:has(> div[data-testid="stHorizontalBlock"]){ max-width:100%!important; }
+section.main > div.block-container > div:has(> div[data-testid="stHorizontalBlock"]) div[data-testid="column"]{
+  flex:1 1 0!important; width:auto!important;
 }
-section.main > div.block-container > div:has(> div[data-testid="stHorizontalBlock"])
-  div[data-testid="column"]{
-  flex:1 1 0!important;
-  width:auto!important;
-}
-
-/* ---- Spacing reset ---- */
+/* Spacing reset */
 div[data-testid="stAppViewContainer"] > .main,
 section.main,
 section.main > div.block-container,
-div[data-testid="stHorizontalBlock"]{
-  padding-top:0!important; margin-top:0!important;
-}
+div[data-testid="stHorizontalBlock"]{ padding-top:0!important; margin-top:0!important; }
+section.main > div.block-container > :first-child{ margin-top:0!important; }
 
-/* ---- Logo ---- */
+/* ---- Brand bits ---- */
 .lv-logo{ width:40px; height:auto; }
-
-/* ---- Typography (clear at “80% look” without using zoom) ---- */
 .title{
-  color:var(--brand);
-  font-weight:900;
-  font-size:38px;                    /* slightly larger for clarity */
-  letter-spacing:.12em;
+  color:var(--brand); font-weight:900; font-size:38px; letter-spacing:.12em;
   margin:0 0 6px 0!important;
 }
 .timestamp{ color:var(--brand); font-size:12px; font-weight:700; text-align:right; }
 .section{
-  color:var(--brand);
-  font-weight:800;
-  font-size:20px;
-  margin:0 0 2px 0;
+  color:var(--brand); font-weight:800; font-size:20px;
+  margin:0;                                         /* base */
 }
 .small{ font-size:13px; color:#9aa3bd; }
 
 /* ---- Cards ---- */
-.card {
-  background: var(--card-bg);
-  border: 1px solid var(--card-bd);
-  border-radius: var(--radius);
-  padding: 4px 4px;    /* ↓ minimal padding (was 10px 14px) */
-  margin-bottom: 2px;
-  box-shadow: var(--shadow);
+.card{
+  background:var(--card-bg);
+  border:1px solid var(--card-bd);
+  border-radius:var(--radius);
+  padding:4px 4px;
+  margin-bottom:2px;
+  box-shadow:var(--shadow);
 }
-/* exactly 2px space under any card header */
-.card > .section{
-  margin-bottom: 2px !important;
-}
+/* 2px gap under *all* card headers */
+.card > .section{ margin-bottom:2px!important; }
 
-/* ---- Mini stats ---- */
+/* ---- Mini stats (Ministry Tracker) ---- */
 .mini-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
 .mini-card{ background:var(--card-bg); border:1px solid var(--card-bd); border-radius:10px; padding:8px 10px; text-align:center; }
 .mini-label{ font-size:11px; color:var(--ink-dim); margin:0; }
 .mini-value{ font-size:24px; font-weight:800; margin:2px 0 0; }
 
-/* ---- KPI cards ---- */
-.kpi-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
-.kpi-card{ background:var(--card-bg); border:1px solid var(--card-bd); border-radius:10px; padding:10px 12px; }
-.kpi-head{ display:flex; align-items:center; gap:8px; margin-bottom:4px; }
-.kpi-name{ font-size:15px; font-weight:800; }
-.kpi-label{ font-size:11px; color:var(--ink-dim); margin:0; }
-.kpi-value{ font-size:20px; font-weight:800; margin:0; }
+/* ---- YouTube KPI grid ---- */
+.kpi-yt-grid, .kpi-yt-row{
+  display:grid; grid-template-columns:2fr 1fr 1fr; gap:4px; align-items:center;
+  font-variant-numeric:tabular-nums;
+}
+.kpi-yt-header{ margin:0 0 2px; }                  /* 2px gap below "Channel Stats" to this row */
+.kpi-cell-right{ justify-self:end; }
+.kpi-yt-left{ display:flex; align-items:center; gap:4px; font-weight:800; margin:0; padding:0; }
 
-/* Font Awesome icon sizing */
-.icon{ font-size:15px; }
+.kpi-yt-row{ margin:2px 0; align-items:baseline; }
+.kpi-yt-row .col-names{ font-size:16px; font-weight:400; color:var(--ink); }
+.kpi-yt-row .col-subs,
+.kpi-yt-row .col-views{ text-align:right; font-size:16px; font-weight:800; color:var(--ink); }
+
+.kpi-pill{ font-size:13px; background:rgba(255,255,255,.08); padding:6px 10px; border-radius:999px; white-space:nowrap; }
+.kpi-pill b{ font-size:16px; margin-left:6px; }
 
 /* ---- Bars (7-day views + task progress) ---- */
 .grid-views{ display:grid; grid-template-columns:64px 1fr 76px; gap:10px; align-items:center; margin:4px 0; }
 .views-bar{ height:10px; border-radius:6px; background:#1f2736; overflow:hidden; }
 .views-bar>span{ display:block; height:100%; background:#4aa3ff; }
+/* 2px gap below the "YouTube Views" header to the info line / first row */
+.card .section + .small{ margin-top:2px!important; }
 
 .grid-tasks-2{ display:grid; grid-template-columns:1fr 1.1fr; gap:12px; align-items:center; margin:6px 0; }
 .hbar{ height:10px; border-radius:6px; background:#1f2736; overflow:hidden; }
-.hbar>span{ display:block; height:100%; }   /* color set inline */
+.hbar>span{ display:block; height:100%; }   /* color inline */
 
 /* ---- Filming list ---- */
 .film-row{ display:grid; grid-template-columns:1fr auto; gap:12px; align-items:center; padding:6px 0; }
 .film-right{ color:var(--brand); white-space:nowrap; }
 
-/* ---- First child guard ---- */
-section.main > div.block-container > :first-child{ margin-top:0!important; }
+/* ---- Icons ---- */
+.icon{ font-size:15px; }
 
-/* ---- Responsive (≤1100px) ---- */
+/* ---- Responsive ---- */
 @media (max-width:1100px){
   section.main > div.block-container{ padding-left:8px!important; padding-right:8px!important; }
   .lv-logo{ width:28px; }
   .title{ font-size:28px; letter-spacing:.10em; }
   .timestamp{ display:none; }
   .card{ padding:8px 10px; border-radius:10px; }
-  .kpi-grid{ gap:10px; }
-  .kpi-value{ font-size:16px; }
   .grid-views{ grid-template-columns:48px 1fr 64px; }
-  .grid-tasks-2{ row-gap:6px; }
   section.main > div:has(> div[data-testid="stHorizontalBlock"]) div[data-testid="column"]{
     width:100%!important; flex:0 0 100%!important;
   }
