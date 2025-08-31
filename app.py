@@ -162,14 +162,29 @@ section.main > div.block-container > :first-child{ margin-top:0!important; }
   background:var(--card-bg); border:1px solid var(--card-bd); border-radius:var(--radius);
   padding:4px; margin-bottom:2px; box-shadow:var(--shadow);
 }
+/* Extra breathing room under key cards */
+.card-spaced{ margin-bottom:10px !important; }   /* default cards keep 2px */
+
 /* EXACT 2px gap under any card header (your first requirement) */
 .card > .section{ margin-bottom:2px!important; }
 
 /* ---- Ministry mini cards ---- */
-.mini-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
-.mini-card{ background:var(--card-bg); border:1px solid var(--card-bd); border-radius:10px; padding:8px 10px; text-align:center; }
-.mini-label{ font-size:11px; color:var(--ink-dim); margin:0; }
-.mini-value{ font-size:24px; font-weight:800; margin:2px 0 0; }
+/* --- Ministry mini cards (tighter, bigger numbers) --- */
+.mini-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+
+.mini-card{
+  background:var(--card-bg); border:1px solid var(--card-bd);
+  border-radius:10px; padding:6px 8px; text-align:center;
+}
+
+.mini-label{ font-size:11px; color:var(--ink-dim); margin:0 0 2px 0; line-height:1.1; }
+
+.mini-value{
+  font-size:36px;          /* was 24px */
+  font-weight:900;
+  line-height:1.0;         /* tighter vertical rhythm */
+  margin:0;
+}
 
 /* ---- Channel Stats / YouTube KPI grid ---- */
 .kpi-yt-grid, .kpi-yt-row{
@@ -1449,7 +1464,7 @@ with left:
 
 with right:
     # Ministry tracker
-    st.markdown("<div class='card'><div class='section'>Ministry Tracker</div>", unsafe_allow_html=True)
+    st.markdown("<div class='card card-spaced'><div class='section'>Ministry Tracker</div>", unsafe_allow_html=True)
     st.markdown(
         f"""
         <div class="mini-grid">
@@ -1462,7 +1477,7 @@ with right:
     )
     st.markdown("</div>", unsafe_allow_html=True)
     # --- YouTube-only Channel Stats ---------------------------------------
-    st.markdown("<div class='card'><div class='section'>Channel Stats</div>", unsafe_allow_html=True)
+   st.markdown("<div class='card card-spaced'><div class='section'>Channel Stats</div>", unsafe_allow_html=True)
     
     def stack(lines):
         import html
@@ -1505,7 +1520,7 @@ with right:
     )
 
     # YouTube Views (Last 7 Days) — with real daily dates
-    st.markdown("<div class='card'><div class='section'>YouTube Views (Last 7 Days, complete data only)</div>", unsafe_allow_html=True)
+    st.markdown("<div class='card card-spaced'><div class='section'>YouTube Views (Last 7 Days, complete data only)</div>", unsafe_allow_html=True)
 
     # optional little tooltip/note
     st.markdown("<div class='small'>ℹ️ YouTube Analytics can lag up to 48h. Latest day may be missing until processed.</div>", unsafe_allow_html=True)
