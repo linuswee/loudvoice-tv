@@ -1522,9 +1522,13 @@ with right:
       padding-bottom: 2px;
       margin-bottom: 2px;  /* closer to totals */
     }
+    /* Also make the header "Total Views" right-aligned to match */
+    .kpi-yt-row.head > div:nth-child(3){
+      text-align:right;
+    }
     .kpi-yt-row.vals .col-names { font-size:16px; font-weight:400; color:var(--ink); }  /* labels NOT bold */
     .kpi-yt-row.vals .col-subs,
-    .kpi-yt-row.vals .col-views { font-size:16px; font-weight:800; color:var(--ink); }  /* numbers bold */
+    .kpi-yt-row.vals .col-views { text-align: right; font-size:16px; font-weight:800; color:var(--ink); }  /* numbers bold */
     .kpi-yt-row.total{ border-top:1px solid rgba(255,255,255,.10); padding-top:8px; margin-top:10px; }
     .kpi-yt-row.total .col-names{ font-weight:700; }  /* the word “Total” */
     .kpi-yt-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px; }
