@@ -1552,50 +1552,41 @@ with right:
     """, unsafe_allow_html=True)
     
     # Build YT rows
-    import html
-
+    # --- YouTube-only Channel Stats ---------------------------------------
+    st.markdown("<div class='card'><div class='section'>Channel Stats</div>", unsafe_allow_html=True)
+    
+    st.markdown("""
+    <style>
+    .kpi-yt { display:grid; grid-template-columns:2fr 1fr 1fr; gap:12px; }
+    .kpi-yt-h1{ display:flex; align-items:center; gap:8px; font-weight:800; margin-bottom:6px; }
+    .kpi-yt-row{ display:grid; grid-template-columns:2fr 1fr 1fr; gap:10px; align-items:flex-start; margin:4px 0; }
+    .kpi-yt-row > div { font-size:13px; color:var(--ink-dim); }
+    .kpi-yt-row.values > div { font-size:20px; font-weight:800; color:var(--ink); }
+    .kpi-yt-row.totals > div { font-size:16px; font-weight:700; color:var(--ink); }
+    .stack{ display:inline-block; line-height:1.35; }
+    .stack .line{ display:block; white-space:nowrap; }
+    </style>
+    """, unsafe_allow_html=True)
+    
     def stack(lines):
-        # each logical line is a block that won't wrap mid-word
+        import html
         inner = "".join(f"<span class='line'>{html.escape(str(l))}</span>" for l in lines)
         return f"<span class='stack'>{inner}</span>"
-
-    # Build YT rows (four channels expected)
+    
+    # Build rows for each channel
     yt_labels = stack([x["label"] for x in yt_per])
-    yt_subs   = stack([(fmt_num(x["subs"]) if x["subs"] else "–")  for x in yt_per])
-    yt_totals = stack([(fmt_num(x["total"]) if x["total"] else "–") for x in yt_per])
+    yt_subs   = stack([fmt_num(x["subs"]) for x in yt_per])
+    yt_totals = stack([fmt_num(x["total"]) for x in yt_per])
     
     yt_card = (
-        "<div class='kpi4-card'>"
-        "<div class='kpi4-h1'><i class='fa-brands fa-youtube icon' style='color:#ff3d3d'></i><span>YT</span></div>"
-        + _row(["", "", ""])  # spacer to align with other cards
-        + _row([yt_labels, "<span class='kpi4-small nowrap'>Follows&nbsp;(IG)</span>", "<span class='kpi4-small nowrap'>Follows&nbsp;(TT)</span>"])
-        + f"<div class='kpi4-row values'><div>{yt_subs}</div><div>{fmt_num(ig['followers'])}</div><div>{fmt_num(tt['followers'])}</div></div>"
-        + f"<div class='kpi4-row totals'><div>{yt_totals}</div><div></div><div></div></div>"
-        + "</div>"
+        "<div class='kpi-yt'>"
+        "<div class='kpi-yt-h1'><i class='fa-brands fa-youtube icon' style='color:#ff3d3d'></i><span>YouTube</span></div>"
+        "</div>"
+        f"<div class='kpi-yt-row'><div>{yt_labels}</div><div><b>Subs</b></div><div><b>Total Views</b></div></div>"
+        f"<div class='kpi-yt-row values'><div></div><div>{yt_subs}</div><div>{yt_totals}</div></div>"
     )
     
-    # Keep IG/TT heights aligned with YT by using the same number of rows
-    ig_card = (
-        "<div class='kpi4-card'>"
-        "<div class='kpi4-h1'><i class='fa-brands fa-instagram icon'></i><span>IG</span></div>"
-        + _row(["", "", ""])  # spacer row to match YT
-        + _row(["<span class='kpi4-small nowrap'>Follows&nbsp;(IG)</span>", "", ""])
-        + f"<div class='kpi4-row values'><div>{fmt_num(ig['followers'])}</div><div></div><div></div></div>"
-        + _row(["<span class='kpi4-small'>7-day Views: <b>"+fmt_num(ig['views7'])+"</b></span>", "", ""])  # totals row slot
-        + "</div>"
-    )
-    
-    tt_card = (
-        "<div class='kpi4-card'>"
-        "<div class='kpi4-h1'><i class='fa-brands fa-tiktok icon'></i><span>TT</span></div>"
-        + _row(["", "", ""])  # spacer row to match YT
-        + _row(["<span class='kpi4-small nowrap'>Follows&nbsp;(TT)</span>", "", ""])
-        + f"<div class='kpi4-row values'><div>{fmt_num(tt['followers'])}</div><div></div><div></div></div>"
-        + _row(["<span class='kpi4-small'>7-day Views: <b>"+fmt_num(tt['views7'])+"</b></span>", "", ""])  # totals row slot
-        + "</div>"
-    )
-    
-    st.markdown(f"<div class='kpi4'>{yt_card}{ig_card}{tt_card}</div>", unsafe_allow_html=True)
+    st.markdown(yt_card, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
     # YouTube Views (Last 7 Days) — with real daily dates
