@@ -196,16 +196,19 @@ div[data-testid="stHorizontalBlock"]{
 .section{
   color:var(--brand);
   font-weight:800;
-  font-size:16px;
-  margin:0 0 8px 0;
+  font-size:20px;
+  margin:0 0 4px 0;
 }
 .small{ font-size:13px; color:#9aa3bd; }
 
 /* ---- Cards ---- */
-.card{
-  background:var(--card-bg); border:1px solid var(--card-bd);
-  border-radius:var(--radius); padding:10px 14px; margin-bottom:10px;
-  box-shadow:var(--shadow);
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-bd);
+  border-radius: var(--radius);
+  padding: 6px 8px;    /* ↓ minimal padding (was 10px 14px) */
+  margin-bottom: 8px;
+  box-shadow: var(--shadow);
 }
 
 /* ---- Mini stats ---- */
@@ -1510,10 +1513,20 @@ with right:
     <style>
     .kpi-yt { display:grid; grid-template-columns:2fr 1fr 1fr; gap:12px; }
     .kpi-yt-h1{ display:flex; align-items:center; gap:8px; font-weight:800; margin-bottom:6px; }
-    .kpi-yt-row{ display:grid; grid-template-columns:2fr 1fr 1fr; gap:10px; align-items:center; margin:6px 0; }
-    .kpi-yt-row.head > div { font-size:13px; color:var(--ink-dim); }
-    .kpi-yt-row.vals > div { font-size:18px; font-weight:800; color:var(--ink); }
+    .kpi-yt-row{ display:grid; grid-template-columns:2fr 1fr 1fr; gap:4px; align-items:center; margin:2px 0; padding: 0; }
+    .kpi-yt-row.head > div {
+      font-size: 14px;
+      font-weight: 800;          /* <-- bold */
+      color: var(--ink);         /* white like other bold text */
+      padding-top: 2px;          /* reduce gap to Channel Stats heading */
+      padding-bottom: 2px;
+      margin-bottom: 2px;  /* closer to totals */
+    }
+    .kpi-yt-row.vals .col-names { font-size:16px; font-weight:400; color:var(--ink); }  /* labels NOT bold */
+    .kpi-yt-row.vals .col-subs,
+    .kpi-yt-row.vals .col-views { font-size:16px; font-weight:800; color:var(--ink); }  /* numbers bold */
     .kpi-yt-row.total{ border-top:1px solid rgba(255,255,255,.10); padding-top:8px; margin-top:10px; }
+    .kpi-yt-row.total .col-names{ font-weight:700; }  /* the word “Total” */
     .kpi-yt-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px; }
     .kpi-yt-left{ display:flex; align-items:center; gap:8px; font-weight:800; }
     .kpi-pill{ font-size:13px; background:rgba(255,255,255,.08); padding:6px 10px; border-radius:999px; white-space:nowrap;}
@@ -1544,11 +1557,8 @@ with right:
             <i class='fa-brands fa-youtube icon' style='color:#ff3d3d'></i>
             <span>YouTube</span>
           </div>
-          <div style="display:flex; gap:8px;">
-            <span class="kpi-pill">Subs <b>{agg_subs_label}</b></span>
-            <span class="kpi-pill">Total Views <b>{agg_total_label}</b></span>
-          </div>
-        </div>
+          <div><span class="kpi-pill">Subs <b>{agg_subs_label}</b></span></div>
+          <div><span class="kpi-pill">Total Views <b>{agg_total_label}</b></span></div>
         """,
         unsafe_allow_html=True,
     )
