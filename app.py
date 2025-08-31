@@ -1342,18 +1342,19 @@ else:
 filming = MOCK["filming"]
 
 # --- Per-channel YT stats for the 4-row KPI layout
-yt_channels = st.secrets.get("YT_CHANNELS", [])
+yt_api_key = st.secrets.get("YOUTUBE_API_KEY", "")
+yt_channels = st.secrets.get("YT_CHANNELS", [])  # [{id:"UC...", label:"..."}, ...]
+
 yt_per = []
 if yt_api_key and yt_channels:
     for ch in yt_channels:
         try:
-            s = yt_channel_stats(yt_api_key, ch["id"])  # returns {"subs": int, "total": int}
+            s = yt_channel_stats(yt_api_key, ch["id"])  # {"subs": int, "total": int}
             yt_per.append({"label": ch["label"], "subs": s["subs"], "total": s["total"]})
         except Exception as e:
             st.warning(f"YT stats error for {ch.get('label','(unknown)')}: {e}")
             yt_per.append({"label": ch["label"], "subs": 0, "total": 0})
 else:
-    # fallback if not configured
     yt_per = [
         {"label": "YT LoudVoice",           "subs": 0, "total": 0},
         {"label": "YT LoudVoice Insights",  "subs": 0, "total": 0},
@@ -1361,8 +1362,7 @@ else:
         {"label": "YT LoudVoice Chinese",   "subs": 0, "total": 0},
     ]
 
-# KPI card via Data API (aggregate)
-yt_api_key = st.secrets.get("YOUTUBE_API_KEY")
+# KPI card via Data API (aggregate across multiple channels)
 channel_ids = st.secrets.get("YT_CHANNEL_IDS", [])  # list of UC IDs
 if yt_api_key and channel_ids:
     try:
@@ -1526,7 +1526,7 @@ with right:
     """, unsafe_allow_html=True)
     
     # Build YT rows
-    yt_labels = "<br>".join([st._DEFAULT_TEXT_WRAPPER.fill(x["label"]) for x in yt_per])  # keeps labels stacked
+    yt_labels = "<br>".join(x["label"] for x in yt_per)
     yt_subs   = "<br>".join(fmt_num(x["subs"])  for x in yt_per)
     yt_totals = "<br>".join(fmt_num(x["total"]) for x in yt_per)
     
