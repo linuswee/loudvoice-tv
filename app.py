@@ -1514,6 +1514,10 @@ with right:
     .kpi-yt-row.head > div { font-size:13px; color:var(--ink-dim); }
     .kpi-yt-row.vals > div { font-size:18px; font-weight:800; color:var(--ink); }
     .kpi-yt-row.total{ border-top:1px solid rgba(255,255,255,.10); padding-top:8px; margin-top:10px; }
+    .kpi-yt-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px; }
+    .kpi-yt-left{ display:flex; align-items:center; gap:8px; font-weight:800; }
+    .kpi-pill{ font-size:13px; background:rgba(255,255,255,.08); padding:6px 10px; border-radius:999px; white-space:nowrap;}
+    .kpi-pill b{ font-size:16px; margin-left:6px; }
     .stack{ display:inline-block; line-height:1.35; }
     .stack .line{ display:block; }
     </style>
@@ -1529,21 +1533,23 @@ with right:
     subs   = [fmt_num(x["subs"])  if x["subs"]  else "–" for x in yt_per]
     totals = [fmt_num(x["total"]) if x["total"] else "–" for x in yt_per]
     
-    # Totals row
-    agg_subs   = fmt_num(sum(x["subs"]  for x in yt_per))
-    agg_totals = fmt_num(sum(x["total"] for x in yt_per))
+    # Use your already-computed totals
+    agg_subs_label   = fmt_num(sum(x["subs"]  for x in yt_per))   # or: fmt_num(youtube.get("subs", 0))
+    agg_total_label  = fmt_num(sum(x["total"] for x in yt_per))   # or: fmt_num(youtube.get("total", 0))
     
-    # Header
     st.markdown(
-        "<div class='kpi-yt'>"
-        "<div class='kpi-yt-h1'><i class='fa-brands fa-youtube icon' style='color:#ff3d3d'></i><span>YouTube</span></div>"
-        "</div>",
-        unsafe_allow_html=True,
-    )
-    
-    # Column headers
-    st.markdown(
-        "<div class='kpi-yt-row head'><div></div><div>Subs</div><div>Total Views</div></div>",
+        f"""
+        <div class='kpi-yt-head'>
+          <div class='kpi-yt-left'>
+            <i class='fa-brands fa-youtube icon' style='color:#ff3d3d'></i>
+            <span>YouTube</span>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <span class="kpi-pill">Subs <b>{agg_subs_label}</b></span>
+            <span class="kpi-pill">Total Views <b>{agg_total_label}</b></span>
+          </div>
+        </div>
+        """,
         unsafe_allow_html=True,
     )
     
