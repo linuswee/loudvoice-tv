@@ -193,11 +193,11 @@ div[data-testid="stHorizontalBlock"]{
   margin:0 0 6px 0!important;
 }
 .timestamp{ color:var(--brand); font-size:12px; font-weight:700; text-align:right; }
-.section{
-  color:var(--brand);
-  font-weight:800;
-  font-size:16px;
-  margin:0 0 8px 0;
+.section {
+  color: var(--brand);
+  font-weight: 800;
+  font-size: 20px;           /* <-- bump up from 16px */
+  margin: 0 0 6px 0;         /* tighter margin so they’re closer */
 }
 .small{ font-size:13px; color:#9aa3bd; }
 
@@ -1511,11 +1511,24 @@ with right:
     .kpi-yt { display:grid; grid-template-columns:2fr 1fr 1fr; gap:12px; }
     .kpi-yt-h1{ display:flex; align-items:center; gap:8px; font-weight:800; margin-bottom:6px; }
     .kpi-yt-row{ display:grid; grid-template-columns:2fr 1fr 1fr; gap:10px; align-items:center; margin:6px 0; }
-    .kpi-yt-row.head > div { font-size:13px; color:var(--ink-dim); text-align:left; }
-    .kpi-yt-row.vals .col-names { font-size:18px; font-weight:400; color:var(--ink); }  /* labels normal */
+    .kpi-yt-row.head > div {
+      font-size: 14px;
+      font-weight: 800;          /* <-- bold */
+      color: var(--ink);         /* white like other bold text */
+      padding-top: 2px;          /* reduce gap to Channel Stats heading */
+      padding-bottom: 2px;
+    }
+    .kpi-yt-row.vals .col-names {
+      font-size: 16px;           /* same as rest of site text */
+      font-weight: 400;          /* normal, not bold */
+      color: var(--ink);         /* same ink color as body */
+    }
     .kpi-yt-row.vals .col-subs,
-    .kpi-yt-row.vals .col-views { font-size:18px; font-weight:800; color:var(--ink); text-align:left; }  /* numbers bold */
-    .kpi-yt-row.total{ border-top:1px solid rgba(255,255,255,.10); padding-top:8px; margin-top:10px; }
+    .kpi-yt-row.vals .col-views {
+      font-size: 16px;
+      font-weight: 800;          /* keep numbers bold */
+      color: var(--ink);
+    }
     .kpi-yt-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px; }
     .kpi-yt-left{ display:flex; align-items:center; gap:8px; font-weight:800; }
     .kpi-pill{ font-size:13px; background:rgba(255,255,255,.08); padding:6px 10px; border-radius:999px; white-space:nowrap;}
