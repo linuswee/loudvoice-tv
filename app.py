@@ -53,12 +53,14 @@ st.set_page_config(
     layout="wide"
 )
 
-st.markdown("""
-<link rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
-      integrity="sha512-bx8wN/so2HnIY7+q3sU5o7bQ/ud9l1z4PCtRj2CFf7RYI0ehCyBN8DQ3lmgwPcj3doGht+jOZQf1BPZpbnRgfQ=="
-      crossorigin="anonymous" referrerpolicy="no-referrer" />
-""", unsafe_allow_html=True)
+st.markdown(
+    """
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.2/css/all.min.css">
+    """,
+    unsafe_allow_html=True,
+)
 
 # Inject favicon + iOS Home Screen icon into <head>
 st.markdown(
