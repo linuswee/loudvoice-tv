@@ -184,6 +184,11 @@ section.main > div.block-container > :first-child{ margin-top:0!important; }
 .kpi-yt-grid, .kpi-yt-row{
   display:grid; grid-template-columns:2fr 1fr 1fr; gap:4px; align-items:center; font-variant-numeric:tabular-nums;
 }
+
+/* multi-line stacks for Channel Stats (labels, subs, views) */
+.stack{ display:inline-block; line-height:1.35; }
+.stack .line{ display:block; }         /* <-- this forces one value per line */
+
 /* EXACT 2px gap between “Channel Stats” and the YouTube header row (second requirement) */
 .kpi-yt-header{ margin:0 0 2px 0; }
 .kpi-cell-right{ justify-self:end; }
