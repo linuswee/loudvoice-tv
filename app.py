@@ -196,17 +196,20 @@ div[data-testid="stHorizontalBlock"]{
 .section {
   color: var(--brand);
   font-weight: 800;
-  font-size: 20px;           /* <-- bump up from 16px */
-  margin: 0 0 6px 0;         /* tighter margin so they’re closer */
+  font-size: 20px;
+  margin: 0 0 4px 0;   /* ↓ reduce bottom margin (was 8px) */
+  padding: 0;          /* remove hidden padding */
 }
 .small{ font-size:13px; color:#9aa3bd; }
 
 /* ---- Cards ---- */
-.card{
-  background:var(--card-bg); border:1px solid var(--card-bd);
-  border-radius:var(--radius); padding:10px 14px; margin-bottom:10px;
-  box-shadow:var(--shadow);
-}
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-bd);
+  border-radius: var(--radius);
+  padding: 6px 8px;    /* ↓ minimal padding (was 10px 14px) */
+  margin-bottom: 8px;
+  box-shadow: var(--shadow);
 
 /* ---- Mini stats ---- */
 .mini-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
@@ -1510,13 +1513,17 @@ with right:
     <style>
     .kpi-yt { display:grid; grid-template-columns:2fr 1fr 1fr; gap:12px; }
     .kpi-yt-h1{ display:flex; align-items:center; gap:8px; font-weight:800; margin-bottom:6px; }
-    .kpi-yt-row{ display:grid; grid-template-columns:2fr 1fr 1fr; gap:10px; align-items:center; margin:6px 0; }
+    .kpi-yt-row {
+      margin: 2px 0;       /* ↓ reduce vertical spacing (was 6px) */
+      padding: 0;          /* no extra padding */
+    }
     .kpi-yt-row.head > div {
       font-size: 14px;
       font-weight: 800;          /* <-- bold */
       color: var(--ink);         /* white like other bold text */
-      padding-top: 2px;          /* reduce gap to Channel Stats heading */
-      padding-bottom: 2px;
+      padding-top: 1px;          /* reduce gap to Channel Stats heading */
+      padding-bottom: 1px;
+      margin-bottom: 1px;  /* closer to totals */
     }
     .kpi-yt-row.vals .col-names {
       font-size: 16px;           /* same as rest of site text */
