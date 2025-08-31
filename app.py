@@ -1522,41 +1522,49 @@ with right:
     .kpi4-row.values > div { font-size:22px; font-weight:800; color:var(--ink); }
     .kpi4-row.totals > div { font-size:16px; font-weight:700; color:var(--ink); }
     .kpi4-small{ font-size:11px; color:var(--ink-dim); }
+    .kpi4-row > div { white-space: normal; }     /* allow normal wrapping */
+    .stack { display: inline-block; line-height: 1.35; }  /* for multi-line cells */
+    .nowrap { white-space: nowrap; }             /* prevent '(IG)' splitting */
     </style>
     """, unsafe_allow_html=True)
     
     # Build YT rows
-    yt_labels = "<br>".join(x["label"] for x in yt_per)
-    yt_subs   = "<br>".join(fmt_num(x["subs"])  for x in yt_per)
-    yt_totals = "<br>".join(fmt_num(x["total"]) for x in yt_per)
+    def stack(lines): 
+    return "<span class='stack'>" + "<br>".join(lines) + "</span>"
+
+    # Build YT rows (four channels expected)
+    yt_labels = stack([x["label"] for x in yt_per])
+    yt_subs   = stack([(fmt_num(x["subs"]) if x["subs"] else "–")  for x in yt_per])
+    yt_totals = stack([(fmt_num(x["total"]) if x["total"] else "–") for x in yt_per])
     
     yt_card = (
         "<div class='kpi4-card'>"
         "<div class='kpi4-h1'><i class='fa-brands fa-youtube icon' style='color:#ff3d3d'></i><span>YT</span></div>"
-        + _row(["", "", ""])  # spacer under header so rows align across 3 cards
-        + _row([yt_labels, "<span class='kpi4-small'>Follows (IG)</span>", "<span class='kpi4-small'>Follows (TT)</span>"])
+        + _row(["", "", ""])  # spacer to align with other cards
+        + _row([yt_labels, "<span class='kpi4-small nowrap'>Follows&nbsp;(IG)</span>", "<span class='kpi4-small nowrap'>Follows&nbsp;(TT)</span>"])
         + f"<div class='kpi4-row values'><div>{yt_subs}</div><div>{fmt_num(ig['followers'])}</div><div>{fmt_num(tt['followers'])}</div></div>"
         + f"<div class='kpi4-row totals'><div>{yt_totals}</div><div></div><div></div></div>"
         + "</div>"
     )
     
-    # IG card (kept simple)
+    # Keep IG/TT heights aligned with YT by using the same number of rows
     ig_card = (
         "<div class='kpi4-card'>"
         "<div class='kpi4-h1'><i class='fa-brands fa-instagram icon'></i><span>IG</span></div>"
-        + _row(["Follows (IG)", "", ""])
+        + _row(["", "", ""])  # spacer row to match YT
+        + _row(["<span class='kpi4-small nowrap'>Follows&nbsp;(IG)</span>", "", ""])
         + f"<div class='kpi4-row values'><div>{fmt_num(ig['followers'])}</div><div></div><div></div></div>"
-        + _row([f"7-day Views: <b>{fmt_num(ig['views7'])}</b>", "", ""])
+        + _row(["<span class='kpi4-small'>7-day Views: <b>"+fmt_num(ig['views7'])+"</b></span>", "", ""])  # totals row slot
         + "</div>"
     )
     
-    # TT card
     tt_card = (
         "<div class='kpi4-card'>"
         "<div class='kpi4-h1'><i class='fa-brands fa-tiktok icon'></i><span>TT</span></div>"
-        + _row(["Follows (TT)", "", ""])
+        + _row(["", "", ""])  # spacer row to match YT
+        + _row(["<span class='kpi4-small nowrap'>Follows&nbsp;(TT)</span>", "", ""])
         + f"<div class='kpi4-row values'><div>{fmt_num(tt['followers'])}</div><div></div><div></div></div>"
-        + _row([f"7-day Views: <b>{fmt_num(tt['views7'])}</b>", "", ""])
+        + _row(["<span class='kpi4-small'>7-day Views: <b>"+fmt_num(tt['views7'])+"</b></span>", "", ""])  # totals row slot
         + "</div>"
     )
     
