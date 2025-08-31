@@ -1,5 +1,3 @@
-__LV_VERSION__ = "v3.1b-cards-alignedbars (sha:0523c1c9, refactor-01)"
-
 # app.py — LoudVoice Dashboard (cards + aligned bars layout)
 
 from datetime import datetime, timedelta
@@ -138,26 +136,14 @@ div[data-testid="stAppViewContainer"] > .main{
 }
 section.main{ overflow:visible!important; }
 section.main > div.block-container{
-  gap:4px !important;          /* row/column gap between blocks */
-  row-gap:4px !important;
+  max-width:100vw!important; padding:8px 12px 10px!important; margin:0!important; min-height:100vh!important;
 }
-section.main > div.block-container > div:has(> div[data-testid="stHorizontalBlock"]):first-of-type{
-  margin-top:0 !important;
-  padding-top:0 !important;
-}
+section.main > div.block-container > div:has(> div[data-testid="stHorizontalBlock"]){ max-width:100%!important; }
 section.main > div.block-container > div:has(> div[data-testid="stHorizontalBlock"]) div[data-testid="column"]{
   flex:1 1 0!important; width:auto!important;
 }
 div[data-testid="stAppViewContainer"] > .main, section.main, section.main > div.block-container,
-div[data-testid="stHorizontalBlock"] > div[data-testid="column"]{
-  padding-top:0 !important;
-  margin-top:0 !important;
-}
-div[data-testid="stVerticalBlock"]{
-  gap:4px !important;
-  row-gap:4px !important;
-}
-
+div[data-testid="stHorizontalBlock"]{ padding-top:0!important; margin-top:0!important; }
 section.main > div.block-container > :first-child{ margin-top:0!important; }
 
 /* ---- Header ---- */
