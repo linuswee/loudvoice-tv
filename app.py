@@ -191,7 +191,13 @@ section.main > div.block-container > :first-child{ margin-top:0!important; }
 
 /* multi-line stacks for Channel Stats (labels, subs, views) */
 .stack{ display:inline-block; line-height:1.35; }
-.stack .line{ display:block; }         /* <-- this forces one value per line */
+.stack .line{
+  display:block;
+  margin-bottom:6px;   /* adjust: 4px, 6px, 8px etc */
+}
+.stack .line:last-child{
+  margin-bottom:0;     /* prevent extra space at the bottom */
+}
 
 /* EXACT 2px gap between “Channel Stats” and the YouTube header row (second requirement) */
 .kpi-yt-header{ margin:0 0 2px 0; }
