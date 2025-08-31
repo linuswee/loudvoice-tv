@@ -1492,9 +1492,6 @@ with right:
         unsafe_allow_html=True,
     )
     st.markdown("</div>", unsafe_allow_html=True)
-
-    # Channel stats
-    connected = f"<span class='small'>Connected: All Channels</b></span>" if oauth_title else ""
     # --- YouTube-only Channel Stats ---------------------------------------
     st.markdown("<div class='card'><div class='section'>Channel Stats</div>", unsafe_allow_html=True)
     
