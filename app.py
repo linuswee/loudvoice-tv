@@ -1,3 +1,5 @@
+__LV_VERSION__ = "v3.1b-cards-alignedbars (sha:0523c1c9, refactor-01)"
+
 # app.py — LoudVoice Dashboard (cards + aligned bars layout)
 
 from datetime import datetime, timedelta
@@ -51,14 +53,23 @@ st.set_page_config(
     layout="wide"
 )
 
-st.markdown(
-    """
-    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-    <link rel="stylesheet"
-          href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.2/css/all.min.css">
-    """,
-    unsafe_allow_html=True,
-)
+st.markdown("""
+<style>
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css');
+
+/* ========== LOUDVOICE — minimal, unified CSS ========== */
+/* ... your same CSS ... */
+.kpi-head{ display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+.icon{ font-size:15px; }   /* add this so the FA glyph has a size */
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+      integrity="sha512-bx8wN/so2HnIY7+q3sU5o7bQ/ud9l1z4PCtRj2CFf7RYI0ehCyBN8DQ3lmgwPcj3doGht+jOZQf1BPZpbnRgfQ=="
+      crossorigin="anonymous" referrerpolicy="no-referrer" />
+""", unsafe_allow_html=True)
 
 # Inject favicon + iOS Home Screen icon into <head>
 st.markdown(
@@ -116,122 +127,131 @@ DEBUG = qp.get("debug", ["0"])[0].lower() in ("1","true","yes")
 # -------------------------------
 st.markdown("""
 <style>
-/* =============== LOUDVOICE — Unified CSS (single source of truth) =============== */
+/* ========== LOUDVOICE — unified CSS (full-width, no zoom, no bottom gap) ========== */
 
-/* ---- Theme ---- */
+/* ---- Theme tokens ---- */
 :root{
-  --bg:#0b0f16; --ink:#eef3ff; --ink-dim:#aab3cc; --brand:#ffd54a;
-  --card-bg:rgba(255,255,255,.03); --card-bd:rgba(255,255,255,.10);
-  --shadow:0 4px 12px rgba(0,0,0,.22); --radius:12px;
+  --bg:#0b0f16;
+  --ink:#eef3ff;
+  --ink-dim:#aab3cc;
+  --brand:#ffd54a;
+  --card-bg:rgba(255,255,255,.03);
+  --card-bd:rgba(255,255,255,.10);
+  --shadow:0 4px 12px rgba(0,0,0,.22);
+  --pad:12px;
+  --radius:12px;
 }
 
-/* ---- App chrome ---- */
+/* ---- App chrome + base ---- */
 html, body, [class^="css"]{ background:var(--bg)!important; color:var(--ink); }
-#MainMenu, header[data-testid="stHeader"], div[data-testid="stToolbar"],
-div[data-testid="stDecoration"], footer{ display:none!important; }
+header[data-testid="stHeader"],
+div[data-testid="stToolbar"],
+div[data-testid="stDecoration"],
+#MainMenu, footer{ display:none!important; }
 
-/* ---- Full width container ---- */
+/* ---- FULL-WIDTH & HEIGHT (remove centered frame + bottom black bar) ---- */
 div[data-testid="stAppViewContainer"] > .main{
-  max-width:100vw!important; padding-left:0!important; padding-right:0!important; overflow:visible!important;
+  max-width:100vw!important;
+  padding-left:0!important; padding-right:0!important;
+  overflow: visible!important;                 /* allow content to extend */
 }
-section.main{ overflow:visible!important; }
+section.main{ overflow: visible!important; }
 section.main > div.block-container{
-  max-width:100vw!important; padding:8px 12px 10px!important; margin:0!important; min-height:100vh!important;
+  max-width:100vw!important;
+  padding:8px 12px 10px!important;             /* slim side gutters */
+  margin-left:0!important; margin-right:0!important;
+  min-height:100vh!important;                  /* fill page height */
 }
-section.main > div.block-container > div:has(> div[data-testid="stHorizontalBlock"]){ max-width:100%!important; }
-section.main > div.block-container > div:has(> div[data-testid="stHorizontalBlock"]) div[data-testid="column"]{
-  flex:1 1 0!important; width:auto!important;
-}
-div[data-testid="stAppViewContainer"] > .main, section.main, section.main > div.block-container,
-div[data-testid="stHorizontalBlock"]{ padding-top:0!important; margin-top:0!important; }
-section.main > div.block-container > :first-child{ margin-top:0!important; }
 
-/* ---- Header ---- */
+/* Make horizontal block rows truly stretch */
+section.main > div.block-container > div:has(> div[data-testid="stHorizontalBlock"]){
+  max-width:100%!important;
+}
+section.main > div.block-container > div:has(> div[data-testid="stHorizontalBlock"])
+  div[data-testid="column"]{
+  flex:1 1 0!important;
+  width:auto!important;
+}
+
+/* ---- Spacing reset ---- */
+div[data-testid="stAppViewContainer"] > .main,
+section.main,
+section.main > div.block-container,
+div[data-testid="stHorizontalBlock"]{
+  padding-top:0!important; margin-top:0!important;
+}
+
+/* ---- Logo ---- */
 .lv-logo{ width:40px; height:auto; }
-.title{ color:var(--brand); font-weight:900; font-size:38px; letter-spacing:.12em; margin:0 0 6px 0!important; }
-.timestamp{ color:var(--brand); font-size:12px; font-weight:700; text-align:right; }
 
-/* ---- Section headings ---- */
-.section{ color:var(--brand); font-weight:800; font-size:20px; margin:0; }
+/* ---- Typography (clear at “80% look” without using zoom) ---- */
+.title{
+  color:var(--brand);
+  font-weight:900;
+  font-size:38px;                    /* slightly larger for clarity */
+  letter-spacing:.12em;
+  margin:0 0 6px 0!important;
+}
+.timestamp{ color:var(--brand); font-size:12px; font-weight:700; text-align:right; }
+.section{
+  color:var(--brand);
+  font-weight:800;
+  font-size:16px;
+  margin:0 0 8px 0;
+}
 .small{ font-size:13px; color:#9aa3bd; }
 
 /* ---- Cards ---- */
 .card{
-  background:var(--card-bg); border:1px solid var(--card-bd); border-radius:var(--radius);
-  padding:4px; margin-bottom:2px; box-shadow:var(--shadow);
-}
-/* Extra breathing room under key cards */
-.card-spaced{ margin-bottom:10px !important; }   /* default cards keep 2px */
-
-/* EXACT 2px gap under any card header (your first requirement) */
-.card > .section{ margin-bottom:2px!important; }
-
-/* ---- Ministry mini cards ---- */
-/* --- Ministry mini cards (tighter, bigger numbers) --- */
-.mini-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
-
-.mini-card{
   background:var(--card-bg); border:1px solid var(--card-bd);
-  border-radius:10px; padding:6px 8px; text-align:center;
+  border-radius:var(--radius); padding:10px 14px; margin-bottom:10px;
+  box-shadow:var(--shadow);
 }
 
-.mini-label{ font-size:16px; color:var(--ink-dim); margin:0 0 2px 0; line-height:1.1; }
+/* ---- Mini stats ---- */
+.mini-grid{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
+.mini-card{ background:var(--card-bg); border:1px solid var(--card-bd); border-radius:10px; padding:8px 10px; text-align:center; }
+.mini-label{ font-size:11px; color:var(--ink-dim); margin:0; }
+.mini-value{ font-size:24px; font-weight:800; margin:2px 0 0; }
 
-.mini-value{
-  font-size:36px;          /* was 24px */
-  font-weight:900;
-  line-height:1.0;         /* tighter vertical rhythm */
-  margin:0;
-}
+/* ---- KPI cards ---- */
+.kpi-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+.kpi-card{ background:var(--card-bg); border:1px solid var(--card-bd); border-radius:10px; padding:10px 12px; }
+.kpi-head{ display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+.kpi-name{ font-size:15px; font-weight:800; }
+.kpi-label{ font-size:11px; color:var(--ink-dim); margin:0; }
+.kpi-value{ font-size:20px; font-weight:800; margin:0; }
 
-/* ---- Channel Stats / YouTube KPI grid ---- */
-.kpi-yt-grid, .kpi-yt-row{
-  display:grid; grid-template-columns:2fr 1fr 1fr; gap:4px; align-items:center; font-variant-numeric:tabular-nums;
-}
-
-/* multi-line stacks for Channel Stats (labels, subs, views) */
-.stack{ display:inline-block; line-height:1.35; }
-.stack .line{
-  display:block;
-  margin-bottom:6px;   /* adjust: 4px, 6px, 8px etc */
-}
-.stack .line:last-child{
-  margin-bottom:0;     /* prevent extra space at the bottom */
-}
-
-/* EXACT 2px gap between “Channel Stats” and the YouTube header row (second requirement) */
-.kpi-yt-header{ margin:0 0 2px 0; }
-.kpi-cell-right{ justify-self:end; }
-.kpi-yt-left{ display:flex; align-items:center; gap:4px; font-weight:800; margin:0; padding:0; }
-.kpi-yt-row{ margin:2px 0; align-items:baseline; }
-.kpi-yt-row .col-names{ font-size:16px; font-weight:400; color:var(--ink); }
-.kpi-yt-row .col-subs, .kpi-yt-row .col-views{ text-align:right; font-size:16px; font-weight:800; color:var(--ink); }
-.kpi-pill{ font-size:13px; background:rgba(255,255,255,.08); padding:6px 10px; border-radius:999px; white-space:nowrap; }
-.kpi-pill b{ font-size:16px; margin-left:6px; }
+/* Font Awesome icon sizing */
 .icon{ font-size:15px; }
 
-/* ---- 7-day bars ---- */
+/* ---- Bars (7-day views + task progress) ---- */
 .grid-views{ display:grid; grid-template-columns:64px 1fr 76px; gap:10px; align-items:center; margin:4px 0; }
 .views-bar{ height:10px; border-radius:6px; background:#1f2736; overflow:hidden; }
 .views-bar>span{ display:block; height:100%; background:#4aa3ff; }
-/* EXACT 2px gap between the “YouTube Views” header and the info line / first row (third requirement) */
-.card .section + .small{ margin-top:2px!important; }
 
-/* ---- Tasks / Filming ---- */
 .grid-tasks-2{ display:grid; grid-template-columns:1fr 1.1fr; gap:12px; align-items:center; margin:6px 0; }
 .hbar{ height:10px; border-radius:6px; background:#1f2736; overflow:hidden; }
-.hbar>span{ display:block; height:100%; }
+.hbar>span{ display:block; height:100%; }   /* color set inline */
+
+/* ---- Filming list ---- */
 .film-row{ display:grid; grid-template-columns:1fr auto; gap:12px; align-items:center; padding:6px 0; }
 .film-right{ color:var(--brand); white-space:nowrap; }
 
-/* ---- Responsive ---- */
+/* ---- First child guard ---- */
+section.main > div.block-container > :first-child{ margin-top:0!important; }
+
+/* ---- Responsive (≤1100px) ---- */
 @media (max-width:1100px){
   section.main > div.block-container{ padding-left:8px!important; padding-right:8px!important; }
   .lv-logo{ width:28px; }
   .title{ font-size:28px; letter-spacing:.10em; }
   .timestamp{ display:none; }
   .card{ padding:8px 10px; border-radius:10px; }
+  .kpi-grid{ gap:10px; }
+  .kpi-value{ font-size:16px; }
   .grid-views{ grid-template-columns:48px 1fr 64px; }
+  .grid-tasks-2{ row-gap:6px; }
   section.main > div:has(> div[data-testid="stHorizontalBlock"]) div[data-testid="column"]{
     width:100%!important; flex:0 0 100%!important;
   }
@@ -1054,43 +1074,51 @@ def read_sheet(doc_id: str, worksheet: str) -> pd.DataFrame:
 def load_ministry_totals(doc_id: str, worksheet: str = "Ministry") -> dict:
     """
     Supports either:
-      A) row format with columns: [type, count]  -> sums by type
-      B) wide format with columns: [prayer, studies, baptisms] on first row
-      (timestamp/details are ignored if present)
+      A) tidy rows: [type, count]  -> sums by type
+      B) wide totals on the first data row (e.g., columns: prayers, studies, follow_ups, baptisms)
+         Values can be plain numbers or text like '1 potential' — the first integer is used.
     """
-    out = {"prayer": 0, "studies": 0, "baptisms": 0}
+    out = {"prayer": 0, "studies": 0, "follow_ups": 0, "baptisms": 0}
     df = read_sheet(doc_id, worksheet)
     if df.empty:
         return out
 
     cols = set(df.columns)
 
-    # A) Tidy rows: type + count
+    # --- A) tidy rows: [type, count] ---
     if {"type", "count"} <= cols:
-        # coerce numeric
-        tmp = pd.to_numeric(df["count"], errors="coerce").fillna(0).astype(int)
-        # standardize type labels
         kind = df["type"].str.strip().str.lower().replace({
-            "prayer": "prayer",
-            "prayers": "prayer",
-            "study": "studies",
-            "studies": "studies",
-            "baptism": "baptisms",
-            "baptisms": "baptisms",
+            "prayer": "prayer", "prayers": "prayer",
+            "study": "studies", "studies": "studies",
+            "follow up": "follow_ups", "follow ups": "follow_ups",
+            "follow-ups": "follow_ups", "followups": "follow_ups",
+            "baptism": "baptisms", "baptisms": "baptisms",
         })
-        agg = pd.DataFrame({"type": kind, "count": tmp}).groupby("type")["count"].sum()
+        cnt  = pd.to_numeric(df["count"], errors="coerce").fillna(0).astype(int)
+        agg  = pd.DataFrame({"type": kind, "count": cnt}).groupby("type")["count"].sum()
         for k in out.keys():
             if k in agg.index:
                 out[k] = int(agg[k])
         return out
 
-    # B) Wide totals on first row
-    for k in out.keys():
-        if k in cols:
-            try:
-                out[k] = int(pd.to_numeric(df.iloc[0][k], errors="coerce") or 0)
-            except Exception:
-                out[k] = 0
+    # --- B) wide totals on first row (forgiving headers + values) ---
+    import re
+    def num_from(x):
+        m = re.search(r"\d+", str(x) or "")
+        return int(m.group()) if m else 0
+
+    aliases = {
+        "prayer":     ["prayer", "prayers"],
+        "studies":    ["studies", "study"],
+        "follow_ups": ["follow_ups", "follow ups", "follow-ups", "followups"],
+        "baptisms":   ["baptisms", "baptism"],
+    }
+
+    row0 = df.iloc[0] if len(df) else pd.Series(dtype=object)
+    for key, names in aliases.items():
+        col = next((c for c in df.columns if c in names), None)
+        if col:
+            out[key] = num_from(row0.get(col, 0))
 
     return out
 
@@ -1321,28 +1349,8 @@ else:
         ]
 filming = MOCK["filming"]
 
-# --- Per-channel YT stats for the 4-row KPI layout
-yt_api_key = st.secrets.get("YOUTUBE_API_KEY", "")
-yt_channels = st.secrets.get("YT_CHANNELS", [])  # [{id:"UC...", label:"..."}, ...]
-
-yt_per = []
-if yt_api_key and yt_channels:
-    for ch in yt_channels:
-        try:
-            s = yt_channel_stats(yt_api_key, ch["id"])  # {"subs": int, "total": int}
-            yt_per.append({"label": ch["label"], "subs": s["subs"], "total": s["total"]})
-        except Exception as e:
-            st.warning(f"YT stats error for {ch.get('label','(unknown)')}: {e}")
-            yt_per.append({"label": ch["label"], "subs": 0, "total": 0})
-else:
-    yt_per = [
-        {"label": "YT LoudVoice",           "subs": 0, "total": 0},
-        {"label": "YT LoudVoice Insights",  "subs": 0, "total": 0},
-        {"label": "YT LoudVoice Bahasa",    "subs": 0, "total": 0},
-        {"label": "YT LoudVoice Chinese",   "subs": 0, "total": 0},
-    ]
-
-# KPI card via Data API (aggregate across multiple channels)
+# KPI card via Data API (aggregate)
+yt_api_key = st.secrets.get("YOUTUBE_API_KEY")
 channel_ids = st.secrets.get("YT_CHANNEL_IDS", [])  # list of UC IDs
 if yt_api_key and channel_ids:
     try:
@@ -1468,63 +1476,46 @@ with left:
 
 with right:
     # Ministry tracker
-    st.markdown("<div class='card card-spaced'><div class='section'>Ministry Tracker</div>", unsafe_allow_html=True)
+    st.markdown("<div class='card'><div class='section'>Ministry Tracker</div>", unsafe_allow_html=True)
     st.markdown(
         f"""
         <div class="mini-grid">
-          <div class="mini-card"><div class="mini-label">Prayer</div><div class="mini-value">{ministry['prayer']}</div></div>
-          <div class="mini-card"><div class="mini-label">Studies</div><div class="mini-value">{ministry['studies']}</div></div>
-          <div class="mini-card"><div class="mini-label">Baptisms</div><div class="mini-value">{ministry['baptisms']}</div></div>
+        <div class="mini-card"><div class="mini-label">Prayer</div><div class="mini-value">{ministry['prayer']}</div></div>
+        <div class="mini-card"><div class="mini-label">Studies</div><div class="mini-value">{ministry['studies']}</div></div>
+        <div class="mini-card"><div class="mini-label">Follow Ups</div><div class="mini-value">{ministry.get('follow_ups', 0)}</div></div>
+        <div class="mini-card"><div class="mini-label">Baptisms</div><div class="mini-value">{ministry['baptisms']}</div></div>
         </div>
         """,
         unsafe_allow_html=True,
     )
     st.markdown("</div>", unsafe_allow_html=True)
-    # --- YouTube-only Channel Stats ---------------------------------------
-    st.markdown("<div class='card card-spaced'><div class='section'>Channel Stats</div>", unsafe_allow_html=True)
     
-    def stack(lines):
-        import html
-        inner = "".join(f"<span class='line'>{html.escape(str(l))}</span>" for l in lines)
-        return f"<span class='stack'>{inner}</span>"
-    
-    # Build rows for each channel (from yt_per)
-    names  = [x["label"] for x in yt_per]
-    subs   = [fmt_num(x["subs"])  if x["subs"]  else "–" for x in yt_per]
-    totals = [fmt_num(x["total"]) if x["total"] else "–" for x in yt_per]
-    
-    # Use your already-computed totals
-    agg_subs_label   = fmt_num(sum(x["subs"]  for x in yt_per))   # or: fmt_num(youtube.get("subs", 0))
-    agg_total_label  = fmt_num(sum(x["total"] for x in yt_per))   # or: fmt_num(youtube.get("total", 0))
-    
-    st.markdown(
-        f"""
-        <div class="kpi-yt-grid kpi-yt-header">
-          <div class="kpi-yt-left">
-            <i class="fa-brands fa-youtube icon" style="color:#ff3d3d"></i>
-            <span>YouTube</span>
+    # Channel stats
+    connected = f"<span class='small'>Connected: All Channels</b></span>" if oauth_title else ""
+    st.markdown(f"<div class='card'><div class='section'>Channel Stats {connected}</div>", unsafe_allow_html=True)
+    # Channel stats (icons)
+    st.markdown(f"""
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-head"><i class="fa-brands fa-youtube icon" style="color:#ff3d3d"></i><span class="kpi-name">YT</span></div>
+            <div class="kpi-label">Subs</div><div class="kpi-value">{fmt_num(youtube['subs'])}</div>
+            <div class="kpi-label">Total</div><div class="kpi-value">{fmt_num(youtube['total'])}</div>
           </div>
-          <div class="kpi-cell-right"><span class="kpi-pill">Subs <b>{agg_subs_label}</b></span></div>
-          <div class="kpi-cell-right"><span class="kpi-pill">Total Views <b>{agg_total_label}</b></span></div>
+          <div class="kpi-card">
+            <div class="kpi-head"><i class="fa-brands fa-instagram icon"></i><span class="kpi-name">IG</span></div>
+            <div class="kpi-label">Follows</div><div class="kpi-value">{fmt_num(ig['followers'])}</div>
+            <div class="kpi-label">7‑day Views</div><div class="kpi-value">{fmt_num(ig['views7'])}</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-head"><i class="fa-brands fa-tiktok icon"></i><span class="kpi-name">TT</span></div>
+            <div class="kpi-label">Follows</div><div class="kpi-value">{fmt_num(tt['followers'])}</div>
+            <div class="kpi-label">7‑day Views</div><div class="kpi-value">{fmt_num(tt['views7'])}</div>
+          </div>
         </div>
-        """,
-        unsafe_allow_html=True,
-    )
-        
-    # --- Values (uses the SAME 3-col grid) ---
-    st.markdown(
-        f"""
-        <div class="kpi-yt-row">
-          <div class="col-names">{stack(names)}</div>
-          <div class="col-subs">{stack(subs)}</div>
-          <div class="col-views">{stack(totals)}</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+        """, unsafe_allow_html=True)
 
     # YouTube Views (Last 7 Days) — with real daily dates
-    st.markdown("<div class='card card-spaced'><div class='section'>YouTube Views (Last 7 Days, complete data only)</div>", unsafe_allow_html=True)
+    st.markdown("<div class='card'><div class='section'>YouTube Views (Last 7 Days, complete data only)</div>", unsafe_allow_html=True)
 
     # optional little tooltip/note
     st.markdown("<div class='small'>ℹ️ YouTube Analytics can lag up to 48h. Latest day may be missing until processed.</div>", unsafe_allow_html=True)
