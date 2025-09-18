@@ -49,9 +49,21 @@ LOCAL_TZ = pytz.timezone(LOCAL_TZ_NAME)       # tz object
 
 st.set_page_config(
     page_title="LOUDVOICE",
-    page_icon="assets/loudvoice_favicon.ico",  # favicon
-    layout="wide"
+    page_icon="assets/loudvoice_favicon.ico",
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
+
+# Force dark background globally
+st.markdown("""
+<style>
+/* Override Streamlit's default light theme */
+html, body, [class^="css"] {
+    background-color: #0b0f16 !important;
+    color: #eef3ff !important;
+}
+</style>
+""", unsafe_allow_html=True)
 
 st.markdown("""
 <style>
