@@ -59,8 +59,8 @@ st.markdown("""
 <style>
 /* Override Streamlit's default light theme */
 html, body, [class^="css"] {
-    background-color: #0b0f16 !important;
-    color: #eef3ff !important;
+    background-color: #000 !important;
+    color: #fff !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -155,7 +155,7 @@ st.markdown("""
 }
 
 /* ---- App chrome + base ---- */
-html, body, [class^="css"]{ background:var(--bg)!important; color:var(--ink); }
+html, body, [class^="css"]{ background-color: #000 !important;    color: #fff !important; }
 header[data-testid="stHeader"],
 div[data-testid="stToolbar"],
 div[data-testid="stDecoration"],
