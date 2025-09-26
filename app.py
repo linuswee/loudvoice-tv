@@ -929,6 +929,10 @@ import requests
 from datetime import datetime
 
 @st.cache_data(ttl=120)
+def get_volunteer_calendar(token: str, view_id: str, limit: int = 12):
+    return clickup_calendar_events_from_view(token, view_id, limit=limit, tz_name=LOCAL_TZ_NAME)
+
+@st.cache_data(ttl=120)
 def clickup_calendar_events_from_view(
     token: str,
     view_id: str,
@@ -1294,6 +1298,7 @@ def _get_clickup_ids():
     token   = (sect.get("token")   or st.secrets.get("CLICKUP_TOKEN")   or "").strip()
     list_id = (sect.get("list_id") or st.secrets.get("CLICKUP_LIST_ID") or "").strip()
     view_id = (sect.get("view_id") or st.secrets.get("CLICKUP_VIEW_ID") or "").strip()
+    vol_view_id = (sect.get("view_id") or st.secrets.get("CLICKUP_VOL_VIEW_ID") or "").strip()
     return token, list_id, view_id
 
 # =======================
@@ -1545,8 +1550,8 @@ with right:
         )
     st.markdown("</div>", unsafe_allow_html=True)
 
-# --- Bottom row: 3 columns (Tasks | Filming | ClickUp Calendar) ---
-c1, c2, c3 = st.columns([1.05, 1.0, 0.95])
+# --- Bottom row: 3 columns (Tasks | Filming | ClickUp Calendar | Volunteer Calendar) ---
+c1, c2, c3, c4 = st.columns([1.05, 1.0, 0.95, 1.0])
 
 with c1:
     st.markdown("<div class='card'><div class='section'>ClickUp Tasks (Upcoming)</div>", unsafe_allow_html=True)
@@ -1626,6 +1631,30 @@ with c3:
                 return f"<b>{s.strftime('%a, %b %d')}</b>" + (f" — {s.strftime('%H:%M')}" if s.date()==e.date() and (s.hour or s.minute) else f" → {e.strftime('%a, %b %d')}")
             for ev in cal_items:
                 left = fmt_range(ev)
+                right = f"<a href='{ev['url']}' target='_blank' style='color:var(--brand);text-decoration:none'>{ev['title']}</a>"
+                st.markdown(f"<div class='film-row'><div>{left}</div><div class='film-right'>{right}</div></div>", unsafe_allow_html=True)
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+with c4:
+    st.markdown("<div class='card'><div class='section'>Volunteer Calendar</div>", unsafe_allow_html=True)
+    cu_token = st.secrets["clickup"]["token"]
+    cu_vol_view = st.secrets["clickup"].get("vol_view_id", "")
+
+    if not cu_token or not cu_vol_view:
+        st.markdown("<div class='small'>Add <code>volunteers_view_id</code> to st.secrets.</div>", unsafe_allow_html=True)
+    else:
+        volunteer_items, v_err = get_volunteer_calendar(cu_token, cu_vol_view, limit=12)
+        if v_err:
+            st.markdown(f"<div class='small'>⚠️ {v_err}</div>", unsafe_allow_html=True)
+        elif not volunteer_items:
+            st.markdown("<div class='small'>No upcoming volunteer events.</div>", unsafe_allow_html=True)
+        else:
+            for ev in volunteer_items:
+                s, e = ev["start"], ev["end"]
+                left = f"<b>{s.strftime('%a, %b %d')}</b>" + (
+                    f" — {s.strftime('%H:%M')}" if s.date()==e.date() and (s.hour or s.minute) else f" → {e.strftime('%a, %b %d')}"
+                )
                 right = f"<a href='{ev['url']}' target='_blank' style='color:var(--brand);text-decoration:none'>{ev['title']}</a>"
                 st.markdown(f"<div class='film-row'><div>{left}</div><div class='film-right'>{right}</div></div>", unsafe_allow_html=True)
 
