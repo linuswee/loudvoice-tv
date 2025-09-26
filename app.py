@@ -1639,7 +1639,7 @@ with c3:
 with c4:
     st.markdown("<div class='card'><div class='section'>Volunteer Calendar</div>", unsafe_allow_html=True)
     cu_token = st.secrets["clickup"]["token"]
-    cu_vol_list = st.secrets["clickup"].get("vol_list_id", "")  # store your volunteer list ID
+    cu_vol_list = st.secrets["clickup"].get("vol_view_id", "")  # store your volunteer list ID
 
     if not cu_token or not cu_vol_list:
         st.markdown("<div class='small'>Add <code>volunteers_list_id</code> to st.secrets.</div>", unsafe_allow_html=True)
