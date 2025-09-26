@@ -1295,7 +1295,7 @@ def clickup_calendar_events(token: str, list_id: str, limit: int = 10, tz_name: 
 # --- helpers to get ids cleanly
 def _get_clickup_ids():
     sect = st.secrets.get("clickup", {}) or {}
-    token   = (sect.get("token")   or st.secrets.get("CLICKUP_TOKEN")   or "").strip()
+    token = (sect.get("token")   or st.secrets.get("CLICKUP_TOKEN")   or "").strip()
     list_id = (sect.get("list_id") or st.secrets.get("CLICKUP_LIST_ID") or "").strip()
     view_id = (sect.get("view_id") or st.secrets.get("CLICKUP_VIEW_ID") or "").strip()
     vol_view_id = (sect.get("view_id") or st.secrets.get("CLICKUP_VOL_VIEW_ID") or "").strip()
