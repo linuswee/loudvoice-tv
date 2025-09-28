@@ -975,7 +975,13 @@ def clickup_calendar_events_from_view(
         if len(items) < per_page or len(all_items) >= 500:
             break
         page += 1
-
+        
+    assignees = []
+    for a in (t.get("assignees") or []):
+        nm = a.get("username") or a.get("email") or a.get("id")
+        if nm:
+            assignees.append(nm.split("@")[0].title())
+            
     events = []
     for t in all_items:
         start_ms = t.get("start_date")
@@ -1001,7 +1007,9 @@ def clickup_calendar_events_from_view(
             "url": t.get("url") or "#",
             "start": start_dt,
             "end": end_dt,
+            "assignees": assignees,
         })
+    })
 
     events.sort(key=lambda e: (e["start"], e["end"]))
     return events[:limit], ""
