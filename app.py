@@ -1546,21 +1546,19 @@ with right:
         unsafe_allow_html=True,
     )
 
-    # Divider (optional thin line)
+    # Divider
     st.markdown("<hr style='border:0;border-top:1px solid rgba(255,255,255,.15);margin:12px 0'>", unsafe_allow_html=True)
 
     # Channel Stats
     st.markdown("<div class='section'>Channel Stats</div>", unsafe_allow_html=True)
     st.markdown(f"""
-        <div style="display:flex;justify-content:center;">
-          <div class="kpi-card youtube" style="min-width:200px;max-width:240px;text-align:center;">
-            <div class="kpi-head" style="justify-content:center;">
-              <i class="fa-brands fa-youtube icon" style="color:#ff3d3d"></i>
-              <span class="kpi-name">YouTube</span>
-            </div>
-            <div class="kpi-label">Subscribers</div><div class="kpi-value">{fmt_num(youtube['subs'])}</div>
-            <div class="kpi-label">Total Views</div><div class="kpi-value">{fmt_num(youtube['total'])}</div>
+        <div class="kpi-card youtube" style="min-width:200px;max-width:240px;text-align:left;">
+          <div class="kpi-head">
+            <i class="fa-brands fa-youtube icon" style="color:#ff3d3d"></i>
+            <span class="kpi-name">YouTube</span>
           </div>
+          <div class="kpi-label">Subscribers</div><div class="kpi-value">{fmt_num(youtube['subs'])}</div>
+          <div class="kpi-label">Total Views</div><div class="kpi-value">{fmt_num(youtube['total'])}</div>
         </div>
     """, unsafe_allow_html=True)
 
@@ -1581,7 +1579,7 @@ with right:
             unsafe_allow_html=True,
         )
 
-    st.markdown("</div>", unsafe_allow_html=True)  # ✅ close one big card
+    st.markdown("</div>", unsafe_allow_html=True)  # close unified card
 
 # --- Bottom row: 3 columns (Tasks | Filming | ClickUp Calendar | Volunteer Calendar) ---
 c1, c2, c3, c4 = st.columns([1.05, 1.0, 1.05, 1.05])
