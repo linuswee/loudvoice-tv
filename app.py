@@ -255,7 +255,7 @@ div[data-testid="stHorizontalBlock"]{
 /* ---- Filming list ---- */
 .film-row {
   display: grid;
-  grid-template-columns: 1fr auto;   /* left expands, right shrinks */
+  grid-template-columns: 0.9fr 1.1fr;   /* less for left, more for right */
   gap: 12px;
   align-items: flex-start;
   padding: 6px 0;
@@ -265,8 +265,7 @@ div[data-testid="stHorizontalBlock"]{
   color: var(--brand);
   white-space: normal;
   word-break: break-word;
-  text-align: right;        /* 🔥 align text to the right edge */
-  max-width: 180px;         /* 🔥 keeps volunteer column compact */
+  text-align: left;   /* align left so wrapping looks natural */
 }
 
 /* ---- First child guard ---- */
