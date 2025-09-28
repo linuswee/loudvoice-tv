@@ -940,8 +940,9 @@ def clickup_calendar_events_from_view(
     tz_name: str = LOCAL_TZ_NAME,
 ):
     """
-    Pull tasks from a specific ClickUp *View* (e.g., your Calendar view).
-    Handles multi-day spans via start_date + due_date. Skips fully past items.
+    Pull tasks from a specific ClickUp *View* (e.g., Calendar view).
+    Handles multi-day spans via start_date + due_date.
+    Skips fully past items.
     Returns (events, error_message). On HTTP errors, error_message contains details.
     """
     headers = {"Authorization": token}
@@ -950,16 +951,13 @@ def clickup_calendar_events_from_view(
     tz = pytz.timezone(tz_name)
     now_local = datetime.now(tz)
 
-    all_items = []
-    page = 0
-    per_page = 100
+    all_items, page, per_page = [], 0, 100
 
     while True:
         params = {
             "include_closed": "false",
             "subtasks": "true",
             "page": page,
-            # don’t set order_by (server sometimes 500s on start_date); sort client-side
         }
         try:
             r = requests.get(base, headers=headers, params=params, timeout=25)
@@ -975,13 +973,7 @@ def clickup_calendar_events_from_view(
         if len(items) < per_page or len(all_items) >= 500:
             break
         page += 1
-        
-    assignees = []
-    for a in (t.get("assignees") or []):
-        nm = a.get("username") or a.get("email") or a.get("id")
-        if nm:
-            assignees.append(nm.split("@")[0].title())
-            
+
     events = []
     for t in all_items:
         start_ms = t.get("start_date")
@@ -1002,6 +994,13 @@ def clickup_calendar_events_from_view(
         if end_dt < now_local:
             continue
 
+        # Collect assignees
+        assignees = []
+        for a in (t.get("assignees") or []):
+            nm = a.get("username") or a.get("email") or a.get("id")
+            if nm:
+                assignees.append(nm.split("@")[0].title())
+
         events.append({
             "title": t.get("name", "Untitled"),
             "url": t.get("url") or "#",
@@ -1009,7 +1008,6 @@ def clickup_calendar_events_from_view(
             "end": end_dt,
             "assignees": assignees,
         })
-    })
 
     events.sort(key=lambda e: (e["start"], e["end"]))
     return events[:limit], ""
@@ -1661,20 +1659,22 @@ with c4:
             def fmt_range(ev):
                 s, e = ev["start"], ev["end"]
                 return f"<b>{s.strftime('%a, %b %d')}</b>" + (
-                    f" — {s.strftime('%H:%M')}" if s.date()==e.date() and (s.hour or s.minute)
+                    f" — {s.strftime('%H:%M')}" if s.date() == e.date() and (s.hour or s.minute)
                     else f" → {e.strftime('%a, %b %d')}"
                 )
 
             for ev in vol_items:
                 left = fmt_range(ev)
 
-                # ✅ Add assignee(s) in brackets
-                assignees = ", ".join(ev.get("assignees") or [])
-                title = ev["title"]
-                if assignees:
-                    title = f"{title} ({assignees})"
+                # title text
+                title_html = f"<a href='{ev['url']}' target='_blank' style='color:var(--brand);text-decoration:none'><b>{ev['title']}</b></a>"
 
-                right = f"<a href='{ev['url']}' target='_blank' style='color:var(--brand);text-decoration:none'>{title}</a>"
+                # build assignee chips
+                chips_html = ""
+                for a in ev.get("assignees", []):
+                    chips_html += f"<span style='font-size:11px;background:rgba(255,255,255,.08);padding:2px 6px;border-radius:8px;margin-left:6px'>{a}</span>"
+
+                right = f"{title_html}{chips_html}"
 
                 st.markdown(
                     f"<div class='film-row'><div>{left}</div><div class='film-right'>{right}</div></div>",
