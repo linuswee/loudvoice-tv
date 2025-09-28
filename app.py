@@ -255,17 +255,18 @@ div[data-testid="stHorizontalBlock"]{
 /* ---- Filming list ---- */
 .film-row {
   display: grid;
-  grid-template-columns: 1fr 1.3fr;  /* adjust right side width */
+  grid-template-columns: 1fr auto;   /* left expands, right shrinks */
   gap: 12px;
-  align-items: flex-start;           /* align text top when wrapped */
+  align-items: flex-start;
   padding: 6px 0;
 }
+
 .film-right {
   color: var(--brand);
-  white-space: normal;      /* allow wrapping */
-  word-break: break-word;   /* break long text if needed */
-  max-width: 240px;         /* optional: keeps wrapping neat */
-  text-align: left;         /* aligns nicely when wrapped */
+  white-space: normal;
+  word-break: break-word;
+  text-align: right;        /* 🔥 align text to the right edge */
+  max-width: 180px;         /* 🔥 keeps volunteer column compact */
 }
 
 /* ---- First child guard ---- */
@@ -1574,7 +1575,7 @@ with right:
     st.markdown("</div>", unsafe_allow_html=True)
 
 # --- Bottom row: 3 columns (Tasks | Filming | ClickUp Calendar | Volunteer Calendar) ---
-c1, c2, c3, c4 = st.columns([1.05, 1.0, 1.05, 1.0])
+c1, c2, c3, c4 = st.columns([1.05, 1.0, 1.05, 1.05])
 
 with c1:
     st.markdown("<div class='card'><div class='section'>ClickUp Tasks (Upcoming)</div>", unsafe_allow_html=True)
