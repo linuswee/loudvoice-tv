@@ -1639,7 +1639,7 @@ with c4:
     cu_token, _, _, cu_vol_view = _get_clickup_ids()
 
     if not cu_token or not cu_vol_view:
-        st.markdown("<div class='small'>Add <code>CLICKUP_VOL_VIEW_ID</code> to st.secrets.</div>", unsafe_allow_html=True)
+        st.markdown("<div class='small'>Add CLICKUP_VOL_VIEW_ID to st.secrets.</div>", unsafe_allow_html=True)
     else:
         vol_items, vol_err = clickup_calendar_events_from_view(
             cu_token, cu_vol_view, limit=12, tz_name=LOCAL_TZ_NAME
@@ -1656,9 +1656,21 @@ with c4:
                     f" — {s.strftime('%H:%M')}" if s.date()==e.date() and (s.hour or s.minute)
                     else f" → {e.strftime('%a, %b %d')}"
                 )
+
             for ev in vol_items:
-                left  = fmt_range(ev)
-                right = f"<a href='{ev['url']}' target='_blank' style='color:var(--brand);text-decoration:none'>{ev['title']}</a>"
-                st.markdown(f"<div class='film-row'><div>{left}</div><div class='film-right'>{right}</div></div>", unsafe_allow_html=True)
+                left = fmt_range(ev)
+
+                # ✅ Add assignee(s) in brackets
+                assignees = ", ".join(ev.get("assignees") or [])
+                title = ev["title"]
+                if assignees:
+                    title = f"{title} ({assignees})"
+
+                right = f"<a href='{ev['url']}' target='_blank' style='color:var(--brand);text-decoration:none'>{title}</a>"
+
+                st.markdown(
+                    f"<div class='film-row'><div>{left}</div><div class='film-right'>{right}</div></div>",
+                    unsafe_allow_html=True,
+                )
 
     st.markdown("</div>", unsafe_allow_html=True)
