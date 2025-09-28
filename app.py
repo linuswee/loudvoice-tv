@@ -216,7 +216,7 @@ div[data-testid="stHorizontalBlock"]{
 /* ---- Cards ---- */
 .card{
   background:var(--card-bg); border:1px solid var(--card-bd);
-  border-radius:var(--radius); padding:10px 14px; margin-bottom:10px;
+  border-radius:var(--radius); padding:10px 10px; margin-bottom:10px;
   box-shadow:var(--shadow);
 }
 
