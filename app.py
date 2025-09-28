@@ -1544,12 +1544,10 @@ with right:
     )
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # --- Channel Stats + YouTube Views (merged) ---
+    # --- Channel Stats + YouTube Views (one card) ---
     st.markdown("<div class='card'>", unsafe_allow_html=True)
 
     st.markdown("<div class='section'>Channel Stats</div>", unsafe_allow_html=True)
-
-    st.markdown("</div>", unsafe_allow_html=True)  # close card
 
     # Only YouTube stats (centered)
     st.markdown(f"""
@@ -1582,7 +1580,7 @@ with right:
             unsafe_allow_html=True,
         )
 
-    st.markdown("</div>", unsafe_allow_html=True)  # close card
+    st.markdown("</div>", unsafe_allow_html=True)  # ✅ close card here
 
 # --- Bottom row: 3 columns (Tasks | Filming | ClickUp Calendar | Volunteer Calendar) ---
 c1, c2, c3, c4 = st.columns([1.05, 1.0, 1.05, 1.05])
