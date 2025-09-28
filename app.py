@@ -1533,7 +1533,6 @@ with right:
 
     # Ministry Tracker
     st.markdown("<div class='section'>Ministry Tracker</div>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
     st.markdown(
         f"""
         <div class="mini-grid">
@@ -1547,9 +1546,7 @@ with right:
     )
 
     # Channel Stats
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
     st.markdown("<div class='section'>Channel Stats</div>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
     st.markdown(f"""
         <div class="kpi-card youtube" style="min-width:200px;max-width:240px;text-align:left;">
           <div class="kpi-head">
