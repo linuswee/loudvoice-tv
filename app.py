@@ -1515,50 +1515,44 @@ with left:
     st.markdown("</div>", unsafe_allow_html=True)
 
 with right:
-    # Ministry tracker
+    # --- Ministry Tracker ---
     st.markdown("<div class='card'><div class='section'>Ministry Tracker</div>", unsafe_allow_html=True)
     st.markdown(
         f"""
         <div class="mini-grid">
-        <div class="mini-card"><div class="mini-label">Prayer</div><div class="mini-value">{ministry['prayer']}</div></div>
-        <div class="mini-card"><div class="mini-label">Studies</div><div class="mini-value">{ministry['studies']}</div></div>
-        <div class="mini-card"><div class="mini-label">Follow Ups</div><div class="mini-value">{ministry.get('follow_ups', 0)}</div></div>
-        <div class="mini-card"><div class="mini-label">Baptisms</div><div class="mini-value">{ministry['baptisms']}</div></div>
+          <div class="mini-card"><div class="mini-label">Prayer</div><div class="mini-value">{ministry['prayer']}</div></div>
+          <div class="mini-card"><div class="mini-label">Studies</div><div class="mini-value">{ministry['studies']}</div></div>
+          <div class="mini-card"><div class="mini-label">Follow Ups</div><div class="mini-value">{ministry.get('follow_ups', 0)}</div></div>
+          <div class="mini-card"><div class="mini-label">Baptisms</div><div class="mini-value">{ministry['baptisms']}</div></div>
         </div>
         """,
         unsafe_allow_html=True,
     )
     st.markdown("</div>", unsafe_allow_html=True)
-    
-    # Channel stats
-    connected = f"<span class='small'>Connected: All Channels</b></span>" if oauth_title else ""
-    st.markdown(f"<div class='card'><div class='section'>Channel Stats {connected}</div>", unsafe_allow_html=True)
-    # Channel stats (icons)
+
+    # --- Channel Stats + YouTube Views (merged) ---
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
+
+    st.markdown("<div class='section'>Channel Stats</div>", unsafe_allow_html=True)
+
+    # Only YouTube stats (centered)
     st.markdown(f"""
-        <div class="kpi-grid">
-          <div class="kpi-card">
-            <div class="kpi-head"><i class="fa-brands fa-youtube icon" style="color:#ff3d3d"></i><span class="kpi-name">YT</span></div>
-            <div class="kpi-label">Subs</div><div class="kpi-value">{fmt_num(youtube['subs'])}</div>
-            <div class="kpi-label">Total</div><div class="kpi-value">{fmt_num(youtube['total'])}</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-head"><i class="fa-brands fa-instagram icon"></i><span class="kpi-name">IG</span></div>
-            <div class="kpi-label">Follows</div><div class="kpi-value">{fmt_num(ig['followers'])}</div>
-            <div class="kpi-label">7‑day Views</div><div class="kpi-value">{fmt_num(ig['views7'])}</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-head"><i class="fa-brands fa-tiktok icon"></i><span class="kpi-name">TT</span></div>
-            <div class="kpi-label">Follows</div><div class="kpi-value">{fmt_num(tt['followers'])}</div>
-            <div class="kpi-label">7‑day Views</div><div class="kpi-value">{fmt_num(tt['views7'])}</div>
+        <div style="display:flex;justify-content:center;">
+          <div class="kpi-card" style="min-width:200px;max-width:240px;text-align:center;">
+            <div class="kpi-head" style="justify-content:center;">
+              <i class="fa-brands fa-youtube icon" style="color:#ff3d3d"></i>
+              <span class="kpi-name">YouTube</span>
+            </div>
+            <div class="kpi-label">Subscribers</div><div class="kpi-value">{fmt_num(youtube['subs'])}</div>
+            <div class="kpi-label">Total Views</div><div class="kpi-value">{fmt_num(youtube['total'])}</div>
           </div>
         </div>
-        """, unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
-    # YouTube Views (Last 7 Days) — with real daily dates
-    st.markdown("<div class='card'><div class='section'>YouTube Views (Last 7 Days, complete data only)</div>", unsafe_allow_html=True)
-
-    # optional little tooltip/note
+    # YouTube Views (Last 7 Days)
+    st.markdown("<div class='section'>YouTube Views (Last 7 Days, complete data only)</div>", unsafe_allow_html=True)
     st.markdown("<div class='small'>ℹ️ YouTube Analytics can lag up to 48h. Latest day may be missing until processed.</div>", unsafe_allow_html=True)
+
     vals = yt_last7_vals[:]
     maxv = max(vals) if vals else 1
     for d, v in zip(yt_last7_labels, vals):
@@ -1571,7 +1565,8 @@ with right:
             f"</div>",
             unsafe_allow_html=True,
         )
-    st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown("</div>", unsafe_allow_html=True)  # close card
 
 # --- Bottom row: 3 columns (Tasks | Filming | ClickUp Calendar | Volunteer Calendar) ---
 c1, c2, c3, c4 = st.columns([1.05, 1.0, 1.05, 1.05])
