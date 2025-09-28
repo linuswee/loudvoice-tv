@@ -208,8 +208,8 @@ section.main > div.block-container {
   background:var(--card-bg);
   border:1px solid var(--card-bd);
   border-radius:var(--radius);
-  padding:10px 12px;
-  margin-bottom:12px;
+  padding:10px 8px;
+  margin-bottom:8px;
   box-shadow:var(--shadow);
 }
 
