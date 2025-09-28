@@ -1514,8 +1514,7 @@ if not analytics_ok:
 left, right = st.columns([1.35, 0.65])  # wider map column so it fills visually
 
 with left:
-    st.markdown(
-        f"<div class='card'><div class='section'>World Map — YouTube Viewers (True, last {DAYS_FOR_MAP} days)</div>",
+    st.markdown("<div class='card'><div class='section'>World Map — YouTube Viewers (True, last {DAYS_FOR_MAP} days)</div>",
         unsafe_allow_html=True,
     )
 
@@ -1529,8 +1528,6 @@ with left:
     st.markdown("</div>", unsafe_allow_html=True)
 
 with right:
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
-
     # Ministry Tracker
     st.markdown("<div class='section'>Ministry Tracker</div>", unsafe_allow_html=True)
     st.markdown(
@@ -1546,7 +1543,7 @@ with right:
     )
 
     # Channel Stats
-    st.markdown("<div class='section'>Channel Stats</div>", unsafe_allow_html=True)
+    st.markdown("<div class='section' style='margin-top:16px;'>Channel Stats</div>", unsafe_allow_html=True)
     st.markdown(f"""
         <div class="kpi-card youtube" style="min-width:200px;max-width:240px;text-align:left;">
           <div class="kpi-head">
@@ -1577,8 +1574,6 @@ with right:
             f"</div>",
             unsafe_allow_html=True,
         )
-
-    st.markdown("</div>", unsafe_allow_html=True)  # close unified card
 
 # --- Bottom row: 3 columns (Tasks | Filming | ClickUp Calendar | Volunteer Calendar) ---
 c1, c2, c3, c4 = st.columns([1.05, 1.0, 1.05, 1.05])
