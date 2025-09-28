@@ -1574,7 +1574,7 @@ with right:
     st.markdown("</div>", unsafe_allow_html=True)
 
 # --- Bottom row: 3 columns (Tasks | Filming | ClickUp Calendar | Volunteer Calendar) ---
-c1, c2, c3, c4 = st.columns([1.05, 1.0, 0.95, 1.0])
+c1, c2, c3, c4 = st.columns([1.05, 1.0, 1.05, 0.8])
 
 with c1:
     st.markdown("<div class='card'><div class='section'>ClickUp Tasks (Upcoming)</div>", unsafe_allow_html=True)
