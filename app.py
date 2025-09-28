@@ -1552,7 +1552,7 @@ with right:
     # Channel Stats
     st.markdown("<div class='section'>Channel Stats</div>", unsafe_allow_html=True)
     st.markdown(f"""
-        <div class="kpi-card youtube" style="min-width:200px;max-width:240px;text-align:left;">
+        <div class="kpi-card youtube" style="width:100%;text-align:left;">
           <div class="kpi-head">
             <i class="fa-brands fa-youtube icon" style="color:#ff3d3d"></i>
             <span class="kpi-name">YouTube</span>
