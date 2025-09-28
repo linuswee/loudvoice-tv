@@ -198,8 +198,8 @@ section.main > div.block-container {
 .section {
   color:var(--brand);
   font-weight:800;
-  font-size:16px;
-  margin:16px 0 8px 0;
+  font-size:15px;
+  margin:8px 0 4px 0;
 }
 .small { font-size:13px; color:#9aa3bd; }
 
@@ -208,9 +208,15 @@ section.main > div.block-container {
   background:var(--card-bg);
   border:1px solid var(--card-bd);
   border-radius:var(--radius);
-  padding:10px 8px;
-  margin-bottom:8px;
+  padding:6px 8px;
+  margin-bottom:6px;
   box-shadow:var(--shadow);
+}
+
+/* Remove extra spacing Streamlit adds around <div> text */
+.card p, .card div {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
 }
 
 /* ---- Ministry mini cards ---- */
@@ -263,7 +269,7 @@ section.main > div.block-container {
   grid-template-columns:64px 1fr 76px;
   gap:10px;
   align-items:center;
-  margin:4px 0;
+  margin:2px 0;
 }
 .views-bar {
   height:10px;
