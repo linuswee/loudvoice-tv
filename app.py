@@ -1529,11 +1529,11 @@ with left:
     st.markdown("</div>", unsafe_allow_html=True)
 
 with right:
-    # --- One unified card ---
     st.markdown("<div class='card'>", unsafe_allow_html=True)
 
     # Ministry Tracker
     st.markdown("<div class='section'>Ministry Tracker</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
     st.markdown(
         f"""
         <div class="mini-grid">
@@ -1546,11 +1546,10 @@ with right:
         unsafe_allow_html=True,
     )
 
-    # Divider
-    st.markdown("<hr style='border:0;border-top:1px solid rgba(255,255,255,.15);margin:12px 0'>", unsafe_allow_html=True)
-
     # Channel Stats
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
     st.markdown("<div class='section'>Channel Stats</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
     st.markdown(f"""
         <div class="kpi-card youtube" style="min-width:200px;max-width:240px;text-align:left;">
           <div class="kpi-head">
@@ -1563,7 +1562,10 @@ with right:
     """, unsafe_allow_html=True)
 
     # YouTube Views (7-day)
-    st.markdown("<div class='section'>YouTube Views (Last 7 Days, complete data only)</div>", unsafe_allow_html=True)
+    st.markdown(
+        "<div class='section' style='margin-top:16px;'>YouTube Views (Last 7 Days, complete data only)</div>",
+        unsafe_allow_html=True
+    )
     st.markdown("<div class='small'>ℹ️ YouTube Analytics can lag up to 48h. Latest day may be missing until processed.</div>", unsafe_allow_html=True)
 
     vals = yt_last7_vals[:]
