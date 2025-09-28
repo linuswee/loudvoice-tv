@@ -1549,6 +1549,8 @@ with right:
 
     st.markdown("<div class='section'>Channel Stats</div>", unsafe_allow_html=True)
 
+    st.markdown("</div>", unsafe_allow_html=True)  # close card
+
     # Only YouTube stats (centered)
     st.markdown(f"""
         <div style="display:flex;justify-content:center;">
