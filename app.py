@@ -247,18 +247,19 @@ div[data-testid="stHorizontalBlock"]{
 .hbar>span{ display:block; height:100%; }   /* color set inline */
 
 /* ---- Filming list ---- */
-.film-row{
-  display:grid;
-  grid-template-columns: 1fr 1.2fr;   /* left and right ratio */
-  gap:12px;
-  align-items:flex-start;
-  padding:6px 0;
+.film-row {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr;  /* adjust right side width */
+  gap: 12px;
+  align-items: flex-start;           /* align text top when wrapped */
+  padding: 6px 0;
 }
-.film-right{
-  color:var(--brand);
-  white-space:normal;      /* allow wrapping */
-  word-break:break-word;   /* break long words if needed */
-  max-width: 220px;        /* optional: restrict width so wrapping looks neat */
+.film-right {
+  color: var(--brand);
+  white-space: normal;      /* allow wrapping */
+  word-break: break-word;   /* break long text if needed */
+  max-width: 240px;         /* optional: keeps wrapping neat */
+  text-align: left;         /* aligns nicely when wrapped */
 }
 
 /* ---- First child guard ---- */
