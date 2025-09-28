@@ -1529,8 +1529,11 @@ with left:
     st.markdown("</div>", unsafe_allow_html=True)
 
 with right:
-    # --- Ministry Tracker ---
-    st.markdown("<div class='card'><div class='section'>Ministry Tracker</div>", unsafe_allow_html=True)
+    # --- One unified card ---
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
+
+    # Ministry Tracker
+    st.markdown("<div class='section'>Ministry Tracker</div>", unsafe_allow_html=True)
     st.markdown(
         f"""
         <div class="mini-grid">
@@ -1542,14 +1545,12 @@ with right:
         """,
         unsafe_allow_html=True,
     )
-    st.markdown("</div>", unsafe_allow_html=True)
 
-    # --- Channel Stats + YouTube Views (one card) ---
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    # Divider (optional thin line)
+    st.markdown("<hr style='border:0;border-top:1px solid rgba(255,255,255,.15);margin:12px 0'>", unsafe_allow_html=True)
 
+    # Channel Stats
     st.markdown("<div class='section'>Channel Stats</div>", unsafe_allow_html=True)
-
-    # Only YouTube stats (centered)
     st.markdown(f"""
         <div style="display:flex;justify-content:center;">
           <div class="kpi-card youtube" style="min-width:200px;max-width:240px;text-align:center;">
@@ -1563,7 +1564,7 @@ with right:
         </div>
     """, unsafe_allow_html=True)
 
-    # YouTube Views (Last 7 Days)
+    # YouTube Views (7-day)
     st.markdown("<div class='section'>YouTube Views (Last 7 Days, complete data only)</div>", unsafe_allow_html=True)
     st.markdown("<div class='small'>ℹ️ YouTube Analytics can lag up to 48h. Latest day may be missing until processed.</div>", unsafe_allow_html=True)
 
@@ -1580,7 +1581,7 @@ with right:
             unsafe_allow_html=True,
         )
 
-    st.markdown("</div>", unsafe_allow_html=True)  # ✅ close card here
+    st.markdown("</div>", unsafe_allow_html=True)  # ✅ close one big card
 
 # --- Bottom row: 3 columns (Tasks | Filming | ClickUp Calendar | Volunteer Calendar) ---
 c1, c2, c3, c4 = st.columns([1.05, 1.0, 1.05, 1.05])
