@@ -242,7 +242,13 @@ div[data-testid="stHorizontalBlock"]{
 .views-bar{ height:10px; border-radius:6px; background:#1f2736; overflow:hidden; }
 .views-bar>span{ display:block; height:100%; background:#4aa3ff; }
 
-.grid-tasks-2{ display:grid; grid-template-columns:1fr 1.1fr; gap:12px; align-items:center; margin:6px 0; }
+.grid-tasks-2 {
+  display: grid;
+  grid-template-columns: 1.4fr 0.6fr;   /* more space left, shorter bar */
+  gap: 12px;
+  align-items: center;
+  margin: 6px 0;
+}
 .hbar{ height:10px; border-radius:6px; background:#1f2736; overflow:hidden; }
 .hbar>span{ display:block; height:100%; }   /* color set inline */
 
