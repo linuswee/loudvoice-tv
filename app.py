@@ -229,6 +229,20 @@ div[data-testid="stHorizontalBlock"]{
 /* ---- KPI cards ---- */
 .kpi-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
 .kpi-card{ background:var(--card-bg); border:1px solid var(--card-bd); border-radius:10px; padding:10px 12px; }
+.kpi-card.youtube {
+  position: relative;
+  overflow: hidden;
+}
+.kpi-card.youtube::after {
+  content: "\\f167"; /* YouTube FontAwesome icon */
+  font-family: "Font Awesome 6 Brands";
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  font-size: 72px;
+  color: rgba(255, 61, 61, 0.08); /* faint red */
+  pointer-events: none;
+}
 .kpi-head{ display:flex; align-items:center; gap:8px; margin-bottom:4px; }
 .kpi-name{ font-size:15px; font-weight:800; }
 .kpi-label{ font-size:11px; color:var(--ink-dim); margin:0; }
@@ -1538,7 +1552,7 @@ with right:
     # Only YouTube stats (centered)
     st.markdown(f"""
         <div style="display:flex;justify-content:center;">
-          <div class="kpi-card" style="min-width:200px;max-width:240px;text-align:center;">
+          <div class="kpi-card youtube" style="min-width:200px;max-width:240px;text-align:center;">
             <div class="kpi-head" style="justify-content:center;">
               <i class="fa-brands fa-youtube icon" style="color:#ff3d3d"></i>
               <span class="kpi-name">YouTube</span>
