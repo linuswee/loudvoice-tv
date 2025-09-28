@@ -1632,50 +1632,33 @@ with c3:
                 left = fmt_range(ev)
                 right = f"<a href='{ev['url']}' target='_blank' style='color:var(--brand);text-decoration:none'>{ev['title']}</a>"
                 st.markdown(f"<div class='film-row'><div>{left}</div><div class='film-right'>{right}</div></div>", unsafe_allow_html=True)
-
     st.markdown("</div>", unsafe_allow_html=True)
-
+    
 with c4:
     st.markdown("<div class='card'><div class='section'>Volunteer Calendar</div>", unsafe_allow_html=True)
-    cu_token = st.secrets.get("CLICKUP_TOKEN", "")
-    cu_vol_list = st.secrets.get("CLICKUP_VOL_VIEW_ID", "")
+    cu_token, _, _, cu_vol_view = _get_clickup_ids()
 
-    if not cu_token or not cu_vol_list:
-        st.markdown("<div class='small'>Add <code>volunteers_list_id</code> to st.secrets.</div>", unsafe_allow_html=True)
+    if not cu_token or not cu_vol_view:
+        st.markdown("<div class='small'>Add <code>CLICKUP_VOL_VIEW_ID</code> to st.secrets.</div>", unsafe_allow_html=True)
     else:
-        url = f"https://api.clickup.com/api/v2/list/{cu_vol_list}/task"
-        headers = {"Authorization": cu_token}
-        params = {"archived": "false", "include_closed": "false", "subtasks": "true"}
-        try:
-            r = requests.get(url, headers=headers, params=params, timeout=20)
-            r.raise_for_status()
-            tasks = r.json().get("tasks", [])
-        except Exception as e:
-            tasks, err = [], str(e)
+        vol_items, vol_err = clickup_calendar_events_from_view(
+            cu_token, cu_vol_view, limit=12, tz_name=LOCAL_TZ_NAME
+        )
 
-        if not tasks:
-            st.markdown("<div class='small'>No volunteers found.</div>", unsafe_allow_html=True)
+        if vol_err:
+            st.markdown(f"<div class='small'>⚠️ {vol_err}</div>", unsafe_allow_html=True)
+        elif not vol_items:
+            st.markdown("<div class='small'>No upcoming volunteer slots.</div>", unsafe_allow_html=True)
         else:
-            for t in tasks:
-                # Volunteer name
-                name = t.get("name", "Unnamed")
-
-                # Start & due dates
-                start_ms, end_ms = t.get("start_date"), t.get("due_date")
-                if start_ms and end_ms:
-                    start_dt = datetime.utcfromtimestamp(int(start_ms)/1000).strftime("%b %d")
-                    end_dt   = datetime.utcfromtimestamp(int(end_ms)/1000).strftime("%b %d")
-                    span = f"{start_dt} → {end_dt}"
-                else:
-                    span = "No dates"
-
-                # Assigned to (first assignee only for simplicity)
-                assignees = t.get("assignees") or []
-                assigned_to = assignees[0].get("username") if assignees else ""
-
-                # Render row
-                st.markdown(
-                    f"<div class='film-row'><div><b>{name}</b>, {span}</div>"
-                    f"<div class='film-right'>{assigned_to}</div></div>",
-                    unsafe_allow_html=True,
+            def fmt_range(ev):
+                s, e = ev["start"], ev["end"]
+                return f"<b>{s.strftime('%a, %b %d')}</b>" + (
+                    f" — {s.strftime('%H:%M')}" if s.date()==e.date() and (s.hour or s.minute)
+                    else f" → {e.strftime('%a, %b %d')}"
                 )
+            for ev in vol_items:
+                left  = fmt_range(ev)
+                right = f"<a href='{ev['url']}' target='_blank' style='color:var(--brand);text-decoration:none'>{ev['title']}</a>"
+                st.markdown(f"<div class='film-row'><div>{left}</div><div class='film-right'>{right}</div></div>", unsafe_allow_html=True)
+
+    st.markdown("</div>", unsafe_allow_html=True)
