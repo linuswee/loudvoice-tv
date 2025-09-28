@@ -139,10 +139,10 @@ DEBUG = qp.get("debug", ["0"])[0].lower() in ("1","true","yes")
 # -------------------------------
 st.markdown("""
 <style>
-/* ========== LOUDVOICE — unified CSS (full-width, no zoom, no bottom gap) ========== */
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css');
 
 /* ---- Theme tokens ---- */
-:root{
+:root {
   --bg:#0b0f16;
   --ink:#eef3ff;
   --ink-dim:#aab3cc;
@@ -154,151 +154,169 @@ st.markdown("""
   --radius:12px;
 }
 
-/* ---- App chrome + base ---- */
-html, body, [class^="css"]{ background-color: #000 !important;    color: #fff !important; }
+/* ---- Reset Streamlit chrome ---- */
 header[data-testid="stHeader"],
 div[data-testid="stToolbar"],
 div[data-testid="stDecoration"],
-#MainMenu, footer{ display:none!important; }
+#MainMenu, footer { display:none!important; }
 
-/* ---- FULL-WIDTH & HEIGHT (remove centered frame + bottom black bar) ---- */
-div[data-testid="stAppViewContainer"] > .main{
+html, body, [class^="css"] {
+  background-color: #000 !important;
+  color: #fff !important;
+}
+
+/* ---- Remove top gap ---- */
+div[data-testid="stAppViewContainer"] > .main {
+  padding-top:0!important;
+  margin-top:0!important;
+}
+section.main > div.block-container {
+  padding-top:0!important;
+  margin-top:0!important;
   max-width:100vw!important;
-  padding-left:0!important; padding-right:0!important;
-  overflow: visible!important;                 /* allow content to extend */
-}
-section.main{ overflow: visible!important; }
-section.main > div.block-container{
-  max-width:100vw!important;
-  padding:8px 12px 10px!important;             /* slim side gutters */
-  margin-left:0!important; margin-right:0!important;
-  min-height:100vh!important;                  /* fill page height */
+  padding-left:12px!important;
+  padding-right:12px!important;
 }
 
-/* Make horizontal block rows truly stretch */
-section.main > div.block-container > div:has(> div[data-testid="stHorizontalBlock"]){
-  max-width:100%!important;
-}
-section.main > div.block-container > div:has(> div[data-testid="stHorizontalBlock"])
-  div[data-testid="column"]{
-  flex:1 1 0!important;
-  width:auto!important;
-}
-
-/* ---- Spacing reset ---- */
-div[data-testid="stAppViewContainer"] > .main,
-section.main,
-section.main > div.block-container,
-div[data-testid="stHorizontalBlock"]{
-  padding-top:0!important; margin-top:0!important;
-}
-
-/* ---- Logo ---- */
-.lv-logo{ width:40px; height:auto; }
-
-/* ---- Typography (clear at “80% look” without using zoom) ---- */
-.title{
+/* ---- Logo & header ---- */
+.lv-logo { width:40px; height:auto; margin-top:4px; }
+.title {
   color:var(--brand);
   font-weight:900;
-  font-size:38px;                    /* slightly larger for clarity */
+  font-size:38px;
   letter-spacing:.12em;
-  margin:0 0 6px 0!important;
+  margin:0 0 4px 0!important;
 }
-.timestamp{ color:var(--brand); font-size:12px; font-weight:700; text-align:right; }
-.section{
+.timestamp {
+  color:var(--brand);
+  font-size:12px;
+  font-weight:700;
+  text-align:right;
+}
+
+/* ---- Sections ---- */
+.section {
   color:var(--brand);
   font-weight:800;
   font-size:16px;
-  margin:0 0 8px 0;
+  margin:16px 0 8px 0;
 }
-.small{ font-size:13px; color:#9aa3bd; }
+.small { font-size:13px; color:#9aa3bd; }
 
 /* ---- Cards ---- */
-.card{
-  background:var(--card-bg); border:1px solid var(--card-bd);
-  border-radius:var(--radius); padding:10px 10px; margin-bottom:10px;
+.card {
+  background:var(--card-bg);
+  border:1px solid var(--card-bd);
+  border-radius:var(--radius);
+  padding:10px 12px;
+  margin-bottom:12px;
   box-shadow:var(--shadow);
 }
 
-/* ---- Mini stats ---- */
-.mini-grid{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
-.mini-card{ background:var(--card-bg); border:1px solid var(--card-bd); border-radius:10px; padding:8px 10px; text-align:center; }
-.mini-label{ font-size:11px; color:var(--ink-dim); margin:0; }
-.mini-value{ font-size:24px; font-weight:800; margin:2px 0 0; }
+/* ---- Ministry mini cards ---- */
+.mini-grid {
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:10px;
+}
+.mini-card {
+  background:var(--card-bg);
+  border:1px solid var(--card-bd);
+  border-radius:10px;
+  padding:8px 10px;
+  text-align:center;
+}
+.mini-label { font-size:11px; color:var(--ink-dim); margin:0; }
+.mini-value { font-size:24px; font-weight:800; margin:2px 0 0; }
 
 /* ---- KPI cards ---- */
-.kpi-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
-.kpi-card{ background:var(--card-bg); border:1px solid var(--card-bd); border-radius:10px; padding:10px 12px; }
+.kpi-card {
+  background:var(--card-bg);
+  border:1px solid var(--card-bd);
+  border-radius:10px;
+  padding:10px 12px;
+  margin-bottom:10px;
+  text-align:left;
+}
 .kpi-card.youtube {
   position: relative;
   overflow: hidden;
 }
 .kpi-card.youtube::after {
-  content: "\\f167"; /* YouTube FontAwesome icon */
+  content: "\\f167"; /* YouTube FA icon */
   font-family: "Font Awesome 6 Brands";
   position: absolute;
-  bottom: 10px;
-  right: 10px;
+  bottom: 10px; right: 10px;
   font-size: 72px;
-  color: rgba(255, 61, 61, 0.08); /* faint red */
+  color: rgba(255, 61, 61, 0.08);
   pointer-events: none;
 }
-.kpi-head{ display:flex; align-items:center; gap:8px; margin-bottom:4px; }
-.kpi-name{ font-size:15px; font-weight:800; }
-.kpi-label{ font-size:11px; color:var(--ink-dim); margin:0; }
-.kpi-value{ font-size:20px; font-weight:800; margin:0; }
+.kpi-head { display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+.kpi-name { font-size:15px; font-weight:800; }
+.kpi-label { font-size:11px; color:var(--ink-dim); margin:0; }
+.kpi-value { font-size:20px; font-weight:800; margin:0; }
+.icon { font-size:15px; }
 
-/* Font Awesome icon sizing */
-.icon{ font-size:15px; }
+/* ---- Views bars ---- */
+.grid-views {
+  display:grid;
+  grid-template-columns:64px 1fr 76px;
+  gap:10px;
+  align-items:center;
+  margin:4px 0;
+}
+.views-bar {
+  height:10px;
+  border-radius:6px;
+  background:#1f2736;
+  overflow:hidden;
+}
+.views-bar>span {
+  display:block;
+  height:100%;
+  background:#4aa3ff;
+}
 
-/* ---- Bars (7-day views + task progress) ---- */
-.grid-views{ display:grid; grid-template-columns:64px 1fr 76px; gap:10px; align-items:center; margin:4px 0; }
-.views-bar{ height:10px; border-radius:6px; background:#1f2736; overflow:hidden; }
-.views-bar>span{ display:block; height:100%; background:#4aa3ff; }
-
+/* ---- Tasks ---- */
 .grid-tasks-2 {
   display: grid;
-  grid-template-columns: 1.4fr 0.6fr;   /* more space left, shorter bar */
+  grid-template-columns: 1.4fr 0.6fr;
   gap: 12px;
   align-items: center;
   margin: 6px 0;
 }
-.hbar{ height:10px; border-radius:6px; background:#1f2736; overflow:hidden; }
-.hbar>span{ display:block; height:100%; }   /* color set inline */
+.hbar {
+  height:10px;
+  border-radius:6px;
+  background:#1f2736;
+  overflow:hidden;
+}
+.hbar>span { display:block; height:100%; }
 
-/* ---- Filming list ---- */
+/* ---- Filming/Calendar rows ---- */
 .film-row {
-  display: grid;
-  grid-template-columns: 0.9fr 1.1fr;   /* less for left, more for right */
-  gap: 12px;
-  align-items: flex-start;
-  padding: 6px 0;
+  display:grid;
+  grid-template-columns: 0.9fr 1.1fr;
+  gap:12px;
+  align-items:flex-start;
+  padding:6px 0;
 }
-
 .film-right {
-  color: var(--brand);
-  white-space: normal;
-  word-break: break-word;
-  text-align: left;   /* align left so wrapping looks natural */
+  color:var(--brand);
+  white-space:normal;
+  word-break:break-word;
+  text-align:left;
 }
 
-/* ---- First child guard ---- */
-section.main > div.block-container > :first-child{ margin-top:0!important; }
-
-/* ---- Responsive (≤1100px) ---- */
+/* ---- Responsive tweaks ---- */
 @media (max-width:1100px){
-  section.main > div.block-container{ padding-left:8px!important; padding-right:8px!important; }
   .lv-logo{ width:28px; }
   .title{ font-size:28px; letter-spacing:.10em; }
   .timestamp{ display:none; }
   .card{ padding:8px 10px; border-radius:10px; }
-  .kpi-grid{ gap:10px; }
+  .mini-value{ font-size:18px; }
   .kpi-value{ font-size:16px; }
   .grid-views{ grid-template-columns:48px 1fr 64px; }
-  .grid-tasks-2{ row-gap:6px; }
-  section.main > div:has(> div[data-testid="stHorizontalBlock"]) div[data-testid="column"]{
-    width:100%!important; flex:0 0 100%!important;
-  }
 }
 </style>
 """, unsafe_allow_html=True)
