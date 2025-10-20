@@ -40,6 +40,13 @@ SCOPE = [
     "https://www.googleapis.com/auth/drive.readonly",
 ]
 
+# Inline error buckets for UI modules
+ERR = {
+    "yt_map": "",        # Row 5 left (Analytics country map)
+    "yt_last7": "",      # Row 6 right (Analytics 7-day views)
+    "yt_kpi": "",        # Row 5 right (Channel Stats via Data API)
+}
+
 # -------------------------------
 # Page config & compact helpers
 # -------------------------------
@@ -1432,76 +1439,65 @@ filming = MOCK["filming"]
 # KPI card via Data API (aggregate)
 yt_api_key = st.secrets.get("YOUTUBE_API_KEY")
 channel_ids = st.secrets.get("YT_CHANNEL_IDS", [])  # list of UC IDs
-if yt_api_key and channel_ids:
-    try:
-        youtube = yt_channels_aggregate(yt_api_key, channel_ids)
-    except Exception as e:
-        st.warning(f"KPI aggregation error: {e}")
-
-# Analytics (28‑day map + real last‑7 with *local* dates)
-yt_client_id     = st.secrets.get("YT_CLIENT_ID")
-yt_client_secret = st.secrets.get("YT_CLIENT_SECRET")
-yt_refresh_token = st.secrets.get("YT_REFRESH_TOKEN")
-
-# --- Aggregated Analytics ---
-oauth_bundles = st.secrets.get("YT_OAUTH_CHANNELS", [])
-
-oauth_title = ""
 try:
-    # Prefer dedicated single OAuth creds if provided
-    if yt_client_id and yt_client_secret and yt_refresh_token:
-        ident = oauth_channel_identity(yt_client_id, yt_client_secret, yt_refresh_token)
-        oauth_title = ident.get("title") or ""
-    # Else fall back to first bundle if you’re aggregating
-    elif oauth_bundles:
-        b0 = oauth_bundles[0]
-        ident = oauth_channel_identity(b0["client_id"], b0["client_secret"], b0["refresh_token"])
-        oauth_title = ident.get("title") or (b0.get("label") or "")
+    if yt_api_key and channel_ids:
+        youtube = yt_channels_aggregate(yt_api_key, channel_ids)
 except Exception as e:
-    if DEBUG: st.info(f"[oauth identity] {e}")
+    ERR["yt_kpi"] = f"Channel Stats error: {e}"
+    # keep existing youtube mock values
 
-last7_df = pd.DataFrame()
+# ---------- YouTube Analytics: 7-day + 28-day countries ----------
+yt_last7_vals, yt_last7_labels = [], []
 cdf = pd.DataFrame()
-if oauth_bundles:
-    try:
-        raw = aggregate_daily_from_oauth_bundles(oauth_bundles, days=14)
-        if not raw.empty:
-            last7_df = raw.tail(7)
-        cdf = aggregate_countries_from_oauth_bundles(oauth_bundles, days=DAYS_FOR_MAP)
-    except Exception as e:
-        st.warning(f"YT Analytics aggregate error: {e}")
 
-if last7_df.empty:
-    yt_last7_vals   = MOCK["yt_last7"]
-    yt_last7_labels = [(datetime.now(LOCAL_TZ).date() - timedelta(days=i)).strftime("%b %d")
-                       for i in range(len(yt_last7_vals)-1, -1, -1)]
-else:
-    yt_last7_vals   = last7_df["views"].tolist()
-    yt_last7_labels = last7_df["date"].dt.strftime("%b %d").tolist()
+try:
+    if oauth_bundles:
+        # 7-day
+        try:
+            raw = aggregate_daily_from_oauth_bundles(oauth_bundles, days=14)
+            if not raw.empty:
+                last7_df = raw.tail(7)
+                yt_last7_vals   = last7_df["views"].tolist()
+                yt_last7_labels = last7_df["date"].dt.strftime("%b %d").tolist()
+            else:
+                raise RuntimeError("No rows from Analytics (daily).")
+        except Exception as e:
+            ERR["yt_last7"] = f"YouTube Analytics (7-day) error: {e}"
+            yt_last7_vals   = MOCK["yt_last7"]
+            yt_last7_labels = [(datetime.now(LOCAL_TZ).date() - timedelta(days=i)).strftime("%b %d")
+                               for i in range(len(yt_last7_vals)-1, -1, -1)]
 
-# 28-day countries aggregate (for the map)
-cdf = pd.DataFrame()
-analytics_err = ""
-if oauth_bundles:
-    try:
-        cdf = aggregate_countries_from_oauth_bundles(oauth_bundles, days=DAYS_FOR_MAP)
-    except Exception as e:
-        analytics_err = str(e)
+        # Country aggregate
+        try:
+            cdf = aggregate_countries_from_oauth_bundles(oauth_bundles, days=DAYS_FOR_MAP)
+            if cdf.empty:
+                raise RuntimeError("No rows from Analytics (countries).")
+        except Exception as e:
+            ERR["yt_map"] = f"YouTube Analytics (country) error: {e}"
+            cdf = MOCK["yt_countries"].copy()
 
-if not cdf.empty:
-    choro_df = cdf.copy()
-else:
-    choro_df = MOCK["yt_countries"].copy()  # fallback
+    else:
+        # No OAuth configured — use mocks silently
+        yt_last7_vals   = MOCK["yt_last7"]
+        yt_last7_labels = [(datetime.now(LOCAL_TZ).date() - timedelta(days=i)).strftime("%b %d")
+                           for i in range(len(yt_last7_vals)-1, -1, -1)]
+        cdf = MOCK["yt_countries"].copy()
+except Exception as e:
+    # Ultra-safe catch-all for this block
+    if not yt_last7_vals:
+        ERR["yt_last7"] = f"YouTube Analytics (general) error: {e}"
+        yt_last7_vals   = MOCK["yt_last7"]
+        yt_last7_labels = [(datetime.now(LOCAL_TZ).date() - timedelta(days=i)).strftime("%b %d")
+                           for i in range(len(yt_last7_vals)-1, -1, -1)]
+    if cdf.empty:
+        ERR["yt_map"] = ERR.get("yt_map") or f"YouTube Analytics (general) error: {e}"
+        cdf = MOCK["yt_countries"].copy()
 
-choro_df = add_country_names(choro_df)   # <-- add this line
-
-# Ensure ISO-3 for map
+# Build choro_df from whatever cdf we have (live or mock)
+choro_df = cdf.copy()
+choro_df = add_country_names(choro_df)
 choro_df["iso3"] = choro_df["country"].apply(country_to_iso3)
 choro_df = choro_df.dropna(subset=["iso3"])
-
-analytics_ok = not choro_df.empty
-if analytics_err:
-    st.warning(f"YT Analytics (country aggregate) error: {analytics_err}")
 
 MIN_DOC  = st.secrets["gs_ministry_id"]
 FILM_DOC = st.secrets["gs_filming_id"]
@@ -1690,13 +1686,17 @@ with r4c4:
 r5_left, r5_right = st.columns([1.35, 0.65])
 
 with r5_left:
-    st.markdown("<div class='card'><div class='section'>World Map — YouTube Viewers (True, last {DAYS_FOR_MAP} days)</div>", unsafe_allow_html=True)
+    st.markdown("<div class='card'><div class='section'>World Map — YouTube Viewers (last {DAYS_FOR_MAP} days)</div>", unsafe_allow_html=True)
+    if ERR["yt_map"]:
+        st.warning(ERR["yt_map"])
     fig = build_choropleth(choro_df, MAP_HEIGHT)
     st.plotly_chart(fig, use_container_width=True, theme=None, config={"displayModeBar": False})
     st.markdown("</div>", unsafe_allow_html=True)
 
 with r5_right:
     st.markdown("<div class='card'><div class='section'>Channel Stats</div>", unsafe_allow_html=True)
+    if ERR["yt_kpi"]:
+        st.warning(ERR["yt_kpi"])
     st.markdown(f"""
         <div class="kpi-card youtube" style="min-width:200px;max-width:280px;text-align:left;">
           <div class="kpi-head">
@@ -1705,14 +1705,17 @@ with r5_right:
           </div>
           <div class="kpi-label">Subscribers</div><div class="kpi-value">{fmt_num(youtube['subs'])}</div>
           <div class="kpi-label">Total Views</div><div class="kpi-value">{fmt_num(youtube['total'])}</div>
-    </div>
+        </div>
     """, unsafe_allow_html=True)
 
 # ---- Row 6: (blank) | YouTube Views ----
 r6_left, r6_right = st.columns([1.35, 0.65])
 with r6_right:
     st.markdown("<div class='card'><div class='section'>YouTube Views (Last 7 Days, complete data only)</div>", unsafe_allow_html=True)
+    if ERR["yt_last7"]:
+        st.warning(ERR["yt_last7"])
     st.markdown("<div class='small'>ℹ️ YouTube Analytics can lag up to 48h. Latest day may be missing until processed.</div>", unsafe_allow_html=True)
+
     vals = yt_last7_vals[:]
     maxv = max(vals) if vals else 1
     for d, v in zip(yt_last7_labels, vals):
