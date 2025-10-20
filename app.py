@@ -334,6 +334,28 @@ section.main > div.block-container {
 </style>
 """, unsafe_allow_html=True)
 
+st.markdown("""
+<style>
+/* === Header alignment fix === */
+.section-header-wrapper {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:6px;
+  padding-left:12px;     /* match .block-container padding */
+  padding-right:12px;
+}
+
+/* optional visual consistency for all .section headers in cards */
+.section {
+  font-weight:800;
+  color:var(--brand);
+  font-size:15px;
+  margin:8px 0 6px 0;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # =======================
 # Helpers & Data calls
 # =======================
@@ -1536,7 +1558,10 @@ with t2:
 # =======================
 
 # ---- Row 1: Ministry Tracker title ----
-st.markdown("<div class='section'>Ministry Tracker</div>", unsafe_allow_html=True)
+st.markdown(
+    "<div class='section-header-wrapper'><div class='section'>Ministry Tracker</div></div>",
+    unsafe_allow_html=True
+)
 
 # ---- Row 2: Prayer | Studies | Follow Ups | Baptisms ----
 st.markdown(
