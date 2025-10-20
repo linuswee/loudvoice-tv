@@ -1729,7 +1729,15 @@ with r3c4:
                 )
             for ev in guest_items:
                 left  = fmt_range(ev)
-                right = f"<a href='{ev['url']}' target='_blank' style='color:var(--brand);text-decoration:none'>{ev['title']}</a>"
+                chips_html = "".join(
+                    f"<span style='font-size:11px;background:rgba(255,255,255,.08);padding:2px 6px;"
+                    f"border-radius:8px;margin-left:6px'>{a}</span>"
+                    for a in ev.get("assignees", [])
+                )
+                right = (
+                    f"<a href='{ev['url']}' target='_blank' "
+                    f"style='color:var(--brand);text-decoration:none'><b>{ev['title']}</b></a>{chips_html}"
+                )
                 st.markdown(
                     f"<div class='film-row'><div>{left}</div><div class='film-right'>{right}</div></div>",
                     unsafe_allow_html=True,
