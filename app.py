@@ -334,6 +334,53 @@ section.main > div.block-container {
 </style>
 """, unsafe_allow_html=True)
 
+st.markdown("""
+<style>
+/* === ALIGN ROW 1 (stats) AND ROW 2 (cards) === */
+
+/* Make sure both rows share the same horizontal gutter and baseline */
+.mini-grid, .stHorizontalBlock {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
+/* Give mini stat boxes same bottom margin as cards */
+.mini-grid {
+    margin-bottom: 10px !important;   /* adjust until aligned visually */
+}
+
+/* Tighten the card top margin so headers align with stats row */
+div[data-testid="stHorizontalBlock"] > div > .card {
+    margin-top: -6px !important;
+}
+
+/* Optional: make all card headers same height for clean row lines */
+.card .section {
+    min-height: 24px;
+    display: flex;
+    align-items: center;
+    padding-top: 2px;
+    padding-bottom: 2px;
+}
+
+/* Ensure the main header ("Ministry Tracker") lines up left with the cards */
+.section-header-wrapper {
+    padding-left: 12px;
+    padding-right: 12px;
+    margin-bottom: 4px !important;
+}
+
+/* Optional polish: keep visual baseline consistent for small cards */
+.mini-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # =======================
 # Helpers & Data calls
 # =======================
