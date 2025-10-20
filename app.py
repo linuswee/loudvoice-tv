@@ -334,28 +334,6 @@ section.main > div.block-container {
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("""
-<style>
-/* === Header alignment fix === */
-.section-header-wrapper {
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  margin-bottom:6px;
-  padding-left:12px;     /* match .block-container padding */
-  padding-right:12px;
-}
-
-/* optional visual consistency for all .section headers in cards */
-.section {
-  font-weight:800;
-  color:var(--brand);
-  font-size:15px;
-  margin:8px 0 6px 0;
-}
-</style>
-""", unsafe_allow_html=True)
-
 # =======================
 # Helpers & Data calls
 # =======================
@@ -1648,8 +1626,10 @@ with r3c3:
     st.markdown("</div>", unsafe_allow_html=True)
 
 with r3c4:
+    # --- Volunteer Calendar Card ---
     st.markdown("<div class='card'><div class='section'>Volunteer Calendar</div>", unsafe_allow_html=True)
     cu_token, _, _, cu_vol_view, _, cu_guest_view = _get_clickup_ids()
+
     if not cu_token or not cu_vol_view:
         st.markdown("<div class='small'>Add CLICKUP_VOL_VIEW_ID to <code>st.secrets</code>.</div>", unsafe_allow_html=True)
     else:
@@ -1667,6 +1647,7 @@ with r3c4:
                     f" — {s.strftime('%H:%M')}" if s.date() == e.date() and (s.hour or s.minute)
                     else f" → {e.strftime('%a, %b %d')}"
                 )
+
             for ev in vol_items:
                 left = fmt_range(ev)
                 chips_html = "".join(
@@ -1674,14 +1655,14 @@ with r3c4:
                     for a in ev.get("assignees", [])
                 )
                 right = f"<a href='{ev['url']}' target='_blank' style='color:var(--brand);text-decoration:none'><b>{ev['title']}</b></a>{chips_html}"
-                st.markdown(f"<div class='film-row'><div>{left}</div><div class='film-right'>{right}</div></div>", unsafe_allow_html=True)
+                st.markdown(
+                    f"<div class='film-row'><div>{left}</div><div class='film-right'>{right}</div></div>",
+                    unsafe_allow_html=True,
+                )
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ---- Row 4: (blank | blank | blank) | Guest Calendar ----
-r4c1, r4c2, r4c3, r4c4 = st.columns([1.05, 1.0, 1.05, 1.05])
-with r4c4:
-    st.markdown("<div class='card'><div class='section'>Guest Calendar</div>", unsafe_allow_html=True)
-    cu_token, _, _, _, _, cu_guest_view = _get_clickup_ids()
+    # --- Guest Calendar Card (stacked right below, tight spacing) ---
+    st.markdown("<div class='card' style='margin-top:-6px;'><div class='section'>Guest Calendar</div>", unsafe_allow_html=True)
     if not cu_token or not cu_guest_view:
         st.markdown("<div class='small'>Add CLICKUP_GUEST_VIEW_ID to <code>st.secrets</code>.</div>", unsafe_allow_html=True)
     else:
@@ -1702,7 +1683,10 @@ with r4c4:
             for ev in guest_items:
                 left  = fmt_range(ev)
                 right = f"<a href='{ev['url']}' target='_blank' style='color:var(--brand);text-decoration:none'>{ev['title']}</a>"
-                st.markdown(f"<div class='film-row'><div>{left}</div><div class='film-right'>{right}</div></div>", unsafe_allow_html=True)
+                st.markdown(
+                    f"<div class='film-row'><div>{left}</div><div class='film-right'>{right}</div></div>",
+                    unsafe_allow_html=True,
+                )
     st.markdown("</div>", unsafe_allow_html=True)
 
 # ---- Row 5: World Map | Channel Stats ----
