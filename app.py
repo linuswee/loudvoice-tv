@@ -1356,11 +1356,13 @@ def clickup_calendar_events(token: str, list_id: str, limit: int = 10, tz_name: 
 
 # --- helpers to get ids cleanly
 def _get_clickup_ids():
-    token = st.secrets.get("CLICKUP_TOKEN", "")
-    list_id = st.secrets.get("CLICKUP_LIST_ID", "")
-    view_id = st.secrets.get("CLICKUP_VIEW_ID", "")
+    token       = st.secrets.get("CLICKUP_TOKEN", "")
+    list_id     = st.secrets.get("CLICKUP_LIST_ID", "")
+    view_id     = st.secrets.get("CLICKUP_VIEW_ID", "")
     vol_view_id = st.secrets.get("CLICKUP_VOL_VIEW_ID", "")
-    return token, list_id, view_id, vol_view_id
+    leave_view  = st.secrets.get("CLICKUP_LEAVE_VIEW_ID", "")
+    guest_view  = st.secrets.get("CLICKUP_GUEST_VIEW_ID", "")
+    return token, list_id, view_id, vol_view_id, leave_view, guest_view
 
 # =======================
 # Defaults / mocks (safe)
@@ -1535,74 +1537,30 @@ if not analytics_ok:
 # =======================
 # Main layout
 # =======================
-left, right = st.columns([1.35, 0.65])  # wider map column so it fills visually
+# =======================
+# Main layout (NEW)
+# =======================
 
-with left:
-    st.markdown("<div class='card'><div class='section'>World Map — YouTube Viewers (True, last {DAYS_FOR_MAP} days)</div>",
-        unsafe_allow_html=True,
-    )
+# ---- Row 1: Ministry Tracker title ----
+st.markdown("<div class='section'>Ministry Tracker</div>", unsafe_allow_html=True)
 
-    # Use hard-mapped Studio data for now; every other country is present with 0
-    # choro_df = build_choro_dataframe(STUDIO_COUNTRY_VIEWS)
+# ---- Row 2: Prayer | Studies | Follow Ups | Baptisms ----
+st.markdown(
+    f"""
+    <div class="mini-grid" style="margin-bottom:12px;">
+      <div class="mini-card"><div class="mini-label">Prayer</div><div class="mini-value">{ministry['prayer']}</div></div>
+      <div class="mini-card"><div class="mini-label">Studies</div><div class="mini-value">{ministry['studies']}</div></div>
+      <div class="mini-card"><div class="mini-label">Follow Ups</div><div class="mini-value">{ministry.get('follow_ups', 0)}</div></div>
+      <div class="mini-card"><div class="mini-label">Baptisms</div><div class="mini-value">{ministry['baptisms']}</div></div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
-    fig = build_choropleth(choro_df, MAP_HEIGHT)
+# ---- Row 3: ClickUp Tasks | Next Filming | Leave Calendar | Volunteer Calendar ----
+r3c1, r3c2, r3c3, r3c4 = st.columns([1.05, 1.0, 1.05, 1.05])
 
-    st.plotly_chart(fig, use_container_width=True, theme=None,
-                    config={"displayModeBar": False})
-    st.markdown("</div>", unsafe_allow_html=True)
-
-with right:
-    # Ministry Tracker
-    st.markdown("<div class='section'>Ministry Tracker</div>", unsafe_allow_html=True)
-    st.markdown(
-        f"""
-        <div class="mini-grid">
-          <div class="mini-card"><div class="mini-label">Prayer</div><div class="mini-value">{ministry['prayer']}</div></div>
-          <div class="mini-card"><div class="mini-label">Studies</div><div class="mini-value">{ministry['studies']}</div></div>
-          <div class="mini-card"><div class="mini-label">Follow Ups</div><div class="mini-value">{ministry.get('follow_ups', 0)}</div></div>
-          <div class="mini-card"><div class="mini-label">Baptisms</div><div class="mini-value">{ministry['baptisms']}</div></div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # Channel Stats
-    st.markdown("<div class='section' style='margin-top:16px;'>Channel Stats</div>", unsafe_allow_html=True)
-    st.markdown(f"""
-        <div class="kpi-card youtube" style="min-width:200px;max-width:240px;text-align:left;">
-          <div class="kpi-head">
-            <i class="fa-brands fa-youtube icon" style="color:#ff3d3d"></i>
-            <span class="kpi-name">YouTube</span>
-          </div>
-          <div class="kpi-label">Subscribers</div><div class="kpi-value">{fmt_num(youtube['subs'])}</div>
-          <div class="kpi-label">Total Views</div><div class="kpi-value">{fmt_num(youtube['total'])}</div>
-        </div>
-    """, unsafe_allow_html=True)
-
-    # YouTube Views (7-day)
-    st.markdown(
-        "<div class='section' style='margin-top:16px;'>YouTube Views (Last 7 Days, complete data only)</div>",
-        unsafe_allow_html=True
-    )
-    st.markdown("<div class='small'>ℹ️ YouTube Analytics can lag up to 48h. Latest day may be missing until processed.</div>", unsafe_allow_html=True)
-
-    vals = yt_last7_vals[:]
-    maxv = max(vals) if vals else 1
-    for d, v in zip(yt_last7_labels, vals):
-        pct = int((v / maxv) * 100) if maxv else 0
-        st.markdown(
-            f"<div class='grid-views'>"
-            f"<div>{d}</div>"
-            f"<div class='views-bar'><span style='width:{pct}%'></span></div>"
-            f"<div style='text-align:right'>{fmt_num(int(v))}</div>"
-            f"</div>",
-            unsafe_allow_html=True,
-        )
-
-# --- Bottom row: 3 columns (Tasks | Filming | ClickUp Calendar | Volunteer Calendar) ---
-c1, c2, c3, c4 = st.columns([1.05, 1.0, 1.05, 1.05])
-
-with c1:
+with r3c1:
     st.markdown("<div class='card'><div class='section'>ClickUp Tasks (Upcoming)</div>", unsafe_allow_html=True)
     for t in tasks:
         if isinstance(t, dict):
@@ -1632,7 +1590,7 @@ with c1:
         )
     st.markdown("</div>", unsafe_allow_html=True)
 
-with c2:
+with r3c2:
     st.markdown("<div class='card'><div class='section'>Next Filming Timeslots</div>", unsafe_allow_html=True)
     if not filming:
         st.markdown("<div class='small'>No upcoming timeslots found.</div>", unsafe_allow_html=True)
@@ -1644,57 +1602,41 @@ with c2:
         )
     st.markdown("</div>", unsafe_allow_html=True)
 
-with c3:
-    st.markdown("<div class='card'><div class='section'>ClickUp Calendar</div>", unsafe_allow_html=True)
-    cu_token, cu_list, cu_view, cu_vol_view = _get_clickup_ids()
-
-    if not cu_token or not (cu_view or cu_list):
-        st.markdown("<div class='small'>Add <code>CLICKUP_TOKEN</code> and either <code>CLICKUP_VIEW_ID</code> (preferred) or <code>CLICKUP_LIST_ID</code> in <code>st.secrets</code>.</div>", unsafe_allow_html=True)
+with r3c3:
+    st.markdown("<div class='card'><div class='section'>Leave Calendar</div>", unsafe_allow_html=True)
+    cu_token, cu_list, cu_view, cu_vol_view, cu_leave_view, cu_guest_view = _get_clickup_ids()
+    if not cu_token or not cu_leave_view:
+        st.markdown("<div class='small'>Add CLICKUP_LEAVE_VIEW_ID to <code>st.secrets</code>.</div>", unsafe_allow_html=True)
     else:
-        cal_items, cal_err = ([], "")
-        used = ""
-
-        if cu_view:
-            cal_items, cal_err = clickup_calendar_events_from_view(
-                cu_token, cu_view, limit=12, tz_name=LOCAL_TZ_NAME
-            )
-            # If the view endpoint 404s (very common when the id is wrong),
-            # fall back to list pull so the UI still shows something.
-            if cal_err and "404" in cal_err:
-                st.info("View ID returned 404. Falling back to list-based calendar.", icon="ℹ️")
-                cu_view = ""  # disable for this run
-
-        if not cu_view and cu_list and (not cal_items):
-            cal_items, cal_err = clickup_calendar_events(
-                cu_token, cu_list, limit=12, tz_name=LOCAL_TZ_NAME
-            )
-            used = f"list:{cu_list}" if not used else used + f" → list:{cu_list}"
-
-        if cal_err:
-            st.markdown(f"<div class='small'>⚠️ {cal_err}</div>", unsafe_allow_html=True)
-        elif not cal_items:
-            st.markdown("<div class='small'>No upcoming items.</div>", unsafe_allow_html=True)
+        leave_items, leave_err = clickup_calendar_events_from_view(
+            cu_token, cu_leave_view, limit=12, tz_name=LOCAL_TZ_NAME
+        )
+        if leave_err:
+            st.markdown(f"<div class='small'>⚠️ {leave_err}</div>", unsafe_allow_html=True)
+        elif not leave_items:
+            st.markdown("<div class='small'>No upcoming leave.</div>", unsafe_allow_html=True)
         else:
             def fmt_range(ev):
                 s, e = ev["start"], ev["end"]
-                return f"<b>{s.strftime('%a, %b %d')}</b>" + (f" — {s.strftime('%H:%M')}" if s.date()==e.date() and (s.hour or s.minute) else f" → {e.strftime('%a, %b %d')}")
-            for ev in cal_items:
+                return f"<b>{s.strftime('%a, %b %d')}</b>" + (
+                    f" — {s.strftime('%H:%M')}" if s.date() == e.date() and (s.hour or s.minute)
+                    else f" → {e.strftime('%a, %b %d')}"
+                )
+            for ev in leave_items:
                 left = fmt_range(ev)
                 right = f"<a href='{ev['url']}' target='_blank' style='color:var(--brand);text-decoration:none'>{ev['title']}</a>"
                 st.markdown(f"<div class='film-row'><div>{left}</div><div class='film-right'>{right}</div></div>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
-    
-with c4:
-    st.markdown("<div class='card'><div class='section'>Volunteer Calendar</div>", unsafe_allow_html=True)
-    cu_token, _, _, cu_vol_view = _get_clickup_ids()
 
+with r3c4:
+    st.markdown("<div class='card'><div class='section'>Volunteer Calendar</div>", unsafe_allow_html=True)
+    cu_token, _, _, cu_vol_view, _, cu_guest_view = _get_clickup_ids()
     if not cu_token or not cu_vol_view:
-        st.markdown("<div class='small'>Add CLICKUP_VOL_VIEW_ID to st.secrets.</div>", unsafe_allow_html=True)
+        st.markdown("<div class='small'>Add CLICKUP_VOL_VIEW_ID to <code>st.secrets</code>.</div>", unsafe_allow_html=True)
     else:
         vol_items, vol_err = clickup_calendar_events_from_view(
             cu_token, cu_vol_view, limit=12, tz_name=LOCAL_TZ_NAME
         )
-
         if vol_err:
             st.markdown(f"<div class='small'>⚠️ {vol_err}</div>", unsafe_allow_html=True)
         elif not vol_items:
@@ -1706,23 +1648,81 @@ with c4:
                     f" — {s.strftime('%H:%M')}" if s.date() == e.date() and (s.hour or s.minute)
                     else f" → {e.strftime('%a, %b %d')}"
                 )
-
             for ev in vol_items:
                 left = fmt_range(ev)
-
-                # title text
-                title_html = f"<a href='{ev['url']}' target='_blank' style='color:var(--brand);text-decoration:none'><b>{ev['title']}</b></a>"
-
-                # build assignee chips
-                chips_html = ""
-                for a in ev.get("assignees", []):
-                    chips_html += f"<span style='font-size:11px;background:rgba(255,255,255,.08);padding:2px 6px;border-radius:8px;margin-left:6px'>{a}</span>"
-
-                right = f"{title_html}{chips_html}"
-
-                st.markdown(
-                    f"<div class='film-row'><div>{left}</div><div class='film-right'>{right}</div></div>",
-                    unsafe_allow_html=True,
+                chips_html = "".join(
+                    f"<span style='font-size:11px;background:rgba(255,255,255,.08);padding:2px 6px;border-radius:8px;margin-left:6px'>{a}</span>"
+                    for a in ev.get("assignees", [])
                 )
+                right = f"<a href='{ev['url']}' target='_blank' style='color:var(--brand);text-decoration:none'><b>{ev['title']}</b></a>{chips_html}"
+                st.markdown(f"<div class='film-row'><div>{left}</div><div class='film-right'>{right}</div></div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
+# ---- Row 4: (blank | blank | blank) | Guest Calendar ----
+r4c1, r4c2, r4c3, r4c4 = st.columns([1.05, 1.0, 1.05, 1.05])
+with r4c4:
+    st.markdown("<div class='card'><div class='section'>Guest Calendar</div>", unsafe_allow_html=True)
+    cu_token, _, _, _, _, cu_guest_view = _get_clickup_ids()
+    if not cu_token or not cu_guest_view:
+        st.markdown("<div class='small'>Add CLICKUP_GUEST_VIEW_ID to <code>st.secrets</code>.</div>", unsafe_allow_html=True)
+    else:
+        guest_items, guest_err = clickup_calendar_events_from_view(
+            cu_token, cu_guest_view, limit=12, tz_name=LOCAL_TZ_NAME
+        )
+        if guest_err:
+            st.markdown(f"<div class='small'>⚠️ {guest_err}</div>", unsafe_allow_html=True)
+        elif not guest_items:
+            st.markdown("<div class='small'>No upcoming guests.</div>", unsafe_allow_html=True)
+        else:
+            def fmt_range(ev):
+                s, e = ev["start"], ev["end"]
+                return f"<b>{s.strftime('%a, %b %d')}</b>" + (
+                    f" — {s.strftime('%H:%M')}" if s.date() == e.date() and (s.hour or s.minute)
+                    else f" → {e.strftime('%a, %b %d')}"
+                )
+            for ev in guest_items:
+                left  = fmt_range(ev)
+                right = f"<a href='{ev['url']}' target='_blank' style='color:var(--brand);text-decoration:none'>{ev['title']}</a>"
+                st.markdown(f"<div class='film-row'><div>{left}</div><div class='film-right'>{right}</div></div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# ---- Row 5: World Map | Channel Stats ----
+r5_left, r5_right = st.columns([1.35, 0.65])
+
+with r5_left:
+    st.markdown("<div class='card'><div class='section'>World Map — YouTube Viewers (True, last {DAYS_FOR_MAP} days)</div>", unsafe_allow_html=True)
+    fig = build_choropleth(choro_df, MAP_HEIGHT)
+    st.plotly_chart(fig, use_container_width=True, theme=None, config={"displayModeBar": False})
+    st.markdown("</div>", unsafe_allow_html=True)
+
+with r5_right:
+    st.markdown("<div class='card'><div class='section'>Channel Stats</div>", unsafe_allow_html=True)
+    st.markdown(f"""
+        <div class="kpi-card youtube" style="min-width:200px;max-width:280px;text-align:left;">
+          <div class="kpi-head">
+            <i class="fa-brands fa-youtube icon" style="color:#ff3d3d"></i>
+            <span class="kpi-name">YouTube</span>
+          </div>
+          <div class="kpi-label">Subscribers</div><div class="kpi-value">{fmt_num(youtube['subs'])}</div>
+          <div class="kpi-label">Total Views</div><div class="kpi-value">{fmt_num(youtube['total'])}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# ---- Row 6: (blank) | YouTube Views ----
+r6_left, r6_right = st.columns([1.35, 0.65])
+with r6_right:
+    st.markdown("<div class='card'><div class='section'>YouTube Views (Last 7 Days, complete data only)</div>", unsafe_allow_html=True)
+    st.markdown("<div class='small'>ℹ️ YouTube Analytics can lag up to 48h. Latest day may be missing until processed.</div>", unsafe_allow_html=True)
+    vals = yt_last7_vals[:]
+    maxv = max(vals) if vals else 1
+    for d, v in zip(yt_last7_labels, vals):
+        pct = int((v / maxv) * 100) if maxv else 0
+        st.markdown(
+            f"<div class='grid-views'>"
+            f"<div>{d}</div>"
+            f"<div class='views-bar'><span style='width:{pct}%'></span></div>"
+            f"<div style='text-align:right'>{fmt_num(int(v))}</div>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
     st.markdown("</div>", unsafe_allow_html=True)
