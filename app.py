@@ -1753,19 +1753,19 @@ with r5_right:
         st.warning(ERR["yt_kpi"])
         st.markdown(f"""
             <div class="kpi-card youtube" style="min-width:200px;max-width:280px;text-align:left;">
-              <div class="kpi-head">
+            <div class="kpi-head">
                 <i class="fa-brands fa-youtube icon" style="color:#ff3d3d"></i>
                 <span class="kpi-name">YouTube</span>
-              </div>
-              <div class="kpi-label">Subscribers</div><div class="kpi-value">{fmt_num(youtube['subs'])}</div>
-              <div class="kpi-label">Total Views</div><div class="kpi-value">{fmt_num(youtube['total'])}</div>
             </div>
-        """, unsafe_allow_html=True)
+            <div class="kpi-label">Subscribers</div><div class="kpi-value">{fmt_num(youtube['subs'])}</div>
+            <div class="kpi-label">Total Views</div><div class="kpi-value">{fmt_num(youtube['total'])}</div>
+        </div>
+    """, unsafe_allow_html=True)
     
-        st.markdown("<div class='card'><div class='section'>YouTube Views (Last 7 Days, complete data only)</div>", unsafe_allow_html=True)
-            if ERR["yt_last7"]:
-                st.warning(ERR["yt_last7"])
-        st.markdown("<div class='small'>ℹ️ YouTube Analytics can lag up to 48h. Latest day may be missing until processed.</div>", unsafe_allow_html=True)
+    st.markdown("<div class='card'><div class='section'>YouTube Views (Last 7 Days, complete data only)</div>", unsafe_allow_html=True)
+    if ERR["yt_last7"]:
+        st.warning(ERR["yt_last7"])
+    st.markdown("<div class='small'>ℹ️ YouTube Analytics can lag up to 48h. Latest day may be missing until processed.</div>", unsafe_allow_html=True)
     
         vals = yt_last7_vals[:]
         maxv = max(vals) if vals else 1
@@ -1779,4 +1779,4 @@ with r5_right:
                 f"</div>",
                 unsafe_allow_html=True,
             )
-        st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
